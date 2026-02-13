@@ -1,0 +1,204 @@
+﻿Specyfikacja Projektowa Systemu HACCP Pilot 03-00: Dokumentacja Techniczna Zgodna ze Standardem Spec-Kit
+1. Konstytucja Projektu (Project Constitution)
+1.1. Zasady Fundamentalne i Filozofia Architektoniczna
+Niniejsza specyfikacja definiuje ramy techniczne i funkcjonalne dla systemu "HACCP Pilot" w wersji 03-00. Projekt ten stanowi ewolucyjne rozwinięcie koncepcji cyfrowego nadzoru nad bezpieczeństwem żywności, dostosowane specyficznie do rygorystycznych wymogów polskiego Sanepidu oraz systemu BDO (Baza danych o produktach i opakowaniach oraz o gospodarce odpadami). Fundamentalną zmianą w wersji 03-00, która determinuje wszelkie decyzje inżynieryjne, jest przejście z modelu "Offline-First" na architekturę "Online-First".1 Decyzja ta implikuje, że centralna baza danych Supabase stanowi jedyne i ostateczne źródło prawdy (Single Source of Truth - SSOT), a wszelkie operacje na urządzeniach końcowych muszą być natychmiastowo synchronizowane z chmurą.1
+W procesie wytwórczym, realizowanym w środowisku Google Antigravity, przyjmujemy strategię Agent-First Development. Oznacza to, że poniższa specyfikacja nie jest jedynie dokumentem dla ludzi, lecz zbiorem dyrektyw (Directives) i reguł (Rules) dla autonomicznych agentów AI, które będą generować kod. Wymaga to atomowego formułowania wymagań oraz ścisłego przestrzegania zdefiniowanych kontraktów API.2 System nie przewiduje pracy operacyjnej bez dostępu do Internetu, co upraszcza warstwę logiki biznesowej po stronie klienta, eliminując konieczność skomplikowanego rozwiązywania konfliktów synchronizacji.1
+1.2. Stos Technologiczny (Tech Stack) i Infrastruktura
+Wybrany stos technologiczny został zoptymalizowany pod kątem wydajności, skalowalności oraz specyfiki środowiska gastronomicznego (wysoka wilgotność, ekrany dotykowe obsługiwane w rękawiczkach, strefy o słabym zasięgu radiowym).
+
+
+Komponent
+	Technologia / Rozwiązanie
+	Uzasadnienie i Konfiguracja
+	Frontend
+	Flutter (Dart)
+	Jednolity kod dla platform Android i iOS. Wykorzystanie silnika Skia zapewnia płynność interfejsu "Kiosk Mode" na tabletach o niższej wydajności.1
+	Backend / Baza
+	Supabase
+	Wykorzystanie PostgreSQL jako relacyjnej bazy danych, modułu Auth do zarządzania tożsamością oraz Realtime do natychmiastowej propagacji alarmów.1
+	Storage
+	Supabase Storage
+	Przechowywanie dokumentacji fotograficznej (odpady BDO, certyfikaty) w strukturze katalogowej opartej na datach.1
+	IoT Connectivity
+	NB-IoT / CoAP
+	Sensory Efento komunikują się bezpośrednio ze stacjami bazowymi operatora (z pominięciem lokalnego WiFi), wykorzystując lekki protokół CoAP zabezpieczony DTLS.1
+	Archiwizacja
+	Google Drive API
+	Automatyczny, codzienny eksport raportów PDF na zewnętrzny dysk Google w celu spełnienia wymogów trwałego nośnika danych.1
+	Dev Environment
+	Google Antigravity
+	Środowisko IDE oparte na agentach Gemini 3.0 Pro, wykorzystujące frameworki BLAST/RAPS do orkiestracji procesu wytwórczego.4
+	1.3. Globalne Reguły Bezpieczeństwa i UX
+Wszyscy agenci implementujący kod muszą przestrzegać następujących reguł nadrzędnych:
+1. Nienaruszalność Danych Pomiarowych: Żaden interfejs nie może pozwalać na edycję surowych danych z sensorów. Korekty są możliwe wyłącznie poprzez dodanie obiektu "Adnotacja" (Annotation) powiązanego z pomiarem.1
+2. Brak Blokad Krytycznych: System ma charakter nadzorczy, a nie restrykcyjny. Nieważność badań pracownika czy przekroczenie parametru nie może blokować możliwości pracy (logowania, zamknięcia karty), lecz musi generować wyraźne ostrzeżenie i log w systemie.1
+3. Interfejs "Dużego Dotyku": Elementy interfejsu (przyciski, pola input) muszą być przystosowane do obsługi w rękawiczkach lateksowych/nitrylowych, co wymusza minimalną wielkość obszaru dotykowego na poziomie 48x48 dp.1
+________________
+2. Specyfikacja Funkcjonalna (Features Specification)
+2.1. Feature: M01 - Rdzeń Systemu i Zarządzanie Tożsamością
+ID: M01
+Priorytet: Krytyczny
+Właściciel: Backend Agent & Frontend Agent
+2.1.1. Opis i Kontekst
+Moduł ten stanowi bramę dostępową do systemu, zarządzając strukturą organizacyjną oraz autentykacją personelu. W środowisku gastronomicznym, gdzie rotacja pracowników jest wysoka, a czas jest kluczowym zasobem, proces logowania musi być zredukowany do absolutnego minimum (frictionless), przy zachowaniu pełnej rozliczalności działań. System odwzorowuje hierarchię fizyczną lokalu, co pozwala na kontekstowe filtrowanie danych.1
+2.1.2. Wymagania Funkcjonalne (User Stories)
+1. Struktura Organizacyjna: System musi obsługiwać trójstopniową hierarchię: Firma (Company) -> Lokal (Venue) -> Strefa (Zone). Użytkownik (np. Manager sieci) może mieć dostęp do wielu lokali, podczas gdy pracownik szeregowy jest przypisany do konkretnego lokalu.1
+2. Tryb Kiosk i Logowanie PIN: Aplikacja na tablecie działa w trybie zablokowanym (App Pinning). Logowanie odbywa się poprzez wpisanie 4-6 cyfrowego kodu PIN. System weryfikuje PIN w bazie Supabase w czasie rzeczywistym.1
+3. Zarządzanie Dokumentacją HR (Sanepid):
+   * System przechowuje cyfrowe odwzorowania orzeczeń lekarskich (skany/zdjęcia) powiązane z profilem użytkownika.
+   * Algorytm backendowy monitoruje datę ważności (sanepid_expiry) i generuje powiadomienia (Push/Email) do Managera na 30, 14 i 7 dni przed upływem terminu.1
+   * Zmiana v03-00: Jeśli data ważności minęła, system wyświetla komunikat ostrzegawczy przy logowaniu ("Wymagane odnowienie badań"), ale nie blokuje dostępu do aplikacji.1
+2.1.3. Model Danych (Supabase Schema Suggestion)
+Agent odpowiedzialny za bazę danych powinien zaimplementować następujące struktury:
+
+
+SQL
+
+
+
+
+-- Tabela Lokali
+CREATE TABLE venues (
+   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   name TEXT NOT NULL,
+   address TEXT,
+   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela Stref (np. Kuchnia Gorąca, Mroźnia)
+CREATE TABLE zones (
+   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   venue_id UUID REFERENCES venues(id),
+   name TEXT NOT NULL,
+   type TEXT CHECK (type IN ('production', 'storage', 'delivery'))
+);
+
+-- Rozszerzenie profilu użytkownika
+CREATE TABLE profiles (
+   id UUID PRIMARY KEY REFERENCES auth.users(id),
+   role TEXT CHECK (role IN ('owner', 'manager', 'staff')),
+   pin_hash TEXT NOT NULL, -- Hash PINu do logowania
+   venue_id UUID REFERENCES venues(id),
+   sanepid_expiry DATE, -- Data ważności badań
+   sanepid_doc_url TEXT, -- Link do skanu w Storage
+   is_active BOOLEAN DEFAULT true
+);
+
+2.2. Feature: M02 - Inteligentny Monitoring i Integracja IoT
+ID: M02
+Priorytet: Krytyczny
+Zależności: Efento Cloud API, Supabase Realtime
+2.2.1. Opis i Kontekst
+Moduł odpowiada za ciągły, zautomatyzowany nadzór nad warunkami przechowywania żywności (temperatura, wilgotność). Wersja 03-00 wprowadza nowy, bardziej agresywny algorytm alarmowy, mający na celu szybszą reakcję na awarie chłodnicze przy jednoczesnej eliminacji fałszywych powiadomień wynikających z normalnej pracy kuchni (np. cykliczne otwieranie drzwi).1 Integracja sprzętowa opiera się na sensorach NB-IoT, co eliminuje konieczność budowy lokalnej infrastruktury WiFi w chłodniach.1
+2.2.2. Logika Biznesowa: Algorytm 10/5/3
+Agent implementujący logikę backendową (Supabase Edge Functions) musi odwzorować następującą maszynę stanów 1:
+Stan Systemu
+	Warunek Wyzwolenia
+	Częstotliwość Pomiaru
+	Akcja Systemu
+	NORMALNY
+	Temperatura ≤ 10°C
+	Co 15 minut
+	Zapis do bazy measurements. Brak powiadomień.
+	OSTRZEGAWCZY
+	Temperatura > 10°C (Pomiar N)
+	Zmiana na co 5 minut
+	System wysyła komendę downlink do sensora (lub flagę w chmurze) zmieniającą interwał. Oznaczenie rekordu jako warning.
+	ALARMOWY (KRYTYCZNY)
+	Temperatura > 10°C przez 3 kolejne pomiary (N, N+1, N+2)
+	Co 5 minut
+	1. Utworzenie rekordu w tabeli incidents.
+
+
+2. Natychmiastowy Push/SMS/Email do Managera i Właściciela.
+
+
+3. Wyzwolenie alarmu dźwiękowego na tabletach.
+	2.2.3. Integracja Techniczna Efento (NB-IoT)
+* Protokół: Komunikacja odbywa się asynchronicznie. Sensor wysyła dane do Efento Cloud, a stamtąd trafiają one do systemu HACCP Pilot poprzez Webhook (metoda Push). Jest to kluczowe dla minimalizacji opóźnień.1
+* Payload: Dane przychodzą w formacie JSON zawierającym tablicę zdarzeń. System musi obsługiwać deduplikację i poprawnie interpretować timestampy.1
+* Bezpieczeństwo: Endpoint odbierający webhooka musi weryfikować nagłówek autoryzacyjny (np. X-Efento-Secret) lub podpis HMAC, aby zapobiec wstrzyknięciu fałszywych danych.1
+* Adnotacje: Użytkownik może "wyjaśnić" alarm (np. "Mycie chłodni"), dodając wpis w tabeli measurement_annotations. Wpis ten zawiera user_id, comment oraz timestamp, ale nie modyfikuje oryginalnego odczytu temperatury.1
+2.3. Feature: M03 - Procesy GMP/GHP i Karty Kontrolne
+ID: M03
+Priorytet: Wysoki
+Właściciel: Frontend Agent
+2.3.1. Opis i Kontekst
+Wersja 03-00 wprowadza rygorystyczny podział na Dobrą Praktykę Produkcyjną (GMP) i Higieniczną (GHP), cyfryzując procesy, które dotychczas prowadzono na papierze. Priorytetem jest ergonomia wprowadzania danych – system domyślnie zakłada wprowadzanie ręczne, traktując integrację z termometrami Bluetooth jako opcję przyszłościową.1
+2.3.2. Szczegółowa Specyfikacja Arkuszy (Data Points)
+System musi udostępniać dedykowane interfejsy formularzowe dla każdego z poniższych procesów 1:
+A. GMP (Produkcja):
+1. Pieczenie Mięs (Roasting):
+   * Wymagane pola: Produkt (lista wyboru), Nr Partii, Temp. Nastawy Pieca [°C], Czas Start, Czas Stop, Temp. Wewnętrzna [°C] (kluczowy parametr krytyczny - CCP).
+   * Logika: Jeśli Temp. Wewnętrzna < 75°C (konfigurowalne), wyświetl monit ostrzegawczy, ale pozwól zapisać.
+2. Chłodzenie Żywności (Cooling):
+   * Wymagane pola: Produkt, Data Przygotowania, Temp. Początkowa (>60°C), Godzina Rozpoczęcia, Temp. po 2h (musi być <21°C), Temp. Końcowa (<4°C), Godzina Zakończenia.
+3. Kontrola Dostaw:
+   * Wymagane pola: Dostawca, Nr WZ/Faktury, Temp. Transportu, Stan Opakowań (OK/Uszkodzone), Data Ważności.
+   * Nowe Pole v03-00: Weryfikacja Szkodników (Tak/Nie) – pole obowiązkowe, potwierdzające brak śladów obecności szkodników w dostawie.1
+B. GHP (Higiena):
+Listy kontrolne generowane dynamicznie na podstawie harmonogramu (np. codziennie o 22:00 dla zamknięcia kuchni).
+1. Personel: Checklista per pracownik (Czysty ubiór, Brak biżuterii, Włosy osłonięte, Ręce umyte).
+2. Pomieszczenia: Czystość podłóg, blatów, opróżnienie koszy.
+3. Konserwacja i Dezynfekcja: Ewidencja mycia konkretnych urządzeń: Piec, Chłodnia, Frytownica, Toster, Termomix.
+4. Środki Czystości: Rejestr użycia chemii (Nazwa środka, Ilość/Stężenie).
+2.3.3. Interfejs Użytkownika (UI Rules)
+* Formularze muszą używać dużych przycisków typu "Stepper" (+/-) dla wartości liczbowych oraz dedykowanej klawiatury numerycznej.
+* Pola wyboru (Tak/Nie) muszą być realizowane jako duże, kolorowe kafelki (Zielony/Czerwony).1
+* Brak wymuszenia "Działania Korygującego" (Corrective Action) jako blokady. Pracownik może zapisać niespełniony parametr, co system oflaguje w raporcie, ale nie przerwie procesu pracy.1
+2.4. Feature: M04 - Zarządzanie Odpadami i BDO
+ID: M04
+Priorytet: Średni
+Zależności: Supabase Storage, Camera API
+2.4.1. Opis i Kontekst
+Moduł ten automatyzuje ewidencję odpadów zgodnie z polskimi przepisami BDO. Nowością w wersji 03-00 jest obowiązek dokumentacji fotograficznej odbioru odpadów, co stanowi zabezpieczenie dowodowe dla lokalu.1
+2.4.2. Wymagania Funkcjonalne
+1. Mapowanie Kodów: System automatycznie przypisuje kody odpadów do kategorii, np. "Zużyty olej" -> 20 01 25, "Resztki jedzenia" -> 20 01 08.
+2. Rejestracja Odbioru (KPO): Formularz przekazania odpadów firmie zewnętrznej. Wymagane pola: Firma Odbierająca, Rodzaj Odpadu, Masa [kg].
+3. Dokumentacja Fotograficzna:
+   * Użytkownik musi wykonać zdjęcie potwierdzenia odbioru (KPO/Faktura) bezpośrednio z aplikacji.
+   * Zdjęcie jest kompresowane i przesyłane do Supabase Storage.
+   * Ścieżka zapisu: Pliki muszą być organizowane w strukturze daty: /waste-docs/{venue_id}/{year}/{month}/{day}/{filename}.jpg.1
+2.5. Feature: M05 - Raportowanie i Archiwizacja (Google Drive)
+ID: M05
+Priorytet: Wysoki
+Zależności: Google Drive API
+2.5.1. Opis i Kontekst
+System musi generować raporty w formacie akceptowalnym przez inspektorów sanitarnych (Sanepid-Ready) i automatycznie archiwizować je na zewnętrznym nośniku (Google Drive), co zapewnia redundancję danych.1
+2.5.2. Mechanizm Generowania i Eksportu
+1. Generator PDF: Codziennie (np. o godzinie 00:05) systemowy Cron Job (Supabase Function lub Modal) uruchamia proces generowania raportów za dobę poprzednią.
+2. Format: Raport zawiera tabelaryczne zestawienie wszystkich pomiarów, wykonanych czynności higienicznych oraz incydentów alarmowych. Układ graficzny musi imitować papierową "Księgę HACCP".
+3. Integracja Google Drive:
+   * Wykorzystanie konta serwisowego (Service Account) Google Cloud.
+   * Automatyczne tworzenie struktury folderów na Dysku: Archiwum HACCP / {Nazwa Lokalu} / {Rok} / {Miesiąc}.
+   * Przesłanie wygenerowanych plików PDF.
+   * Zapisanie logu sukcesu/błędu w bazie danych systemu.1
+________________
+3. Plan Techniczny (Technical Plan & Task Breakdown)
+Poniższa sekcja zawiera instrukcje operacyjne dla agenta AI w środowisku Antigravity, podzielone na kroki implementacyjne.
+3.1. Faza 1: Inicjalizacja i Warstwa Danych
+* Task 1.1: Zainicjuj projekt Flutter z konfiguracją dla środowiska produkcyjnego i staging.
+* Task 1.2: Skonfiguruj projekt w Supabase. Uruchom skrypty SQL tworzące tabele: venues, zones, profiles, measurements, gmp_logs, ghp_logs, waste_records. Zastosuj typy danych UUID dla kluczy głównych.
+* Task 1.3: Zaimplementuj polityki RLS (Row Level Security). Upewnij się, że użytkownik z venue_id=X nie może odczytać danych z venue_id=Y.
+3.2. Faza 2: Implementacja Modułów Rdzeniowych (M01, M02)
+* Task 2.1: Stwórz ekran logowania w trybie Kiosk (NumPad). Zaimplementuj logikę weryfikacji PIN z hashowaniem.
+* Task 2.2: Zaimplementuj system powiadomień HR (Edge Function sprawdzająca daty sanepid_expiry i wysyłająca e-maile).
+* Task 2.3: Skonfiguruj Endpoint HTTP dla Webhooków Efento. Zaimplementuj logikę parsowania payloadu NB-IoT i algorytm 10/5/3 (zapis do bazy + triggerowanie alarmów).
+3.3. Faza 3: Interfejsy Operacyjne (M03, M04)
+* Task 3.1: Stwórz dynamiczne formularze dla procesów GMP (Pieczenie, Chłodzenie). Dodaj walidację "miękką" (ostrzeżenie zamiast blokady).
+* Task 3.2: Zaimplementuj moduł aparatu dla sekcji Odpady (BDO). Skonfiguruj przesyłanie zdjęć do Supabase Storage z odpowiednią strukturą katalogów.
+* Task 3.3: Zbuduj widoki list kontrolnych GHP z dużymi elementami dotykowymi (zgodność z wymogiem obsługi w rękawiczkach).
+3.4. Faza 4: Raportowanie i Deployment
+* Task 4.1: Opracuj szablon PDF (HTML-to-PDF lub natywny generator) odwzorowujący karty sanepidowskie.
+* Task 4.2: Napisz skrypt (Python/Node.js) integrujący Google Drive API. Skonfiguruj automatyczne wyzwalanie eksportu (Cron).
+* Task 4.3: Przeprowadź testy E2E scenariusza alarmowego (symulacja przekroczenia temperatury) oraz ścieżki "Odbiór Odpadów".
+________________
+4. Wnioski i Zalecenia Implementacyjne
+Specyfikacja HACCP Pilot 03-00 stanowi kompletny blueprint dla nowoczesnego systemu ERP dla gastronomii. Kluczowe dla sukcesu projektu jest rygorystyczne przestrzeganie architektury Online-First – wszelkie próby wprowadzania logiki offline na tym etapie skomplikują system i opóźnią wdrożenie. Zastosowanie bazy Supabase jako SSOT oraz automatyzacja procesów krytycznych (monitoring 10/5/3, raporty Drive) uwalnia personel od czynności biurokratycznych, przenosząc ciężar odpowiedzialności na system. Programista przystępujący do pracy powinien rozpocząć od konfiguracji Gemini.MD zgodnie z Konstytucją Projektu, a następnie realizować zadania fazami, weryfikując każdy moduł pod kątem zgodności z polskimi normami sanitarnymi.1
+Cytowane prace
+1. Specyfikacja Wymagań Projektu HACCP Pilot 03-00.txt
+2. Antigravity_ Tips, Tricks, and Best Practices.txt
+3. Kurs Google AntiGravity_ Od Podstaw do Klienta.txt
+4. Budowanie Automatyzacji z Antygrawitacją Krok po Kroku.txt
+5. Tutorial Budowania Aplikacji z Antigravity.txt
+6. Kurs AntiGravity_ Od Podstaw do Klienta - zadania.txt
