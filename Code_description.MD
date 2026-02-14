@@ -138,5 +138,24 @@ Ten moduł wprowadza natywną obsługę kamery bez interfejsu systemowego (Glove
 4. **Zapis**: Formularz wysyła komplet danych (z path zdjęcia) do `WasteRepository`.
 
 ---
+
+## 8. Moduł M06 (Raportowanie & Drive)
+
+Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
+
+### Generowanie PDF (`PdfService`)
+
+- **Silnik**: `syncfusion_flutter_pdf`.
+- **Izolacja**: Generowanie odbywa się w osobnym wątku (`compute`), aby nie blokować UI.
+- **Dynamiczność**: Wykorzystuje `FormDefinition` do automatycznego tworzenia kolumn tabeli na podstawie pól formularza. Jeśli dodasz pole w configu, pojawi się w PDF.
+- **Zdjęcia**: Pobiera zdjęcia (z URL lub pliku), skaluje je i dołącza pod tabelą raportu.
+
+### Google Drive (`DriveService`)
+
+- **Auth**: Service Account (plik `assets/credentials.json`). Nie wymaga logowania użytkownika "na tablecie".
+- **Folder**: ID folderu docelowego jest w `.env`.
+- **Funkcje**: Upload plików (`uploadReport`) oraz listowanie zawartości folderu (`listFiles`).
+
+---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14
+Data wersji: 2026-02-14 (M06 Implemented)

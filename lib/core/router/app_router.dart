@@ -9,6 +9,9 @@ import '../../features/dashboard/screens/dashboard_hub_screen.dart';
 import '../../features/m02_monitoring/screens/temperature_dashboard_screen.dart';
 import '../../features/m03_gmp/screens/gmp_process_selector_screen.dart';
 import '../../features/m03_gmp/screens/meat_roasting_form_screen.dart';
+import '../../features/m06_reports/screens/reports_panel_screen.dart';
+import '../../features/m06_reports/screens/pdf_preview_screen.dart';
+import '../../features/m06_reports/screens/drive_status_screen.dart';
 import '../../core/router/route_names.dart';
 
 part 'app_router.g.dart';
@@ -49,6 +52,23 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: RouteNames.gmpRoasting,
         builder: (context, state) => const MeatRoastingFormScreen(),
+      ),
+
+      // M06 Reports
+      GoRoute(
+        path: '/reports',
+        builder: (context, state) => const ReportsPanelScreen(),
+      ),
+      GoRoute(
+        path: '/reports/preview/local',
+        builder: (context, state) {
+          final path = state.extra as String;
+          return PdfPreviewScreen(filePath: path);
+        },
+      ),
+      GoRoute(
+        path: '/reports/drive',
+        builder: (context, state) => const DriveStatusScreen(),
       ),
     ],
   );

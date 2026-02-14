@@ -7,37 +7,16 @@ import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../shared/providers/dynamic_form_provider.dart';
 
+import '../../shared/config/form_definitions.dart';
+
 class MeatRoastingFormScreen extends ConsumerWidget {
   const MeatRoastingFormScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // This definition would normally come from a repository/DB
-    final roastingFormDef = FormDefinition(
-      fields: [
-        FormFieldConfig(
-          id: 'product_name',
-          type: HaccpFieldType.dropdown,
-          label: 'Produkt',
-          config: {'options': ['Kurczak Pieczony', 'Uda z Kurczaka', 'Skrzydełka']},
-          required: true,
-        ),
-        FormFieldConfig(
-          id: 'internal_temp',
-          type: HaccpFieldType.stepper,
-          label: 'Temp. Wewnętrzna [°C]',
-          config: {
-            'min': 0, 
-            'max': 120, 
-            'step': 1, 
-            'unit': '°C',
-            'default': 75.0,
-            'warningRange': {'min': 75.0} // Warning if < 75
-          },
-          required: true,
-        ),
-      ],
-    );
+    // Definition from shared config
+    final roastingFormDef = FormDefinitions.roastingFormDef;
+
 
     const String formId = 'meat_roasting_daily';
     // Manual submit logic would go here, reading the provider
