@@ -305,7 +305,8 @@ Każdy moduł implementuje specyficzne zapytania do bazy. Poniżej zestawienie o
 
 #### **M01: Autoryzacja (`AuthRepository`)**
 
-- **Zapytanie:** `SELECT` z tabeli `employees` gdzie `pin_hash` = SHA256(input) oraz `is_active` = true.
+- **Zapytanie (Secure RPC):** `login_with_pin(pin_input)` (Funkcja PostgreSQL `SECURITY DEFINER`).
+- **Cel:** Ominięcie blokady RLS dla użytkownika anonimowego przy weryfikacji hasha PIN.
 - **Zwrot:** Obiekt `Employee` (token sesji w aplikacji, brak JWT od Supabase w trybie Kiosk).
 - **Strefy:** `SELECT` z `employee_zones` join `zones`.
 
@@ -333,7 +334,7 @@ Każdy moduł implementuje specyficzne zapytania do bazy. Poniżej zestawienie o
 #### **M06: Raporty (`ReportsRepository`)**
 
 - **Odczyt:** Agregacja danych z `waste_records`, `measurements` oraz logów.
-- **UWAGA:** Obecna implementacja `ReportsRepository` szuka tabeli `gmp_logs`, podczas gdy M03 zapisuje do `haccp_logs`. Wymagana weryfikacja migracji danych lub aktualizacja zapytania.
+- **UWAGA:** Raporty korzystają teraz z ujednoliconej tabeli `haccp_logs`.
 
 #### **M07: HR (`HrRepository`)**
 
@@ -349,10 +350,27 @@ Każdy moduł implementuje specyficzne zapytania do bazy. Poniżej zestawienie o
 
 Mimo trybu Kiosk (gdzie często używa się jednego Service Role lub anonimowego dostępu), wdrożono RLS:
 
-1. **Employees:** Dostęp do `pin_hash` jest zablokowany dla zwykłych zapytań `SELECT *`.
+1. **Employees:** Dostęp do `pin_hash` jest zablokowany dla zwykłych zapytań `SELECT *`. Dostęp tylko przez RPC `login_with_pin`.
 2. **Audit:** Trigger `handle_updated_at` automatycznie uzupełnia czasy edycji.
-3. **Storage:** Buckety `waste-docs` i `branding` mają polityki `SELECT` public (lub authenticated) oraz `INSERT` tylko dla uwierzytelnionych sesji.
+3. **Storage:** Buckety `waste-docs` i `branding` mają polityki `SELECT` public (lub authenticated) oraz `INSERT` tylko dla uwierzytelnionych sesji (Anonimowych).
+
+---
+
+## 14. Log Zmian w Bazie Danych (Naprawy Krytyczne)
+
+W dniu 2026-02-14 przeprowadzono serię napraw struktury bazy danych w celu przywrócenia funkcjonalności logowania i stref.
+
+1. **RPC Login (`12_auth_rpc.sql`)**: Wdrożono funkcję `login_with_pin` w celu bezpiecznej weryfikacji PIN bez naruszania RLS.
+2. **Anonymous Auth (`13_fix_haccp_logs.sql`)**:
+    - Aplikacja wykonuje teraz `signInAnonymously()`.
+    - Utworzono brakującą tabelę `haccp_logs` (zamiast rozdzielnych `gmp`/`ghp`) i zabezpieczono ją RLS.
+3. **Data Integrity (`14_data_fix_hashes.sql`)**:
+    - Zaktualizowano PINy w tabeli `employees` z wersji plain text (`1234`) na hashe SHA-256.
+4. **Venues & Zones Fix (`15/16_fix_venues_and_zones.sql`)**:
+    - Utworzono brakującą tabelę `venues`.
+    - Dodano kolumnę `venue_id` do tabeli `zones`.
+    - Przywrócono spójność danych poprzez przypisanie wszystkich stref do domyślnego lokalu.
 
 ---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (Architecture Master Plan & Database Integration Analysis)
+Data wersji: 2026-02-14 (Post-Fix Database Update)
