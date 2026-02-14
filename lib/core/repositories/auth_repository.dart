@@ -12,19 +12,31 @@ class AuthRepository {
     return sha256.convert(utf8.encode(pin)).toString();
   }
 
-  /// Attempts login by matching hashed PIN against the `employees` table.
+  /// Attempts login by matching hashed PIN via secure RPC (bypassing RLS).
   /// Returns [Employee] on success, null on failure.
   Future<Employee?> loginWithPin(String pin) async {
     final hashedPin = _hashPin(pin);
-    final response = await _client
-        .from('employees')
-        .select('id, full_name, role, is_active, sanepid_expiry')
-        .eq('pin_hash', hashedPin)
-        .eq('is_active', true)
-        .maybeSingle();
+    
+    // Directive 12: Use RPC to bypass RLS for login
+    try {
+      final response = await _client.rpc(
+        'login_with_pin',
+        params: {'pin_input': hashedPin},
+      );
 
-    if (response == null) return null;
-    return Employee.fromJson(response);
+      // RPC returns a List (SETOF employees) or null/empty list
+      final List<dynamic> data = response as List<dynamic>;
+      
+      if (data.isEmpty) return null;
+      
+      // We expect a single user, but take the first one if multiple (should be unique)
+      return Employee.fromJson(data.first);
+    } catch (e) {
+      // Handle RPC errors (e.g. function not found) or network issues
+      // In production, we might want to log this.
+      print('Login Error: $e');
+      return null;
+    }
   }
 
   /// Fetches zones assigned to [employeeId] via the junction table.
