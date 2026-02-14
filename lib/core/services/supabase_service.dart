@@ -8,6 +8,16 @@ class SupabaseService {
       url: EnvConfig.supabaseUrl,
       anonKey: EnvConfig.supabaseAnonKey,
     );
+
+    // Directive 13: Ensure authenticated session (Anonymous) for RLS policies
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      try {
+        await Supabase.instance.client.auth.signInAnonymously();
+      } catch (e) {
+        print('Anonymous Auth Error: $e'); // Fail gracefully, might work if public
+      }
+    }
   }
 
   static SupabaseClient get client => Supabase.instance.client;
