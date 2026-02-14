@@ -59,7 +59,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   foregroundColor: AppTheme.onPrimary,
                 ),
                 onPressed: reportsState.isLoading ? null : () {
-                  ref.read(reportsNotifierProvider.notifier).generateReport(
+                  ref.read(reportsProvider.notifier).generateReport(
                     reportType: _selectedReportType,
                     month: _selectedDate,
                   );
