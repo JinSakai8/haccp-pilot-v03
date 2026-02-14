@@ -142,7 +142,7 @@ String _$driveServiceHash() => r'561f56047378f39f5c98d15cd830ebd66c2d8739';
 final reportsProvider = ReportsNotifierProvider._();
 
 final class ReportsNotifierProvider
-    extends $AsyncNotifierProvider<ReportsNotifier, File?> {
+    extends $AsyncNotifierProvider<ReportsNotifier, ReportData?> {
   ReportsNotifierProvider._()
     : super(
         from: null,
@@ -162,19 +162,19 @@ final class ReportsNotifierProvider
   ReportsNotifier create() => ReportsNotifier();
 }
 
-String _$reportsNotifierHash() => r'46f0b9b16d209a054a67923efb9696d97a4549b2';
+String _$reportsNotifierHash() => r'5e275a54ee1d16067a68d1cdceb621fa639bc740';
 
-abstract class _$ReportsNotifier extends $AsyncNotifier<File?> {
-  FutureOr<File?> build();
+abstract class _$ReportsNotifier extends $AsyncNotifier<ReportData?> {
+  FutureOr<ReportData?> build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<File?>, File?>;
+    final ref = this.ref as $Ref<AsyncValue<ReportData?>, ReportData?>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<File?>, File?>,
-              AsyncValue<File?>,
+              AnyNotifier<AsyncValue<ReportData?>, ReportData?>,
+              AsyncValue<ReportData?>,
               Object?,
               Object?
             >;

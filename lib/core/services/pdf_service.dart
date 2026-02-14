@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'dart:ui';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
-// import 'package:http/http.dart' as http; // Not used anymore
 
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
@@ -20,44 +18,28 @@ class PdfService {
     required String date,
     Uint8List? logoBytes,
   }) async {
-    // Collect images first (on main thread or via async calls, before compute)
-    // Images need to be passed as raw bytes to the isolate
     final images = <String, Uint8List>{};
     
-    // Add logo if provided
     if (logoBytes != null) {
       images['__venue_logo__'] = logoBytes;
     }
     
-    // Check for photo fields in data
     for (var field in definition.fields) {
       if (field.type == HaccpFieldType.photo) {
         final path = data[field.id];
         if (path != null && path is String && path.isNotEmpty) {
             try {
-              // Try downloading from Supabase Storage (waste-docs is primary bucket for photos)
-              // If path is a local file (offline mode), read from disk.
-              // If path is a storage path (e.g. 'waste/123.jpg'), download it.
-
-              final file = File(path);
-              if (await file.exists()) {
-                images[field.id] = await file.readAsBytes();
-              } else {
-                // Assume it's a Supabase Storage path
-                // We must use the Supabase client here (main isolate)
-                // Note: This requires supabase_flutter to be initialized in main()
-                try {
-                  final Uint8List bytes = await Supabase.instance.client.storage
-                      .from('waste-docs')
-                      .download(path);
-                  
-                  if (bytes.isNotEmpty) {
-                    images[field.id] = bytes;
-                  }
-                } catch (storageError) {
-                  debugPrint('Supabase Storage Download Error for $path: $storageError');
-                  // Do not throw, just log. The PDF will show placeholder.
+              // On web, we can only download from Supabase (no local files)
+              try {
+                final Uint8List bytes = await Supabase.instance.client.storage
+                    .from('waste-docs')
+                    .download(path);
+                
+                if (bytes.isNotEmpty) {
+                  images[field.id] = bytes;
                 }
+              } catch (storageError) {
+                debugPrint('Supabase Storage Download Error for $path: $storageError');
               }
             } catch (e) {
               debugPrint('Error loading image for PDF: $e');
@@ -75,6 +57,10 @@ class PdfService {
       images: images,
     );
 
+    // compute doesn't work on web, so run directly
+    if (kIsWeb) {
+      return await _generatePdfIsolate(params);
+    }
     return await compute(_generatePdfIsolate, params);
   }
 
@@ -86,24 +72,17 @@ class PdfService {
     final font = PdfStandardFont(PdfFontFamily.helvetica, 12);
     final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
 
-    // 1. Header
     graphics.drawString(
       params.title.toUpperCase(),
       boldFont,
       bounds: Rect.fromLTWH(0, 0, 500, 30),
     );
 
-    // Draw Logo if available
     if (params.images.containsKey('__venue_logo__')) {
       final logoBytes = params.images['__venue_logo__']!;
       final logoBitmap = PdfBitmap(logoBytes);
-      // Draw in top-left corner or right? Let's put it on the right for now
-      // Or left and push title.
-      // Let's put logo at (0,0) with width 50, and shift title.
-      
       const logoWidth = 60.0;
       final logoHeight = logoBitmap.height * (logoWidth / logoBitmap.width);
-      
       graphics.drawImage(logoBitmap, Rect.fromLTWH(420, 0, logoWidth, logoHeight));
     }
 
@@ -113,7 +92,6 @@ class PdfService {
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
 
-    // 2. Grid (Table)
     final grid = PdfGrid();
     grid.columns.add(count: 2);
     grid.headers.add(1);
@@ -130,22 +108,13 @@ class PdfService {
       if (field.type == HaccpFieldType.photo) {
         final imageBytes = params.images[field.id];
         if (imageBytes != null) {
-           // We cannot easily embed widget here, but we can draw image in the cell
-           // For simplicity in grid, we just say "Patrz załącznik" or try to embed if possible.
-           // Syncfusion Grid cells support PdfGridCell.value = PdfBitmap(...) ? No, usually string.
-           // We might need to draw images after the grid or use specific cell style.
-           
-           // Simpler approach: Text in cell, image below.
            row.cells[1].value = '[ZDJĘCIE ZAŁĄCZONE NIŻEJ]';
         } else {
            row.cells[1].value = '[ZDJĘCIE NIEDOSTĘPNE]';
         }
       } else if (field.type == HaccpFieldType.toggle) {
-         final boolValue = val == true; // Assuming non-null meaning OK? Or specific structure?
-         // In DynamicForm, val might be basic type. 
-         // Let's assume val is map or bool.
+         final boolValue = val == true;
          row.cells[1].value = boolValue ? 'ZGODNE' : 'NIEZGODNE';
-         // Check for comments
          final commentKey = '${field.id}_comment';
          if (params.data.containsKey(commentKey)) {
            row.cells[1].value = '${row.cells[1].value}\nUwagi: ${params.data[commentKey]}';
@@ -160,7 +129,6 @@ class PdfService {
       bounds: Rect.fromLTWH(0, 60, 0, 0),
     );
 
-    // 3. Append images at the bottom or new pages
     var currentY = layoutResult!.bounds.bottom + 20;
     
     if (params.images.isNotEmpty) {
@@ -168,20 +136,16 @@ class PdfService {
       currentY += 30;
 
       for (var entry in params.images.entries) {
-        if (entry.key == '__venue_logo__') continue; // Skip logo
+        if (entry.key == '__venue_logo__') continue;
 
         final imageBytes = entry.value;
         final pdfBitmap = PdfBitmap(imageBytes);
         
-        // Resize to fit page width (approx 500)
         const maxWidth = 400.0;
         final scale = maxWidth / pdfBitmap.width;
         final height = pdfBitmap.height * scale;
 
-        // Check if we need new page
         if (currentY + height > page.getClientSize().height) {
-           // Simplified: just add to next page (not implemented loop for multipage here for brevity)
-           // For MVP, just draw what fits or add page.
            final newPage = document.pages.add();
            newPage.graphics.drawImage(pdfBitmap, Rect.fromLTWH(0, 20, maxWidth, height));
         } else {
@@ -212,6 +176,9 @@ class PdfService {
       dateRange: dateRange,
     );
 
+    if (kIsWeb) {
+      return await _generateTablePdfIsolate(params);
+    }
     return await compute(_generateTablePdfIsolate, params);
   }
 
@@ -222,7 +189,6 @@ class PdfService {
     final font = PdfStandardFont(PdfFontFamily.helvetica, 10);
     final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
 
-    // 1. Header
     graphics.drawString(
       params.title.toUpperCase(),
       boldFont,
@@ -235,7 +201,6 @@ class PdfService {
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
 
-    // 2. Table
     final grid = PdfGrid();
     grid.columns.add(count: params.columns.length);
     final header = grid.headers.add(1)[0];

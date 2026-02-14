@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/venue_repository.dart';
@@ -33,13 +33,12 @@ class VenueSettingsController extends _$VenueSettingsController {
         address: address,
         logoUrl: logoUrl,
       );
-      // Return updated data
       return repository.getSettings(venueId);
     });
   }
 
-  Future<String?> uploadLogo(File file) async {
+  Future<String?> uploadLogoBytes(Uint8List bytes, String extension) async {
     final repository = ref.read(venueRepositoryProvider);
-    return await repository.uploadLogo(file, venueId);
+    return await repository.uploadLogoBytes(bytes, venueId, extension);
   }
 }

@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:haccp_pilot/features/shared/widgets/dynamic_form/haccp_numpad_input.dart';
 
 import '../../../../core/widgets/haccp_top_bar.dart';
@@ -24,12 +24,11 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   
-  // NIP is numeric, handled by HaccpNumPadInput state, but we need local value to submit
   String _nipValue = '';
   
   bool _isLoading = false;
   String? _logoUrl;
-  File? _newLogoFile;
+  Uint8List? _newLogoBytes;
   String? _venueId;
 
   @override
@@ -44,15 +43,12 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
     final employee = ref.read(currentUserProvider);
     if (employee == null) return;
 
-    // Fetch zones to get venueId
-    // Ideally this should be cached in AuthProvider
     final zones = await AuthRepository().getZonesForEmployee(employee.id);
     if (zones.isNotEmpty) {
       if (mounted) {
         setState(() {
           _venueId = zones.first.venueId;
         });
-        // Provider will auto-load when watched, but we can pre-fetch
       }
     }
   }
@@ -65,13 +61,14 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _newLogoFile = File(picked.path);
-      });
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wybieranie logo niedostępne w przeglądarce')),
+      );
+      return;
     }
+    // On mobile, image_picker would be used here
+    // For web compatibility, this is disabled
   }
 
   Future<void> _saveSettings() async {
@@ -81,9 +78,9 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
     
     try {
       String? uploadedUrl;
-      // Upload logo if changed
-      if (_newLogoFile != null) {
-        uploadedUrl = await ref.read(venueSettingsControllerProvider(_venueId!).notifier).uploadLogo(_newLogoFile!);
+      if (_newLogoBytes != null) {
+        uploadedUrl = await ref.read(venueSettingsControllerProvider(_venueId!).notifier)
+            .uploadLogoBytes(_newLogoBytes!, 'jpg');
       } else {
         uploadedUrl = _logoUrl; 
       }
@@ -137,8 +134,6 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
             Expanded(
               child: settingsAsync.when(
                 data: (settings) {
-                  // Init controllers only once (checking text empty is poor heuristic but works for now)
-                  // Better: check a flag _controllersInitialized
                   if (settings != null && _nameController.text.isEmpty && _addressController.text.isEmpty && _nipValue.isEmpty) {
                     _nameController.text = settings['name'] ?? '';
                     _addressController.text = settings['address'] ?? '';
@@ -164,9 +159,9 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                                 color: Colors.white10,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white24),
-                                image: _newLogoFile != null 
+                                image: _newLogoBytes != null 
                                   ? DecorationImage(
-                                      image: FileImage(_newLogoFile!), 
+                                      image: MemoryImage(_newLogoBytes!), 
                                       fit: BoxFit.cover
                                     )
                                   : (_logoUrl != null 
@@ -176,7 +171,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                                         )
                                       : null),
                               ),
-                              child: (_newLogoFile == null && _logoUrl == null)
+                              child: (_newLogoBytes == null && _logoUrl == null)
                                   ? const Icon(Icons.add_a_photo, size: 40, color: Colors.white54)
                                   : null,
                             ),
@@ -197,15 +192,11 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                         const SizedBox(height: 16),
                         _buildTextField('Nazwa Lokalu', _nameController),
                         const SizedBox(height: 16),
-                        // NIP using NumPad
                         HaccpNumPadInput(
                           label: 'NIP',
                           textValue: _nipValue,
                           onTextChanged: (val) => setState(() => _nipValue = val),
                           maxLength: 10,
-                          // NIP is typically just numbers, but allowing '-' if needed? 
-                          // Standard NIP is 10 digits. NumPad 'extraKeys' not needed unless '-'
-                          // Let's stick to standard digits.
                         ),
                          const SizedBox(height: 16),
                         _buildTextField('Adres', _addressController),

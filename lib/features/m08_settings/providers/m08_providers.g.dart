@@ -53,7 +53,7 @@ final class VenueSettingsControllerProvider
 }
 
 String _$venueSettingsControllerHash() =>
-    r'1b57b68a7c7ae3a4e4738a684129fba9e1d363dc';
+    r'fa995b6c52a43984781d3b46d4f94684827474cb';
 
 final class VenueSettingsControllerFamily extends $Family
     with

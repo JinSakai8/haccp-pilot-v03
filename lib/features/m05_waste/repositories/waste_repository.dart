@@ -1,6 +1,4 @@
-
-import 'dart:io';
-import 'package:haccp_pilot/core/services/storage_service.dart';
+import 'dart:typed_data';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 import '../models/waste_record.dart';
 
@@ -19,10 +17,6 @@ class WasteRepository {
       'kpo_number': record.kpoNumber,
       'photo_url': record.photoUrl,
     });
-  }
-
-  Future<String?> uploadPhoto(File file, String venueId) async {
-    return await StorageService.uploadWastePhoto(file, venueId);
   }
 
   Future<List<WasteRecord>> getRecentRecords(String venueId) async {

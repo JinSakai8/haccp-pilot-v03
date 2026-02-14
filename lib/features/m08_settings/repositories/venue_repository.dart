@@ -1,11 +1,7 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
-import 'package:haccp_pilot/core/services/storage_service.dart'; // Reusing existing storage logic or new one?
-// StorageService is specific to Waste. I'll use direct SupabaseService logic or expand StorageService?
-// I'll implement specific logic here for brevity and separation, or create a method in StorageService.
-// Let's implement here for now, as logo is specific.
 
 class VenueRepository {
   final _client = SupabaseService.client;
@@ -39,20 +35,17 @@ class VenueRepository {
     await _client.from('venues').update(updates).eq('id', venueId);
   }
 
-  /// Uploads a logo file to 'branding' bucket and returns the Public URL.
-  Future<String?> uploadLogo(File file, String venueId) async {
+  /// Uploads logo bytes to 'branding' bucket and returns the Public URL.
+  Future<String?> uploadLogoBytes(Uint8List bytes, String venueId, String extension) async {
     try {
-      final fileExt = file.path.split('.').last;
-      final fileName = 'logos/$venueId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final fileName = 'logos/$venueId/${DateTime.now().millisecondsSinceEpoch}.$extension';
       
-      // Upload
-      await _client.storage.from(_brandingBucket).upload(
+      await _client.storage.from(_brandingBucket).uploadBinary(
         fileName,
-        file,
+        bytes,
         fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
       );
 
-      // Get Public URL
       final publicUrl = _client.storage.from(_brandingBucket).getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {

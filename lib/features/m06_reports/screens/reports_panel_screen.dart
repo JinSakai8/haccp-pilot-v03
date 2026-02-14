@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +14,7 @@ class ReportsPanelScreen extends ConsumerStatefulWidget {
 
 class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
   DateTime _selectedDate = DateTime.now();
-  String _selectedReportType = 'waste'; // 'waste', 'gmp', 'ghp', 'temperature'
+  String _selectedReportType = 'waste';
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +75,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
 
             // 3. Preview & Upload Section
             if (reportsState.hasValue && reportsState.value != null) ...[
-              _buildFilePreview(reportsState.value!),
+              _buildReportPreview(reportsState.value!),
             ],
             
             if (reportsState.hasError)
@@ -94,7 +93,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     );
   }
 
-  Widget _buildFilePreview(File file) {
+  Widget _buildReportPreview(ReportData reportData) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -118,7 +117,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.onSurface),
                     ),
                     Text(
-                      file.path.split('/').last,
+                      reportData.fileName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.onSurfaceVariant),
                     ),
                   ],
@@ -132,7 +131,10 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    context.push('/reports/preview/local', extra: file.path);
+                    // TODO: Implement in-memory PDF preview for web
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Podgląd PDF niedostępny w przeglądarce')),
+                    );
                   },
                   icon: const Icon(Icons.visibility),
                   label: const Text('PODGLĄD'),
@@ -234,9 +236,6 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2025),
       lastDate: DateTime.now(),
-      // Creating a month picker with standard DatePicker is tricky, 
-      // usually involves custom widget or just picking a day and taking the month.
-      // For MVP, standard picker is fine.
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);

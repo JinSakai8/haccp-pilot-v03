@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -10,33 +10,34 @@ import 'package:googleapis_auth/auth_io.dart';
 class DriveService {
   static const _scopes = [drive.DriveApi.driveFileScope];
 
-  /// Uploads a file to the configured Google Drive folder.
+  /// Uploads a file (as bytes) to the configured Google Drive folder.
   /// Returns the ID of the uploaded file.
-  Future<String?> uploadReport(File file, String fileName) async {
+  Future<String?> uploadReportBytes(Uint8List bytes, String fileName) async {
+    if (kIsWeb) {
+      debugPrint('Google Drive upload not supported on web');
+      throw UnsupportedError('Google Drive upload nie jest dostępny w przeglądarce');
+    }
+
     try {
-      // 1. Load credentials
       final credentialsJson = await rootBundle.loadString('assets/credentials.json');
       final credentials = ServiceAccountCredentials.fromJson(json.decode(credentialsJson));
-
-      // 2. Get authenticated client
       final client = await clientViaServiceAccount(credentials, _scopes);
       final driveApi = drive.DriveApi(client);
 
-      // 3. Get folder ID from .env
       final folderId = dotenv.env['GOOGLE_DRIVE_FOLDER_ID'];
       if (folderId == null) {
         throw Exception('GOOGLE_DRIVE_FOLDER_ID not found in .env');
       }
 
-      // 4. Create File Metadata
       var driveFile = drive.File();
       driveFile.name = fileName;
       driveFile.parents = [folderId];
 
-      // 5. Create Media
-      var media = drive.Media(file.openRead(), file.lengthSync());
+      var media = drive.Media(
+        Stream.fromIterable([bytes]),
+        bytes.length,
+      );
 
-      // 6. Upload
       final result = await driveApi.files.create(
         driveFile,
         uploadMedia: media,
@@ -52,6 +53,8 @@ class DriveService {
 
   /// Lists files in the configured Google Drive folder.
   Future<List<drive.File>> listFiles() async {
+    if (kIsWeb) return [];
+
     try {
       final credentialsJson = await rootBundle.loadString('assets/credentials.json');
       final credentials = ServiceAccountCredentials.fromJson(json.decode(credentialsJson));
