@@ -150,6 +150,36 @@ Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 - **Dynamiczność**: Wykorzystuje `FormDefinition` do automatycznego tworzenia kolumn tabeli na podstawie pól formularza. Jeśli dodasz pole w configu, pojawi się w PDF.
 - **Zdjęcia**: Pobiera zdjęcia (z URL lub pliku), skaluje je i dołącza pod tabelą raportu.
 
+### 2.3 Web Compatibility & Platform Specifics
+
+- **NO `dart:io`**: The application is strictly web-compatible. All usages of `dart:io` (`File`, `Platform`, etc.) have been removed or guarded with `kIsWeb`.
+- **Blob/Data Storage**: Files (images, PDFs) are handled as `Uint8List` in memory or uploaded directly to Supabase Storage/Google Drive without local filesystem intermediate steps.
+- **Printing/PDF**: `pdf` package is used for generation. `printing` package handles web printing/preview. `syncfusion_flutter_pdf` is used for advanced PDF creation.
+
+## 3. Key Modules & Providers
+
+### Core
+
+- `auth_provider.dart`: Global auth state (Supabase User + Employee Profile).
+- `app_router.dart`: GoRouter configuration with AuthGuard.
+- `pdf_service.dart`: Universal PDF generation (Web/Mobile).
+- `drive_service.dart`: Google Drive API integration (Web-compatible via HTTP).
+- `storage_service.dart`: Supabase Storage wrapper.
+
+### Feature Modules
+
+- **M01 Login**: PIN/Password handlers.
+- **M05 Waste**: Waste registration, Photo upload (Direct binary upload), History.
+- **M06 Reports**: PDF generation (`ReportData` state), Google Drive export. `reportsProvider` handles state.
+- **M08 Settings**: Venue settings, Logo upload (Uint8List).
+
+## 4. Deployment & Build
+
+- **Vercel**: Automated CI/CD.
+- **Build Script**: `vercel_build.sh` handles Flutter setup and build.
+- **Command**: `bash vercel_build.sh`
+- **Output**: `build/web`
+
 ### Google Drive (`DriveService`)
 
 - **Auth**: Service Account (plik `assets/credentials.json`). Nie wymaga logowania użytkownika "na tablecie".
