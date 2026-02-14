@@ -50,7 +50,7 @@ dependencies:
   flutter_image_compress: ^2.1.0
   googleapis: ^11.4.0
   googleapis_auth: ^1.4.1
-  syncfusion_flutter_pdf: ^24.1.41
+  syncfusion_flutter_pdf: ^32.2.4
   http: ^1.2.0
 
 dev_dependencies:

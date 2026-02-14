@@ -18,7 +18,7 @@ class AuthRepository {
     final hashedPin = _hashPin(pin);
     final response = await _client
         .from('employees')
-        .select()
+        .select('id, full_name, role, is_active, sanepid_expiry')
         .eq('pin_hash', hashedPin)
         .eq('is_active', true)
         .maybeSingle();

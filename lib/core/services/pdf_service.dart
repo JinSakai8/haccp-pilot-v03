@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http; // Not used anymore
 
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
@@ -16,34 +17,50 @@ class PdfService {
     required Map<String, dynamic> data,
     required String userName,
     required String date,
+    Uint8List? logoBytes,
   }) async {
     // Collect images first (on main thread or via async calls, before compute)
     // Images need to be passed as raw bytes to the isolate
     final images = <String, Uint8List>{};
+    
+    // Add logo if provided
+    if (logoBytes != null) {
+      images['__venue_logo__'] = logoBytes;
+    }
     
     // Check for photo fields in data
     for (var field in definition.fields) {
       if (field.type == HaccpFieldType.photo) {
         final path = data[field.id];
         if (path != null && path is String && path.isNotEmpty) {
-           try {
-             // If path is a Supabase URL or local file, we need bytes.
-             // Assuming Supabase Storage public URL or signed URL for now.
-             // If it's a local path (offline), we read file.
-             if (path.startsWith('http')) {
-               final response = await http.get(Uri.parse(path));
-               if (response.statusCode == 200) {
-                 images[field.id] = response.bodyBytes;
-               }
-             } else {
-               final file = File(path);
-               if (await file.exists()) {
-                 images[field.id] = await file.readAsBytes();
-               }
-             }
-           } catch (e) {
-             print('Error loading image for PDF: $e');
-           }
+            try {
+              // Try downloading from Supabase Storage (waste-docs is primary bucket for photos)
+              // If path is a local file (offline mode), read from disk.
+              // If path is a storage path (e.g. 'waste/123.jpg'), download it.
+
+              final file = File(path);
+              if (await file.exists()) {
+                images[field.id] = await file.readAsBytes();
+              } else {
+                // Assume it's a Supabase Storage path
+                // We must use the Supabase client here (main isolate)
+                // Note: This requires supabase_flutter to be initialized in main()
+                try {
+                  final Uint8List bytes = await Supabase.instance.client.storage
+                      .from('waste-docs')
+                      .download(path);
+                  
+                  if (bytes.isNotEmpty) {
+                    images[field.id] = bytes;
+                  }
+                } catch (storageError) {
+                  print('Supabase Storage Download Error for $path: $storageError');
+                  // Do not throw, just log. The PDF will show placeholder.
+                }
+              }
+            } catch (e) {
+              print('Error loading image for PDF: $e');
+            }
         }
       }
     }
@@ -74,6 +91,20 @@ class PdfService {
       boldFont,
       bounds: Rect.fromLTWH(0, 0, 500, 30),
     );
+
+    // Draw Logo if available
+    if (params.images.containsKey('__venue_logo__')) {
+      final logoBytes = params.images['__venue_logo__']!;
+      final logoBitmap = PdfBitmap(logoBytes);
+      // Draw in top-left corner or right? Let's put it on the right for now
+      // Or left and push title.
+      // Let's put logo at (0,0) with width 50, and shift title.
+      
+      const logoWidth = 60.0;
+      final logoHeight = logoBitmap.height * (logoWidth / logoBitmap.width);
+      
+      graphics.drawImage(logoBitmap, Rect.fromLTWH(420, 0, logoWidth, logoHeight));
+    }
 
     graphics.drawString(
       'Data: ${params.date} | Wykonał: ${params.userName}',
@@ -106,7 +137,7 @@ class PdfService {
            // Simpler approach: Text in cell, image below.
            row.cells[1].value = '[ZDJĘCIE ZAŁĄCZONE NIŻEJ]';
         } else {
-           row.cells[1].value = 'Brak zdjęcia';
+           row.cells[1].value = '[ZDJĘCIE NIEDOSTĘPNE]';
         }
       } else if (field.type == HaccpFieldType.toggle) {
          final boolValue = val == true; // Assuming non-null meaning OK? Or specific structure?
@@ -136,6 +167,8 @@ class PdfService {
       currentY += 30;
 
       for (var entry in params.images.entries) {
+        if (entry.key == '__venue_logo__') continue; // Skip logo
+
         final imageBytes = entry.value;
         final pdfBitmap = PdfBitmap(imageBytes);
         

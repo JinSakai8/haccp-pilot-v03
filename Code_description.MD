@@ -158,4 +158,73 @@ Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 
 ---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (M06 Implemented)
+Data wersji: 2026-02-14 (M08 Settings & Polish Implemented)
+
+---
+
+## 9. Moduł M07 (HR & Personel)
+
+Moduł do zarządzania pracownikami, ich rolami (Manager/Pracownik) oraz ważnością badań Sanepid.
+
+### Struktura (`lib/features/m07_hr/`)
+
+- **Repositories**: `HrRepository` - obsługuje tabelę `employees`, haszowanie PIN (SHA-256) oraz sprawdzanie unikalności PIN.
+- **Providers**: `HrProvider` - zarządza listą pracowników i logiką dodawania/edycji.
+- **Ekrany**:
+  - `EmployeeListScreen`: Lista z filtrowaniem (Wszyscy/Aktywni/Wygasające).
+  - `AddEmployeeScreen`: Dodawanie pracownika z **weryfikacją unikalności PIN na żywo**.
+  - `HrDashboardScreen`: Panel główny z alertami o wygasających badaniach (czerwone/żółte kropki).
+
+### Kluczowe funkcje
+
+- **Role Guards**: Tylko `manager` i `owner` mają dostęp do tras `/hr/*`. Zaimplementowane w `AppRouter`.
+- **Sanepid Status**: Wizualizacja statusu badań (Zielony > 30 dni, Żółty < 30 dni, Czerwony = po terminie).
+
+---
+
+## 10. Moduł M08 (Ustawienia & Polish)
+
+Moduł zamykający, obsługujący dane lokalu i łączność.
+
+### Ustawienia Lokalu (`VenueRepository`)
+
+- Pozwala na zmianę nazwy lokalu, NIPu i adresu.
+- **Logo Upload**: Użytkownik może wgrać logo, które jest zapisywane w bucket `branding`.
+- **PDF Integration**: Logo jest automatycznie pobierane i wstawiane do nagłówka każdego generowanego raportu PDF.
+
+### Connectivity & Offline Mode
+
+- **`ConnectivityService`**: Nasłuchuje zmian stanu sieci.
+- **UI**: W `HaccpTopBar` pojawia się czerwona ikona "Cloud Off", gdy tablet straci połączenie. Aplikacja nie blokuje pracy (Offline-First), ale ostrzega użytkownika.
+
+### UX Audit (Glove-Friendly Polish)
+
+- Przycisk "Zapisz" w ustawieniach używa `HaccpLongPressButton` (wymaga przytrzymania).
+- Wszystkie kluczowe interakcje są przystosowane do obsługi w rękawiczkach.
+
+---
+
+## 11. Security Hardening (Directive 10a)
+
+Wdrożono zaawansowane mechanizmy bezpieczeństwa zgodnie z audytem 10a.
+
+### Brute-Force Protection
+
+- **Logika**: 5 błędnych prób = 30s blokady. 10 prób = 5min. 20 prób = 30min.
+- **UI**: Ekran `PinPadScreen` blokuje klawiaturę i wyświetla odliczanie.
+- **State**: Stan blokady jest trzymany w pamięci (`PinLoginNotifier`), resetowany po upływie czasu.
+
+### Data Access Layer
+
+- **RLS (Row Level Security)**: Włączono w Supabase dla tabeli `employees`.
+- **Public View**: `HrRepository` korzysta z bezpiecznego widoku `public_employees`, który fizycznie wyklucza kolumnę `pin_hash` z wyników zapytania.
+- **Audit Columns**: Tabele posiadają `created_by` i `updated_by` uzupełniane automatycznie przez trigger `handle_updated_at` i `handle_audit`.
+
+### Credential Safety
+
+- **.gitignore**: Plik `assets/credentials.json` oraz `.env` są ignorowane przez system kontroli wersji.
+- **Error Handling**: W produkcji (`kReleaseMode`) stack trace błędu inicjalizacji jest ukryty przed użytkownikiem.
+
+---
+Autor: Antigravity (AI Agent)
+Data wersji: 2026-02-14 (Security Hardening Completed)

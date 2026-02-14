@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,12 +20,23 @@ class PinPadScreen extends ConsumerStatefulWidget {
 
 class _PinPadScreenState extends ConsumerState<PinPadScreen> {
   String _pin = '';
+  Timer? _lockoutTimer;
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
 
   void _onDigit(String digit) {
     if (_pin.length >= 4) return;
+    
+    // Block input if locked
+    final status = ref.read(pinLoginProvider);
+    if (status == LoginStatus.locked) return;
+
     setState(() => _pin += digit);
 
-    // Auto-submit when 4 digits entered
     if (_pin.length == 4) {
       _submit();
     }
@@ -48,14 +60,43 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
     if (employee != null) {
       context.go('/zone-select');
     } else {
-      // Reset PIN field on error (error banner handled by provider)
+      // Reset PIN field on error
       setState(() => _pin = '');
     }
+  }
+
+  String _getLockoutTimeRemaining() {
+    final notifier = ref.read(pinLoginProvider.notifier);
+    final lockoutUntil = notifier.lockoutUntil;
+    if (lockoutUntil == null) return '';
+    
+    final remaining = lockoutUntil.difference(DateTime.now());
+    if (remaining.isNegative) return '';
+    
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final loginStatus = ref.watch(pinLoginProvider);
+    final isLocked = loginStatus == LoginStatus.locked;
+
+    // Timer logic for UI updates
+    if (isLocked) {
+      if (_lockoutTimer == null || !_lockoutTimer!.isActive) {
+        _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (!mounted) {
+            timer.cancel();
+            return;
+          }
+          setState(() {}); 
+        });
+      }
+    } else {
+      _lockoutTimer?.cancel();
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -85,58 +126,89 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
             _buildPinDots(),
             const SizedBox(height: 24),
 
-            // ── Error banner ──
+            // ── Error / Lockout banner ──
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
-              child: loginStatus == LoginStatus.error
+              child: isLocked 
                   ? Container(
-                      key: const ValueKey('error'),
+                      key: const ValueKey('locked'),
                       margin: const EdgeInsets.symmetric(horizontal: 32),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                       decoration: BoxDecoration(
                         color: HaccpDesignTokens.error.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(
-                          HaccpDesignTokens.cardRadius,
-                        ),
+                        borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
                         border: Border.all(color: HaccpDesignTokens.error),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
                         children: [
-                          Icon(Icons.error_outline,
-                              color: HaccpDesignTokens.error, size: 28),
-                          SizedBox(width: 12),
+                           const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.lock_clock, color: HaccpDesignTokens.error, size: 28),
+                              SizedBox(width: 12),
+                              Text(
+                                'BLOKADA',
+                                style: TextStyle(
+                                  color: HaccpDesignTokens.error,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           Text(
-                            'BŁĘDNY PIN',
-                            style: TextStyle(
+                            'Spróbuj za: ${_getLockoutTimeRemaining()}',
+                            style: const TextStyle(
                               color: HaccpDesignTokens.error,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
                     )
-                  : const SizedBox.shrink(key: ValueKey('empty')),
+                  : loginStatus == LoginStatus.error
+                      ? Container(
+                          key: const ValueKey('error'),
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: HaccpDesignTokens.error.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
+                            border: Border.all(color: HaccpDesignTokens.error),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, color: HaccpDesignTokens.error, size: 28),
+                              SizedBox(width: 12),
+                              Text(
+                                'BŁĘDNY PIN',
+                                style: TextStyle(
+                                  color: HaccpDesignTokens.error,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox(height: 56 + 28), // Placeholder height
             ),
 
             // ── Loading indicator ──
             if (loginStatus == LoginStatus.loading)
               const Padding(
                 padding: EdgeInsets.only(top: 16),
-                child: CircularProgressIndicator(
-                  color: HaccpDesignTokens.primary,
-                ),
+                child: CircularProgressIndicator(color: HaccpDesignTokens.primary),
               ),
 
             const Spacer(),
 
             // ── Numeric keypad ──
             HaccpNumPad(
-              disabled: loginStatus == LoginStatus.loading,
+              disabled: loginStatus == LoginStatus.loading || isLocked,
               onDigitPressed: _onDigit,
               onClear: _onClear,
               onBackspace: _onBackspace,
