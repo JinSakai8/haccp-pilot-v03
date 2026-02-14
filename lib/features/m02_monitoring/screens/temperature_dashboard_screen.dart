@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
-import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/sensor.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
 
@@ -71,9 +69,13 @@ class _SensorCard extends StatelessWidget {
     
     Color tempColor = Theme.of(context).colorScheme.primary; // default
     if (latestLog != null) {
-         if (temp <= 10) tempColor = Colors.green; // OK
-         else if (temp > 10 && !isAlert) tempColor = Colors.orange; // Warning
-         else tempColor = Colors.red; // Alert
+      if (temp <= 10) {
+        tempColor = Colors.green; // OK
+      } else if (temp > 10 && !isAlert) {
+        tempColor = Colors.orange; // Warning
+      } else {
+        tempColor = Colors.red; // Alert
+      }
     }
 
     return Card(

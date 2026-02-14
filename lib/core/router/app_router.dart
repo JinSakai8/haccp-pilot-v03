@@ -7,7 +7,9 @@ import '../../features/m01_auth/screens/pin_pad_screen.dart';
 import '../../features/m01_auth/screens/zone_selection_screen.dart';
 import '../../features/dashboard/screens/dashboard_hub_screen.dart';
 import '../../features/m02_monitoring/screens/temperature_dashboard_screen.dart';
-import '../../core/widgets/placeholder_screen.dart';
+import '../../features/m03_gmp/screens/gmp_process_selector_screen.dart';
+import '../../features/m03_gmp/screens/meat_roasting_form_screen.dart';
+import '../../core/router/route_names.dart';
 
 part 'app_router.g.dart';
 
@@ -39,10 +41,14 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) => const TemperatureDashboardScreen(),
       ),
       
-      // M03 GMP (WIP)
+      // M03 GMP
       GoRoute(
-        path: '/gmp',
-        builder: (context, state) => const PlaceholderScreen(title: "Procesy GMP"),
+        path: RouteNames.gmp,
+        builder: (context, state) => const GmpProcessSelectorScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.gmpRoasting,
+        builder: (context, state) => const MeatRoastingFormScreen(),
       ),
     ],
   );

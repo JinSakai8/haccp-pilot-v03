@@ -17,20 +17,30 @@ class HaccpTile extends StatelessWidget {
     this.badgeText,
     this.badgeColor,
     this.isVisible = true,
+    this.isSelected = false,
   });
+
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
     if (!isVisible) return const SizedBox.shrink();
 
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Theme.of(context).colorScheme.surface,
+      elevation: isSelected ? 8 : 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isSelected 
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 3)
+            : BorderSide.none,
+      ),
+      color: isSelected 
+          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+          : Theme.of(context).colorScheme.surface,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+        splashColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
         child: Stack(
           children: [
             Center(

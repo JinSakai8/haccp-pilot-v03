@@ -12,5 +12,8 @@ class RouteNames {
 
   // M03
   static const String gmp = '/gmp';
-  // ... other routes can be added as needed
+  static const String gmpRoasting = '/gmp/roasting';
+  static const String gmpCooling = '/gmp/cooling';
+  static const String gmpDelivery = '/gmp/delivery';
+  static const String gmpHistory = '/gmp/history';
 }

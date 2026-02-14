@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/widgets/haccp_num_pad.dart';
 
 /// Ekran 1.2 — PIN Pad
 /// Stitch ID: ea93036fd47e47ee983a97411bbee99a
@@ -134,7 +135,12 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
             const Spacer(),
 
             // ── Numeric keypad ──
-            _buildNumPad(loginStatus == LoginStatus.loading),
+            HaccpNumPad(
+              disabled: loginStatus == LoginStatus.loading,
+              onDigitPressed: _onDigit,
+              onClear: _onClear,
+              onBackspace: _onBackspace,
+            ),
             const SizedBox(height: 32),
           ],
         ),
@@ -163,84 +169,6 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
           ),
         );
       }),
-    );
-  }
-
-  // ── NumPad Grid (3×4, 80×80dp buttons — Glove-Friendly) ──
-  Widget _buildNumPad(bool disabled) {
-    const rows = [
-      ['1', '2', '3'],
-      ['4', '5', '6'],
-      ['7', '8', '9'],
-      ['C', '0', '←'],
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: rows.map((row) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: row
-                  .map((label) => _buildPadButton(label, disabled))
-                  .toList(),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildPadButton(String label, bool disabled) {
-    final isAction = label == 'C' || label == '←';
-
-    Color bgColor;
-    Color fgColor;
-    if (label == 'C') {
-      bgColor = HaccpDesignTokens.error.withValues(alpha: 0.15);
-      fgColor = HaccpDesignTokens.error;
-    } else if (label == '←') {
-      bgColor = HaccpDesignTokens.surface;
-      fgColor = Colors.white70;
-    } else {
-      bgColor = HaccpDesignTokens.surface;
-      fgColor = Colors.white;
-    }
-
-    return SizedBox(
-      width: 80,
-      height: 80,
-      child: ElevatedButton(
-        onPressed: disabled
-            ? null
-            : () {
-                if (label == 'C') {
-                  _onClear();
-                } else if (label == '←') {
-                  _onBackspace();
-                } else {
-                  _onDigit(label);
-                }
-              },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bgColor,
-          foregroundColor: fgColor,
-          disabledBackgroundColor: bgColor.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
-          ),
-          padding: EdgeInsets.zero,
-          elevation: 0,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: isAction ? 22 : 28,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }
