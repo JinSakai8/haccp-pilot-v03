@@ -18,7 +18,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportsState = ref.watch(reportsNotifierProvider);
+    final reportsState = ref.watch(reportsProvider);
 
     return Scaffold(
       appBar: const HaccpTopBar(title: 'Raportowanie'),
@@ -148,7 +148,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     foregroundColor: AppTheme.onSecondary,
                   ),
                   onPressed: () async {
-                    await ref.read(reportsNotifierProvider.notifier).uploadCurrentReport();
+                    await ref.read(reportsProvider.notifier).uploadCurrentReport();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Raport wysłany na Google Drive!')),
