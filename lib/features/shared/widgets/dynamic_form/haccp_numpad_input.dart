@@ -4,21 +4,27 @@ import '../../../../core/widgets/haccp_num_pad.dart';
 
 class HaccpNumPadInput extends StatefulWidget {
   final double? value;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
+  final String? textValue;
+  final ValueChanged<String>? onTextChanged;
   final String label;
   final String suffix;
   final double? max;
   final int maxLength;
+  final List<String> extraKeys;
 
   const HaccpNumPadInput({
     super.key,
-    required this.value,
-    required this.onChanged,
+    this.value,
+    this.onChanged,
     required this.label,
     this.suffix = '',
     this.max,
     this.maxLength = 6,
-  });
+    this.textValue,
+    this.onTextChanged,
+    this.extraKeys = const [],
+  }) : assert(onChanged != null || onTextChanged != null, 'Must provide either onChanged (double) or onTextChanged (String)');
 
   @override
   State<HaccpNumPadInput> createState() => _HaccpNumPadInputState();
@@ -26,6 +32,8 @@ class HaccpNumPadInput extends StatefulWidget {
 
 class _HaccpNumPadInputState extends State<HaccpNumPadInput> {
   final TextEditingController _controller = TextEditingController();
+
+  bool get _isStringMode => widget.onTextChanged != null;
 
   @override
   void initState() {
@@ -36,18 +44,24 @@ class _HaccpNumPadInputState extends State<HaccpNumPadInput> {
   @override
   void didUpdateWidget(covariant HaccpNumPadInput oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value) {
-      _updateText();
+    if (_isStringMode) {
+      if (oldWidget.textValue != widget.textValue) _updateText();
+    } else {
+      if (oldWidget.value != widget.value) _updateText();
     }
   }
 
   void _updateText() {
-    if (widget.value == null) {
-      _controller.text = '';
+    if (_isStringMode) {
+       _controller.text = widget.textValue ?? '';
     } else {
-      _controller.text = widget.value! % 1 == 0
-          ? widget.value!.toInt().toString()
-          : widget.value!.toString();
+      if (widget.value == null) {
+        _controller.text = '';
+      } else {
+        _controller.text = widget.value! % 1 == 0
+            ? widget.value!.toInt().toString()
+            : widget.value!.toString();
+      }
     }
   }
 
@@ -65,10 +79,16 @@ class _HaccpNumPadInputState extends State<HaccpNumPadInput> {
           maxLength: widget.maxLength,
           label: widget.label,
           max: widget.max,
+          extraKeys: widget.extraKeys,
+          isStringMode: _isStringMode,
           onConfirm: (val) {
-            final doubleVal = double.tryParse(val);
-            if (doubleVal != null) {
-              widget.onChanged(doubleVal);
+            if (_isStringMode) {
+              widget.onTextChanged?.call(val);
+            } else {
+              final doubleVal = double.tryParse(val.replaceAll(',', '.'));
+              if (doubleVal != null) {
+                widget.onChanged?.call(doubleVal);
+              }
             }
             Navigator.pop(context);
           },
@@ -104,6 +124,8 @@ class _NumPadSheet extends StatefulWidget {
   final int maxLength;
   final String label;
   final double? max;
+  final List<String> extraKeys;
+  final bool isStringMode;
   final ValueChanged<String> onConfirm;
 
   const _NumPadSheet({
@@ -112,6 +134,8 @@ class _NumPadSheet extends StatefulWidget {
     required this.label,
     this.max,
     required this.onConfirm,
+    this.extraKeys = const [],
+    this.isStringMode = false,
   });
 
   @override
@@ -129,8 +153,11 @@ class _NumPadSheetState extends State<_NumPadSheet> {
 
   void _onDigit(String digit) {
     if (_currentValue.length >= widget.maxLength) return;
-    // Simple decimal check
-    if (digit == '.' && _currentValue.contains('.')) return;
+    
+    // Decimal check only for numeric mode
+    if (!widget.isStringMode) {
+       if ((digit == '.' || digit == ',') && (_currentValue.contains('.') || _currentValue.contains(','))) return;
+    }
     
     setState(() {
       _currentValue += digit;
@@ -177,7 +204,7 @@ class _NumPadSheetState extends State<_NumPadSheet> {
               width: double.infinity,
               alignment: Alignment.centerRight,
               child: Text(
-                _currentValue.isEmpty ? '0' : _currentValue,
+                _currentValue.isEmpty ? ' ' : _currentValue,
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),
@@ -186,6 +213,7 @@ class _NumPadSheetState extends State<_NumPadSheet> {
               onDigitPressed: _onDigit, 
               onClear: _onClear, 
               onBackspace: _onBackspace,
+              extraKeys: widget.extraKeys,
             ),
             const SizedBox(height: 16),
             SizedBox(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:haccp_pilot/features/shared/widgets/dynamic_form/haccp_numpad_input.dart';
 
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_long_press_button.dart';
@@ -10,6 +11,7 @@ import '../../../../core/widgets/haccp_toggle.dart';
 import '../../../../core/constants/design_tokens.dart';
 import '../providers/m08_providers.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/repositories/auth_repository.dart';
 
 class GlobalSettingsScreen extends ConsumerStatefulWidget {
   const GlobalSettingsScreen({super.key});
@@ -20,41 +22,44 @@ class GlobalSettingsScreen extends ConsumerStatefulWidget {
 
 class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
   final _nameController = TextEditingController();
-  final _nipController = TextEditingController();
   final _addressController = TextEditingController();
+  
+  // NIP is numeric, handled by HaccpNumPadInput state, but we need local value to submit
+  String _nipValue = '';
   
   bool _isLoading = false;
   String? _logoUrl;
   File? _newLogoFile;
+  String? _venueId;
 
   @override
   void initState() {
     super.initState();
-    // Fetch settings for current venue
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSettings();
+      _initVenue();
     });
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _initVenue() async {
     final employee = ref.read(currentEmployeeProvider);
-    // Assuming 1st zone's venue_id is the venue, or auth provider has venue_id
-    // Simplified: fetch first venue found or hardcoded for single-tenant
-    // But since we don't have venue_id readily available in employee model yet (it's in employee_zones), 
-    // let's assume we pass it or get it.
-    
-    // WORKAROUND: For now, we'll try to get it from the first zone or a known ID.
-    // Ideally, AuthProvider should expose `currentVenueId`.
-    // Let's assume 'default' or check if we can get it.
-    
-    // For this implementation, we will rely on provider family:
-    // But we need the ID to call the provider.
+    if (employee == null) return;
+
+    // Fetch zones to get venueId
+    // Ideally this should be cached in AuthProvider
+    final zones = await AuthRepository().getZonesForEmployee(employee.id);
+    if (zones.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _venueId = zones.first.venueId;
+        });
+        // Provider will auto-load when watched, but we can pre-fetch
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _nipController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -69,18 +74,23 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
     }
   }
 
-  Future<void> _saveSettings(String venueId) async {
+  Future<void> _saveSettings() async {
+    if (_venueId == null) return;
+    
     setState(() => _isLoading = true);
     
     try {
       String? uploadedUrl;
+      // Upload logo if changed
       if (_newLogoFile != null) {
-        uploadedUrl = await ref.read(venueSettingsControllerProvider(venueId).notifier).uploadLogo(_newLogoFile!);
+        uploadedUrl = await ref.read(venueSettingsControllerProvider(_venueId!).notifier).uploadLogo(_newLogoFile!);
+      } else {
+        uploadedUrl = _logoUrl; 
       }
 
-      await ref.read(venueSettingsControllerProvider(venueId).notifier).updateSettings(
+      await ref.read(venueSettingsControllerProvider(_venueId!).notifier).updateSettings(
         name: _nameController.text,
-        nip: _nipController.text,
+        nip: _nipValue,
         address: _addressController.text,
         logoUrl: uploadedUrl,
       );
@@ -106,20 +116,13 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // In a real app, venueId comes from Auth
-    // Hardcoding 'default' or getting from user context if available
-    // Let's assume the user has access to at least one venue.
-    // For now, we will simulate or get from a provider if we updated Auth.
-    
-    // Since we didn't update Auth to hold venueId, let's use a placeholder or 
-    // fetch it inside the widget if we had a way.
-    // Let's assume venue_id is 'ec2e92a4-5678-4901-ab34-567890123456' (mock) or derived.
-    
-    // Better strategy: Use AsyncValue to load.
-    // But for this screen to work, we need an ID.
-    final venueId = 'default'; // Replace with real ID logic
+    if (_venueId == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    final settingsAsync = ref.watch(venueSettingsControllerProvider(venueId));
+    final settingsAsync = ref.watch(venueSettingsControllerProvider(_venueId!));
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -134,10 +137,12 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
             Expanded(
               child: settingsAsync.when(
                 data: (settings) {
-                  if (settings != null && _nameController.text.isEmpty) {
+                  // Init controllers only once (checking text empty is poor heuristic but works for now)
+                  // Better: check a flag _controllersInitialized
+                  if (settings != null && _nameController.text.isEmpty && _addressController.text.isEmpty && _nipValue.isEmpty) {
                     _nameController.text = settings['name'] ?? '';
-                    _nipController.text = settings['nip'] ?? '';
                     _addressController.text = settings['address'] ?? '';
+                    _nipValue = settings['nip'] ?? '';
                     _logoUrl = settings['logo_url'];
                   }
                   
@@ -192,7 +197,16 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                         const SizedBox(height: 16),
                         _buildTextField('Nazwa Lokalu', _nameController),
                         const SizedBox(height: 16),
-                        _buildTextField('NIP', _nipController),
+                        // NIP using NumPad
+                        HaccpNumPadInput(
+                          label: 'NIP',
+                          textValue: _nipValue,
+                          onTextChanged: (val) => setState(() => _nipValue = val),
+                          maxLength: 10,
+                          // NIP is typically just numbers, but allowing '-' if needed? 
+                          // Standard NIP is 10 digits. NumPad 'extraKeys' not needed unless '-'
+                          // Let's stick to standard digits.
+                        ),
                          const SizedBox(height: 16),
                         _buildTextField('Adres', _addressController),
                         
@@ -213,7 +227,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                             ? const CircularProgressIndicator()
                             : HaccpLongPressButton(
                                 label: 'ZAPISZ USTAWIENIA',
-                                onAction: () => _saveSettings(venueId),
+                                onAction: _saveSettings,
                                 color: DesignTokens.primaryColor,
                               ),
                         ),

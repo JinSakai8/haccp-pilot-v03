@@ -197,12 +197,16 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
               onChanged: (val) => setState(() => _selectedCompany = val),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _kpoController,
-              decoration: const InputDecoration(
-                labelText: 'Numer KPO (opcjonalnie)',
-                border: OutlineInputBorder(),
-              ),
+            HaccpNumPadInput(
+              label: 'Numer KPO (opcjonalnie)',
+              textValue: _kpoController.text,
+              onTextChanged: (val) {
+                setState(() {
+                  _kpoController.text = val;
+                });
+              },
+              maxLength: 20,
+              extraKeys: const ['/'],
             ),
 
             const SizedBox(height: 24),

@@ -6,6 +6,7 @@ enum HaccpFieldType {
   dropdown,
   numpad,
   photo,
+  text,
 }
 
 class FormFieldConfig {

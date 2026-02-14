@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 // import 'package:http/http.dart' as http; // Use supabase storage download instead
 
@@ -74,7 +75,7 @@ class ReportsRepository {
          return bytes;
       }
     } catch (e) {
-      print('Error fetching logo: $e');
+      debugPrint('Error fetching logo: $e');
     }
     return null;
   }

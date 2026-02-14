@@ -54,12 +54,12 @@ class PdfService {
                     images[field.id] = bytes;
                   }
                 } catch (storageError) {
-                  print('Supabase Storage Download Error for $path: $storageError');
+                  debugPrint('Supabase Storage Download Error for $path: $storageError');
                   // Do not throw, just log. The PDF will show placeholder.
                 }
               }
             } catch (e) {
-              print('Error loading image for PDF: $e');
+              debugPrint('Error loading image for PDF: $e');
             }
         }
       }

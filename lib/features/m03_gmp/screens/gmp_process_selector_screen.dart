@@ -24,17 +24,17 @@ class GmpProcessSelectorScreen extends StatelessWidget {
           HaccpTile(
             icon: Icons.ac_unit,
             label: 'Chłodzenie Żywności',
-            onTap: () => {}, // Placeholder
+            onTap: () => context.push('/gmp/cooling'),
           ),
           HaccpTile(
             icon: Icons.local_shipping,
             label: 'Kontrola Dostaw',
-            onTap: () => {}, // Placeholder
+            onTap: () => context.push('/gmp/delivery'),
           ),
           HaccpTile(
             icon: Icons.history,
             label: 'Historia Wpisów',
-            onTap: () => {}, // Placeholder
+            onTap: () => context.push('/gmp/history'),
           ),
         ],
       ),

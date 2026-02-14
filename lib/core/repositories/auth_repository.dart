@@ -31,7 +31,7 @@ class AuthRepository {
   Future<List<Zone>> getZonesForEmployee(String employeeId) async {
     final response = await _client
         .from('employee_zones')
-        .select('zones(id, name)')
+        .select('zones(id, name, venue_id)')
         .eq('employee_id', employeeId);
 
     return (response as List).map((row) {

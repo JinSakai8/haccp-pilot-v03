@@ -6,6 +6,7 @@ class HaccpNumPad extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onBackspace;
   final bool disabled;
+  final List<String> extraKeys;
 
   const HaccpNumPad({
     super.key,
@@ -13,16 +14,23 @@ class HaccpNumPad extends StatelessWidget {
     required this.onClear,
     required this.onBackspace,
     this.disabled = false,
+    this.extraKeys = const [],
   });
 
   @override
   Widget build(BuildContext context) {
-    const rows = [
+    // Standard numeric rows
+    final rows = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
       ['C', '0', '←'],
     ];
+
+    // If extra keys provided (e.g. ['/']), add them as a new row
+    if (extraKeys.isNotEmpty) {
+      rows.add(extraKeys);
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -66,6 +74,7 @@ class HaccpNumPad extends StatelessWidget {
                 } else if (label == '←') {
                   onBackspace();
                 } else {
+                  // Standard digits + extra keys (like '/')
                   onDigitPressed(label);
                 }
               },

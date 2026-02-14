@@ -9,28 +9,27 @@ import '../../shared/providers/dynamic_form_provider.dart';
 import '../providers/gmp_provider.dart';
 import '../../../core/widgets/success_overlay.dart';
 import '../../../core/widgets/haccp_long_press_button.dart';
-
 import '../../shared/config/form_definitions.dart';
 
-class MeatRoastingFormScreen extends ConsumerWidget {
-  const MeatRoastingFormScreen({super.key});
+class FoodCoolingFormScreen extends ConsumerWidget {
+  const FoodCoolingFormScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final roastingFormDef = FormDefinitions.roastingFormDef;
-    const String formId = 'meat_roasting_daily';
-    final formState = ref.watch(dynamicFormProvider(formId, roastingFormDef));
+    final formDef = FormDefinitions.coolingFormDef;
+    const String formId = 'food_cooling_daily';
+    final formState = ref.watch(dynamicFormProvider(formId, formDef));
     final submissionState = ref.watch(gmpFormSubmissionProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Pieczenie Mięs'),
+      appBar: const HaccpTopBar(title: 'Chłodzenie Żywności'),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
               child: DynamicFormRenderer(
                 formId: formId,
-                definition: roastingFormDef,
+                definition: formDef,
               ),
             ),
           ),

@@ -35,4 +35,21 @@ class WasteRepository {
 
     return (response as List).map((e) => WasteRecord.fromJson(e)).toList();
   }
+
+  Future<List<WasteRecord>> getHistory(String venueId, {DateTime? fromDate, DateTime? toDate}) async {
+    var query = SupabaseService.client
+        .from(_table)
+        .select()
+        .eq('venue_id', venueId);
+
+    if (fromDate != null) {
+      query = query.gte('created_at', fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      query = query.lte('created_at', toDate.toIso8601String());
+    }
+
+    final response = await query.order('created_at', ascending: false);
+    return (response as List).map((e) => WasteRecord.fromJson(e)).toList();
+  }
 }

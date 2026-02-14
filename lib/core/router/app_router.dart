@@ -7,8 +7,20 @@ import '../../features/m01_auth/screens/pin_pad_screen.dart';
 import '../../features/m01_auth/screens/zone_selection_screen.dart';
 import '../../features/dashboard/screens/dashboard_hub_screen.dart';
 import '../../features/m02_monitoring/screens/temperature_dashboard_screen.dart';
+import '../../features/m02_monitoring/screens/alarms_panel_screen.dart';
+import '../../features/m02_monitoring/screens/sensor_chart_screen.dart';
 import '../../features/m03_gmp/screens/gmp_process_selector_screen.dart';
 import '../../features/m03_gmp/screens/meat_roasting_form_screen.dart';
+import '../../features/m03_gmp/screens/food_cooling_form_screen.dart';
+import '../../features/m03_gmp/screens/delivery_control_form_screen.dart';
+import '../../features/m03_gmp/screens/gmp_history_screen.dart';
+import '../../features/m04_ghp/screens/ghp_category_selector_screen.dart';
+import '../../features/m04_ghp/screens/ghp_checklist_screen.dart';
+import '../../features/m05_waste/screens/waste_panel_screen.dart';
+import '../../features/m05_waste/screens/waste_registration_form_screen.dart';
+import '../../features/m05_waste/screens/haccp_camera_screen.dart';
+import '../../features/m05_waste/screens/waste_history_screen.dart';
+import '../../features/m08_settings/screens/global_settings_screen.dart';
 import '../../features/m06_reports/screens/reports_panel_screen.dart';
 import '../../features/m06_reports/screens/pdf_preview_screen.dart';
 import '../../features/m06_reports/screens/drive_status_screen.dart';
@@ -68,6 +80,17 @@ GoRouter appRouter(Ref ref) {
         path: '/monitoring',
         builder: (context, state) => const TemperatureDashboardScreen(),
       ),
+      GoRoute(
+        path: '/monitoring/alarms',
+        builder: (context, state) => const AlarmsPanelScreen(),
+      ),
+      GoRoute(
+        path: '/monitoring/chart/:deviceId',
+        builder: (context, state) {
+           final deviceId = state.pathParameters['deviceId'] ?? 'unknown';
+           return SensorChartScreen(deviceId: deviceId);
+        },
+      ),
       
       // M03 GMP
       GoRoute(
@@ -77,6 +100,55 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: RouteNames.gmpRoasting,
         builder: (context, state) => const MeatRoastingFormScreen(),
+      ),
+      GoRoute(
+        path: '/gmp/cooling',
+        builder: (context, state) => const FoodCoolingFormScreen(),
+      ),
+      GoRoute(
+        path: '/gmp/delivery',
+        builder: (context, state) => const DeliveryControlFormScreen(),
+      ),
+      GoRoute(
+        path: '/gmp/history',
+        builder: (context, state) => const GmpHistoryScreen(),
+      ),
+
+      // M05 Waste
+      GoRoute(
+        path: '/waste',
+        builder: (context, state) => const WastePanelScreen(),
+      ),
+      GoRoute(
+        path: '/waste/register',
+        builder: (context, state) => const WasteRegistrationFormScreen(),
+      ),
+      GoRoute(
+        path: '/waste/camera',
+        builder: (context, state) => const HaccpCameraScreen(),
+      ),
+      GoRoute(
+        path: '/waste/history',
+        builder: (context, state) => const WasteHistoryScreen(),
+      ),
+
+      // M04 GHP
+      GoRoute(
+        path: '/ghp',
+        builder: (context, state) => const GhpCategorySelectorScreen(),
+      ),
+      GoRoute(
+        path: '/ghp/checklist',
+        builder: (context, state) {
+          final categoryId = state.extra as String? ?? 'personnel'; // Default fallback
+          return GhpChecklistScreen(categoryId: categoryId);
+        },
+      ),
+
+      // M08 Settings
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const GlobalSettingsScreen(),
       ),
 
       // M06 Reports

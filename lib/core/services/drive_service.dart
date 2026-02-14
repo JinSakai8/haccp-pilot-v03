@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -44,7 +45,7 @@ class DriveService {
       client.close();
       return result.id;
     } catch (e) {
-      print('Drive Upload Error: $e');
+      debugPrint('Drive Upload Error: $e');
       rethrow;
     }
   }
@@ -69,7 +70,7 @@ class DriveService {
       client.close();
       return fileList.files ?? [];
     } catch (e) {
-      print('Drive List Error: $e');
+      debugPrint('Drive List Error: $e');
       return [];
     }
   }

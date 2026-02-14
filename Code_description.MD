@@ -226,5 +226,31 @@ Wdrożono zaawansowane mechanizmy bezpieczeństwa zgodnie z audytem 10a.
 - **Error Handling**: W produkcji (`kReleaseMode`) stack trace błędu inicjalizacji jest ukryty przed użytkownikiem.
 
 ---
+
+## 12. Architecture Master Plan Compliance (Directive 14)
+
+Wdrożono rygorystyczne standardy architektoniczne zapewniające skalowalność i łatwość utrzymania 33+ ekranów.
+
+### Feature-First Isolation
+
+- Każdy moduł (M01-M08) posiada własny folder `repositories/` i `providers/`.
+- **Zakaz współdzielenia repozytoriów logów:** M03 korzysta z `GmpRepository`, M04 z `GhpRepository`. Zapobiega to "God Object" w warstwie danych.
+
+### Wzorzec Repository -> Provider -> Screen
+
+1. **Repository**: Czysty dostęp do Supabase (np. `gmp_repository.dart`).
+2. **Provider**: `AsyncNotifier` (np. `gmp_provider.dart`), który zarządza stanem ładowania i błędów.
+3. **Screen**: Reaguje na stan providera (`ref.watch`) i wyświetla `SuccessOverlay` po udanym zapisie.
+
+### Glove-Friendly Safety (Long Press)
+
+- **HaccpLongPressButton**: Zgodnie z Master Planem, każdy przycisk typu "ZAPISZ" lub "ZATWIERDŹ" w modułach operacyjnych (M03, M04, M05) musi być przyciskiem typu Long Press. Eliminuje to błędy wynikające z przypadkowych dotknięć ekranu mokrą ręką lub w rękawicy.
+
+### Unified Connectivity Logic
+
+- **isOnlineProvider**: Centralny provider zwracający `bool`.
+- **OfflineBanner**: Widget w `core/widgets/` reagujący na brak sieci w czasie rzeczywistym.
+
+---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (Security Hardening Completed)
+Data wersji: 2026-02-14 (Architecture Master Plan & Persistence Implemented)
