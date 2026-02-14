@@ -52,6 +52,7 @@ dependencies:
   googleapis_auth: ^1.4.1
   syncfusion_flutter_pdf: ^32.2.4
   http: ^1.2.0
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:

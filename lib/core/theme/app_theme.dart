@@ -41,4 +41,19 @@ class AppTheme {
       ),
     );
   }
+
+  // Static colors for direct usage
+  static const Color primary = HaccpDesignTokens.primary;
+  static const Color surface = HaccpDesignTokens.surface;
+  static const Color background = HaccpDesignTokens.background;
+  static const Color error = HaccpDesignTokens.error;
+  static const Color onPrimary = Colors.white;
+  static const Color onSurface = HaccpDesignTokens.onSurface;
+  // onSurfaceVariant often used for secondary text, map to onSurface with opacity or create tokens
+  static const Color onSurfaceVariant = Colors.white60;
+  static const Color secondary = HaccpDesignTokens.primary; // Mapped to primary for now
+  static const Color onSecondary = Colors.white;
+  static const Color outline = Colors.white24;
+  static const Color success = HaccpDesignTokens.success;
+  static const Color warning = HaccpDesignTokens.warning;
 }

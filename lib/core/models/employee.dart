@@ -4,6 +4,7 @@ class Employee {
   final String role; // owner, manager, cook, cleaner
   final bool isActive;
   final DateTime? sanepidExpiry;
+  final List<String> zones;
 
   Employee({
     required this.id,
@@ -11,6 +12,7 @@ class Employee {
     required this.role,
     required this.isActive,
     this.sanepidExpiry,
+    this.zones = const [],
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,9 @@ class Employee {
       sanepidExpiry: json['sanepid_expiry'] != null
           ? DateTime.parse(json['sanepid_expiry'] as String)
           : null,
+      zones: json['zones'] != null 
+          ? (json['zones'] as List).map((e) => e.toString()).toList()
+          : [],
     );
   }
 

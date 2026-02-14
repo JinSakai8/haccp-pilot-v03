@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/design_tokens.dart';
+import '../constants/design_tokens.dart';
 
 class HaccpSuccessOverlay extends StatefulWidget {
   final String message;

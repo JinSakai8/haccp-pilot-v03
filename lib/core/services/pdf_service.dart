@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -278,5 +279,21 @@ class _PdfGenerationParams {
     required this.userName,
     required this.date,
     required this.images,
+  });
+}
+
+class _PdfTableParams {
+  final String title;
+  final List<String> columns;
+  final List<List<String>> rows;
+  final String userName;
+  final String dateRange;
+
+  _PdfTableParams({
+    required this.title,
+    required this.columns,
+    required this.rows,
+    required this.userName,
+    required this.dateRange,
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'dart:async';
 import '../repositories/ghp_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 
@@ -8,7 +9,7 @@ part 'ghp_provider.g.dart';
 @riverpod
 class GhpFormSubmission extends _$GhpFormSubmission {
   @override
-  FutureOr<void> build() {}
+  Future<void> build() async {}
 
   Future<bool> submitChecklist({
     required String formId,

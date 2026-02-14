@@ -59,7 +59,7 @@ class HaccpTopBar extends ConsumerWidget implements PreferredSizeWidget {
             child: ElevatedButton.icon(
               onPressed: () async {
                  // Simple logout logic: clear global state
-                 ref.read(currentEmployeeProvider.notifier).clear();
+                 ref.read(currentUserProvider.notifier).clear();
                  ref.read(currentZoneProvider.notifier).clear();
                  
                  if (context.mounted) {

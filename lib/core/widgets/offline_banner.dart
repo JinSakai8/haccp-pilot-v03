@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../../constants/design_tokens.dart';
+import '../constants/design_tokens.dart';
 import '../providers/connectivity_provider.dart';
 
 class HaccpOfflineBanner extends ConsumerWidget {

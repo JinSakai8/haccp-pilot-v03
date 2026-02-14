@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-import '../../core/models/employee.dart';
+import '../../../core/models/employee.dart';
 import '../../core/services/supabase_service.dart';
 
 class HrRepository {

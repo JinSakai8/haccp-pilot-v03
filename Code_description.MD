@@ -157,10 +157,6 @@ Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 - **Funkcje**: Upload plików (`uploadReport`) oraz listowanie zawartości folderu (`listFiles`).
 
 ---
-Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (M08 Settings & Polish Implemented)
-
----
 
 ## 9. Moduł M07 (HR & Personel)
 
@@ -252,5 +248,81 @@ Wdrożono rygorystyczne standardy architektoniczne zapewniające skalowalność 
 - **OfflineBanner**: Widget w `core/widgets/` reagujący na brak sieci w czasie rzeczywistym.
 
 ---
+
+## 13. Baza Danych (Supabase)
+
+System opiera się na relacyjnej bazie PostgreSQL hostowanej w Supabase. Dostęp do danych odbywa się wyłącznie przez warstwę repoyztoriów (`repositories/`), które komunikują się z API Supabase.
+
+### 13.1 Schemat Tabel
+
+Poniżej przedstawiono strukturę głównych tabel wykorzystywanych w poszczególnych modułach.
+
+| Tabela | Moduł(y) | Opis | Kluczowe Kolumny |
+|:---|:---|:---|:---|
+| **`employees`** | M01, M07 | Pracownicy i uprawnienia | `id`, `full_name`, `pin_hash`, `role` (owner/manager/cook), `is_active`, `sanepid_expiry` |
+| **`zones`** | M01 | Strefy w lokalu (np. Kuchnia) | `id`, `name`, `venue_id` |
+| **`employee_zones`** | M01 | Przypisanie pracownika do strefy | `employee_id`, `zone_id` |
+| **`sensors`** | M02 | Fizyczne czujniki IoT | `id`, `name`, `zone_id`, `is_active` |
+| **`measurements`** | M02 | Logi temperatur (Realtime) | `id`, `sensor_id`, `temperature_celsius`, `timestamp` |
+| **`haccp_logs`** | M03, M04 | Zunifikowane logi GMP i GHP | `id`, `category` (gmp/ghp), `form_id`, `data` (JSONB), `user_id`, `zone_id`, `created_at` |
+| **`waste_records`** | M05, M06 | Rejestr odpadów | `id`, `venue_id`, `waste_type`, `mass_kg`, `photo_url`, `created_at` |
+| **`venues`** | M08 | Ustawienia lokalu | `id`, `name`, `address`, `nip`, `logo_url` |
+| **`public_employees`** | M07 | Widok bezpieczny (bez hashy PIN) | (View) `id`, `full_name`, `role`, `is_active` |
+
+### 13.2 Przepływ Danych (Data Flow)
+
+Każdy moduł implementuje specyficzne zapytania do bazy. Poniżej zestawienie operacji.
+
+#### **M01: Autoryzacja (`AuthRepository`)**
+
+- **Zapytanie:** `SELECT` z tabeli `employees` gdzie `pin_hash` = SHA256(input) oraz `is_active` = true.
+- **Zwrot:** Obiekt `Employee` (token sesji w aplikacji, brak JWT od Supabase w trybie Kiosk).
+- **Strefy:** `SELECT` z `employee_zones` join `zones`.
+
+#### **M02: Monitoring (`MeasurementsRepository`)**
+
+- **Zapytanie:** `STREAM` (Subscribe) na tabelę `temperature_logs` (lub `measurements`).
+- **Zwrot:** Strumień listy `TemperatureLog` (ostatnie 20 wpisów sortowane po czasie).
+- **Czujniki:** `SELECT` z `sensors` dla danej strefy.
+
+#### **M03 (GMP) & M04 (GHP) (`GmpRepository` / `GhpRepository`)**
+
+- **Zapis:** `INSERT` do tabeli `haccp_logs`.
+  - Rozróżnienie rekordów poprzez kolumnę `category`: `'gmp'` lub `'ghp'`.
+  - Dane formularza (temperatury, odpowiedzi tak/nie) lądują w kolumnie `data` jako JSONB.
+- **Odczyt (Historia):** `SELECT` z `haccp_logs` filtrowane po `category` i `zone_id`.
+- **Zwrot:** Lista map JSON.
+
+#### **M05: Odpady (`WasteRepository`)**
+
+- **Zapis:**
+    1. Upload zdjęcia do Storage (`waste-docs`).
+    2. `INSERT` do `waste_records` z otrzymanym `photo_url`.
+- **Odczyt:** `SELECT` z `waste_records` dla danego `venue_id`.
+
+#### **M06: Raporty (`ReportsRepository`)**
+
+- **Odczyt:** Agregacja danych z `waste_records`, `measurements` oraz logów.
+- **UWAGA:** Obecna implementacja `ReportsRepository` szuka tabeli `gmp_logs`, podczas gdy M03 zapisuje do `haccp_logs`. Wymagana weryfikacja migracji danych lub aktualizacja zapytania.
+
+#### **M07: HR (`HrRepository`)**
+
+- **Odczyt:** `SELECT` z widoku `public_employees` (bezpieczne listowanie).
+- **Zapis:** `INSERT`/`UPDATE` na tabeli `employees` (wymaga RLS role='manager'/'owner' - w trybie kiosk symulowane przez logikę aplikacji guarding routes).
+
+#### **M08: Ustawienia (`VenueRepository`)**
+
+- **Zapis:** `UPDATE` na tabeli `venues`.
+- **Logo:** Upload do bucketu `branding`, zapis URL w `venues.logo_url`.
+
+### 13.3 Bezpieczeństwo (RLS & Policies)
+
+Mimo trybu Kiosk (gdzie często używa się jednego Service Role lub anonimowego dostępu), wdrożono RLS:
+
+1. **Employees:** Dostęp do `pin_hash` jest zablokowany dla zwykłych zapytań `SELECT *`.
+2. **Audit:** Trigger `handle_updated_at` automatycznie uzupełnia czasy edycji.
+3. **Storage:** Buckety `waste-docs` i `branding` mają polityki `SELECT` public (lub authenticated) oraz `INSERT` tylko dla uwierzytelnionych sesji.
+
+---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (Architecture Master Plan & Persistence Implemented)
+Data wersji: 2026-02-14 (Architecture Master Plan & Database Integration Analysis)

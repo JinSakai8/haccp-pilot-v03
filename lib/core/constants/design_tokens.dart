@@ -20,3 +20,21 @@ class HaccpDesignTokens {
   // Typography
   static const String fontFamily = 'Work Sans';
 }
+
+/// Compatibility layer for legacy DesignTokens usage
+class DesignTokens {
+  static const Color background = HaccpDesignTokens.background;
+  static const Color backgroundColor = HaccpDesignTokens.background;
+  static const Color surface = HaccpDesignTokens.surface;
+  static const Color primaryColor = HaccpDesignTokens.primary;
+  static const Color successColor = HaccpDesignTokens.success;
+  static const Color errorColor = HaccpDesignTokens.error;
+  static const Color warningColor = HaccpDesignTokens.warning;
+  static const Color accentColor = HaccpDesignTokens.primary; // Map accent to primary or separate color
+  static const Color onBackground = HaccpDesignTokens.onBackground;
+  static const Color onSurface = HaccpDesignTokens.onSurface;
+  
+  static const double minTouchTarget = HaccpDesignTokens.minTouchTarget;
+  static const double standardPadding = HaccpDesignTokens.standardPadding;
+  static const double cardRadius = HaccpDesignTokens.cardRadius;
+}

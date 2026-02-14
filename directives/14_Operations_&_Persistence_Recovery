@@ -1,0 +1,28 @@
+# Directive 14: Operations & Persistence Recovery
+
+## Cel
+Przejście z "Atrapy UI" do pełnej funkcjonalności w modułach M03 (GMP) i M04 (GHP) oraz uzupełnienie brakujących widgetów Shared.
+
+## Zadania (Execution)
+
+### 1. Warstwa Danych (M03/M04)
+- Stwórz `lib/features/shared/repositories/haccp_logs_repository.dart`.
+- Zaimplementuj metodę `saveLog(String category, String formId, Map<String, dynamic> data)`.
+- W `DynamicFormRenderer` podepnij realny `_handleSubmit`, który używa powyższego repozytorium.
+
+### 2. Definicje GHP (M04 Recovery)
+- Wyciągnij mockowane definicje z `ghp_checklist_screen.dart`.
+- Przenieś je do `lib/features/shared/config/checklist_definitions.dart`.
+- Dodaj brakujące kategorie (4.2-4.5) jako mapy FormDefinition.
+
+### 3. Uzupełnienie M05 (History)
+- Stwórz `lib/features/m05_waste/screens/waste_history_screen.dart`.
+- Dodaj filtrowanie po dacie i typie odpadu. Podepnij pod routing.
+
+### 4. Shared UI (Gap Fill)
+- Stwórz `lib/core/widgets/success_overlay.dart` (wielki zielony ptaszek po zapisie).
+- Stwórz `lib/core/widgets/offline_banner.dart` i zintegruj go z `ConnectivityProvider`.
+
+## Rygor
+- Wszystkie operacje zapisu muszą wyświetlać `SuccessOverlay` na 1.5 sekundy przed powrotem do Dashboardu.
+- Żadnych hardkodowanych "test_id". Dane muszą pochodzić z `authProvider`.

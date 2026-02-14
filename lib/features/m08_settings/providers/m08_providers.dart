@@ -1,33 +1,20 @@
 import 'dart:io';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/venue_repository.dart';
+
+part 'm08_providers.g.dart';
 
 final venueRepositoryProvider = Provider<VenueRepository>((ref) {
   return VenueRepository();
 });
 
-// Controller for Venue Settings
-// Uses family to fetch by venueId
-final venueSettingsControllerProvider = StateNotifierProvider.family<VenueSettingsController, AsyncValue<Map<String, dynamic>?>, String>((ref, venueId) {
-  return VenueSettingsController(ref.read(venueRepositoryProvider), venueId);
-});
-
-class VenueSettingsController extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
-  final VenueRepository _repository;
-  final String _venueId;
-
-  VenueSettingsController(this._repository, this._venueId) : super(const AsyncValue.loading()) {
-    loadSettings();
-  }
-
-  Future<void> loadSettings() async {
-    try {
-      state = const AsyncValue.loading();
-      final data = await _repository.getSettings(_venueId);
-      state = AsyncValue.data(data);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+@riverpod
+class VenueSettingsController extends _$VenueSettingsController {
+  @override
+  Future<Map<String, dynamic>?> build(String venueId) async {
+    final repository = ref.read(venueRepositoryProvider);
+    return repository.getSettings(venueId);
   }
 
   Future<void> updateSettings({
@@ -36,24 +23,23 @@ class VenueSettingsController extends StateNotifier<AsyncValue<Map<String, dynam
     required String address,
     String? logoUrl,
   }) async {
-    try {
-      // Optimistic update or wait? Wait for safety.
-      await _repository.updateSettings(
-        venueId: _venueId,
+    final repository = ref.read(venueRepositoryProvider);
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await repository.updateSettings(
+        venueId: venueId,
         name: name,
         nip: nip,
         address: address,
         logoUrl: logoUrl,
       );
-      // Reload to confirm
-      await loadSettings();
-    } catch (e) {
-      // UI handles error showing, but we can also set state error if needed
-      rethrow;
-    }
+      // Return updated data
+      return repository.getSettings(venueId);
+    });
   }
 
   Future<String?> uploadLogo(File file) async {
-    return await _repository.uploadLogo(file, _venueId);
+    final repository = ref.read(venueRepositoryProvider);
+    return await repository.uploadLogo(file, venueId);
   }
 }

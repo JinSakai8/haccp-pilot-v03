@@ -7,7 +7,7 @@ import 'package:haccp_pilot/features/shared/widgets/dynamic_form/haccp_numpad_in
 
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_long_press_button.dart';
-import '../../../../core/widgets/haccp_toggle.dart';
+import '../../shared/widgets/dynamic_form/haccp_toggle.dart';
 import '../../../../core/constants/design_tokens.dart';
 import '../providers/m08_providers.dart';
 import '../../../../core/providers/auth_provider.dart';
@@ -41,7 +41,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
   }
 
   Future<void> _initVenue() async {
-    final employee = ref.read(currentEmployeeProvider);
+    final employee = ref.read(currentUserProvider);
     if (employee == null) return;
 
     // Fetch zones to get venueId
@@ -99,7 +99,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ustawienia zapisane!'),
-            backgroundColor: DesignTokens.successColor,
+            backgroundColor: HaccpDesignTokens.success,
           ),
         );
       }
@@ -227,8 +227,8 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                             ? const CircularProgressIndicator()
                             : HaccpLongPressButton(
                                 label: 'ZAPISZ USTAWIENIA',
-                                onAction: _saveSettings,
-                                color: DesignTokens.primaryColor,
+                                onCompleted: _saveSettings,
+                                color: HaccpDesignTokens.primary,
                               ),
                         ),
                         const SizedBox(height: 32),
@@ -251,7 +251,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title.toUpperCase(), style: theme.textTheme.labelMedium?.copyWith(
-          color: DesignTokens.accentColor,
+          color: HaccpDesignTokens.primary,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
         )),

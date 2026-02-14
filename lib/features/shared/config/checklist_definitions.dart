@@ -28,7 +28,7 @@ class ChecklistDefinitions {
     'chemicals': FormDefinition(fields: [
       FormFieldConfig(id: 'name', type: HaccpFieldType.text, label: 'Nazwa środka', required: true),
       FormFieldConfig(id: 'amount', type: HaccpFieldType.stepper, label: 'Ilość / Stężenie', required: true),
-      FormFieldConfig(id: 'target', type: HaccpFieldType.dropdown, label: 'Przeznaczenie', required: true, options: ['Podłogi', 'Blaty', 'Sprzęt', 'Ręce']),
+      FormFieldConfig(id: 'target', type: HaccpFieldType.dropdown, label: 'Przeznaczenie', required: true, config: const {'options': ['Podłogi', 'Blaty', 'Sprzęt', 'Ręce']}),
     ]),
   };
 }

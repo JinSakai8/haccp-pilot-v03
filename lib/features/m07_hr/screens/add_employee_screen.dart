@@ -157,8 +157,6 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       pin: _pin,
       role: _role,
       sanepidExpiry: _sanepidDate,
-      venueId: 'default', // Placeholder
-      zoneId: 'default', // Placeholder
     );
 
     if (mounted) {

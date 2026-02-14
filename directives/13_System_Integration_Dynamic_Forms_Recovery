@@ -1,0 +1,27 @@
+# Directive 13: System Integration & Dynamic Forms Recovery
+
+## Cel
+Naprawa krytycznych braków w routingu oraz implementacja brakującego silnika Dynamic Forms dla M03/M04.
+
+## Zadania (Emergency Execution)
+
+### 1. Routing Hotfix (KRYTYCZNE)
+Zaktualizuj `lib/config/routing/app_router.dart`. Dodaj brakujące ścieżki:
+- `/waste` -> `WastePanelScreen`
+- `/waste/registration` -> `WasteRegistrationFormScreen`
+- `/waste/camera` -> `HaccpCameraScreen`
+- `/settings` -> `GlobalSettingsScreen`
+
+### 2. Dynamic Forms Recovery (M04 & M03 Expansion)
+Agent zignorował Dyrektywę 06. Napraw to:
+- Utwórz `lib/features/shared/widgets/dynamic_form/dynamic_form_renderer.dart`.
+- Zaimplementuj renderowanie pól: `toggle`, `stepper`, `numpad` na podstawie JSON.
+- Utwórz katalog `lib/features/m04_ghp/` i zaimplementuj `GhpChecklistScreen`, który używa tego renderera.
+
+### 3. Placeholder Cleanup
+- Zastąp "puste" przyciski w `GmpProcessSelectorScreen` realnymi trasami do formularzy.
+- Dodaj prosty placeholder dla `SensorChartScreen` (M02), aby kafelki nie prowadziły do nikąd.
+
+## Rygor
+- Żadnego "pustego kodu". Jeśli plik ma istnieć, musi zawierać działający widget.
+- Wszystkie nowe ekrany MUSZĄ być wpisane do `app_router.dart`.

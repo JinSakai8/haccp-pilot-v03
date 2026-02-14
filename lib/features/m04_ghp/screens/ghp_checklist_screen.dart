@@ -97,14 +97,3 @@ class GhpChecklistScreen extends ConsumerWidget {
     }
   }
 }
-
-  String _getCategoryName(String id) {
-    switch(id) {
-      case 'personnel': return 'Personel';
-      case 'rooms': return 'Pomieszczenia';
-      case 'maintenance': return 'Konserwacja';
-      case 'chemicals': return 'Chemia';
-      default: return id;
-    }
-  }
-}

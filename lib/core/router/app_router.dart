@@ -37,7 +37,8 @@ part 'app_router.g.dart';
 GoRouter appRouter(Ref ref) {
   return GoRouter(
     initialLocation: '/',
-      final employee = ref.read(currentEmployeeProvider);
+    redirect: (context, state) {
+      final employee = ref.read(currentUserProvider);
       final isLoggedIn = employee != null;
       final isAuthRoute = state.matchedLocation == '/' || state.matchedLocation == '/login';
 

@@ -38,7 +38,7 @@ class ReportsNotifier extends _$ReportsNotifier {
       final end = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
       final repo = ref.read(reportsRepositoryProvider);
       final pdfService = ref.read(pdfServiceProvider);
-      final user = ref.read(authProvider);
+      final user = ref.read(currentUserProvider);
       
       List<int> pdfBytes;
       String fileName;
@@ -63,7 +63,7 @@ class ReportsNotifier extends _$ReportsNotifier {
           title: 'Karta Ewidencji Odpadów',
           columns: columns,
           rows: rows,
-          userName: user?.name ?? 'System',
+          userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
       } else if (reportType == 'gmp_roasting') {
@@ -112,7 +112,7 @@ class ReportsNotifier extends _$ReportsNotifier {
           title: 'Rejestr Procesu: Pieczenie',
           columns: columns,
           rows: rows,
-          userName: user?.name ?? 'System',
+          userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
         

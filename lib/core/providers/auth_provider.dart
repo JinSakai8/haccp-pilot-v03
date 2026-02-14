@@ -18,7 +18,7 @@ class CurrentEmployeeNotifier extends Notifier<Employee?> {
   void clear() => state = null;
 }
 
-final currentEmployeeProvider =
+final currentUserProvider =
     NotifierProvider<CurrentEmployeeNotifier, Employee?>(
         CurrentEmployeeNotifier.new);
 
@@ -71,7 +71,7 @@ class PinLoginNotifier extends Notifier<LoginStatus> {
         // Success
         _failedAttempts = 0;
         _lockoutUntil = null;
-        ref.read(currentEmployeeProvider.notifier).set(employee);
+        ref.read(currentUserProvider.notifier).set(employee);
         state = LoginStatus.success;
         return employee;
       } else {
@@ -143,7 +143,7 @@ final pinLoginProvider =
 // ─── Zones for Current Employee (autoDispose) ─────────────────
 final employeeZonesProvider =
     FutureProvider.autoDispose<List<Zone>>((ref) async {
-  final employee = ref.watch(currentEmployeeProvider);
+  final employee = ref.watch(currentUserProvider);
   if (employee == null) return [];
   return ref.read(authRepositoryProvider).getZonesForEmployee(employee.id);
 });

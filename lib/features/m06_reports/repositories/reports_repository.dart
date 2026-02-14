@@ -16,10 +16,11 @@ class ReportsRepository {
   }
 
   Future<List<Map<String, dynamic>>> getGmpLogs(DateTime start, DateTime end) async {
-    // Assuming 'gmp_logs' exists
+    // CORRECTED: Read from unified 'haccp_logs' table with category filter
     final response = await SupabaseService.client
-        .from('gmp_logs')
+        .from('haccp_logs')
         .select()
+        .eq('category', 'gmp')
         .gte('created_at', start.toIso8601String())
         .lte('created_at', end.toIso8601String())
         .order('created_at');

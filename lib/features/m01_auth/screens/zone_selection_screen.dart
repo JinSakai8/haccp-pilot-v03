@@ -31,7 +31,7 @@ class ZoneSelectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final employee = ref.watch(currentEmployeeProvider);
+    final employee = ref.watch(currentUserProvider);
     final zonesAsync = ref.watch(employeeZonesProvider);
 
     return Scaffold(
@@ -47,7 +47,7 @@ class ZoneSelectionScreen extends ConsumerWidget {
                   // Back to PIN Pad
                   IconButton(
                     onPressed: () {
-                      ref.read(currentEmployeeProvider.notifier).clear();
+                      ref.read(currentUserProvider.notifier).clear();
                       ref.read(pinLoginProvider.notifier).reset();
                       context.go('/login');
                     },
