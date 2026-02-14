@@ -9,6 +9,7 @@ import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m05_waste/models/waste_record.dart';
 import 'package:haccp_pilot/features/m05_waste/repositories/waste_repository.dart';
 import 'package:haccp_pilot/features/m05_waste/screens/haccp_camera_screen.dart';
+import '../../shared/widgets/dynamic_form/haccp_numpad_input.dart';
 
 // Assuming AuthProvider/ZoneProvider exists or we get IDs passed in.
 // For now, I'll pass userId/zoneId/venueId in constructor or assume providers.
@@ -108,8 +109,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
         // WasteRepository.insert typically ignores ID if DB generates it.
         // But WasteRecord model has 'required this.id'.
         // I should probably generate a temp ID or make it optional in model.
-        // For now:
-        id: DateTime.now().millisecondsSinceEpoch.toString(), 
+        id: '', // Supabase generates UUID if omitted
         venueId: 'test_venue_id', // TODO: Real IDs
         zoneId: 'test_zone_id',
         userId: 'test_user_id',

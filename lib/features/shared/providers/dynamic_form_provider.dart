@@ -22,6 +22,9 @@ class DynamicFormState {
     });
   }
 
+  /// Helper to get simple Map<id, value>
+  Map<String, dynamic> get values => fields.map((key, state) => MapEntry(key, state.value));
+
   DynamicFormState copyWith({
     Map<String, DynamicFieldState>? fields,
     bool? isSubmitting,

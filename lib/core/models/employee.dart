@@ -31,4 +31,7 @@ class Employee {
   }
 
   bool get isManager => role == 'manager' || role == 'owner';
+
+  // Alias for compatibility with older code expecting 'venues'
+  List<String> get venues => zones;
 }

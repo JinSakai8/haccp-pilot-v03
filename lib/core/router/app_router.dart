@@ -126,7 +126,10 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: '/waste/camera',
-        builder: (context, state) => const HaccpCameraScreen(),
+        builder: (context, state) {
+           final venueId = ref.read(currentUserProvider)?.venues.firstOrNull ?? 'default'; 
+           return HaccpCameraScreen(venueId: venueId);
+        },
       ),
       GoRoute(
         path: '/waste/history',

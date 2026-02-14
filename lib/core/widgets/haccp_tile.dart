@@ -6,6 +6,7 @@ class HaccpTile extends StatelessWidget {
   final String label;
   final String? badgeText;
   final Color? badgeColor;
+  final Color? color; // Added for custom icon color
   final VoidCallback onTap;
   final bool isVisible;
 
@@ -16,6 +17,7 @@ class HaccpTile extends StatelessWidget {
     required this.onTap,
     this.badgeText,
     this.badgeColor,
+    this.color,
     this.isVisible = true,
     this.isSelected = false,
   });
@@ -50,7 +52,7 @@ class HaccpTile extends StatelessWidget {
                   Icon(
                     icon,
                     size: 64, // Large icon for glove usage
-                    color: Theme.of(context).colorScheme.primary,
+                    color: color ?? Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 16),
                   Text(
