@@ -109,7 +109,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
         // WasteRepository.insert typically ignores ID if DB generates it.
         // But WasteRecord model has 'required this.id'.
         // I should probably generate a temp ID or make it optional in model.
-        id: '', // Supabase generates UUID if omitted
+        // id: '', // Supabase generates UUID if omitted
         venueId: 'test_venue_id', // TODO: Real IDs
         zoneId: 'test_zone_id',
         userId: 'test_user_id',

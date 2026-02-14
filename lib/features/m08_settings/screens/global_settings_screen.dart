@@ -285,7 +285,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
         Text(label, style: const TextStyle(fontSize: 16)),
         HaccpToggle(
           value: value,
-          onChanged: onChanged,
+          onChanged: (val) => onChanged(val ?? false),
         ),
       ],
     );
