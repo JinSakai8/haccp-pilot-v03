@@ -377,6 +377,44 @@ W dniu 2026-02-14 przeprowadzono serię napraw struktury bazy danych w celu przy
     - Dodano kolumnę `venue_id` do tabeli `zones`.
     - Przywrócono spójność danych poprzez przypisanie wszystkich stref do domyślnego lokalu.
 
+## 15. Rozwiązywanie Problemów (Troubleshooting)
+
+### 15.1 Vercel Build Errors (Common Issues)
+
+W dniu 2026-02-15 zidentyfikowano i naprawiono szereg błędów blokujących wdrożenie na Vercel. Poniższa lista służy jako referencja przy przyszłych problemach:
+
+1. **Błędy Kompilacji (Compilation Errors):**
+    - **Błąd:** `Duplicated parameter name 'address'`.
+    - **Powód:** Dwukrotne zdefiniowanie tego samego parametru w sygnaturze metody (np. w `VenueRepository`).
+    - **Rozwiązanie:** Usunięcie powtarzającego się parametru.
+
+2. **Brakujące Importy (Missing Imports):**
+    - **Błąd:** `Couldn't find constructor 'GhpHistoryScreen'`.
+    - **Powód:** Zapomniany import ekranu w pliku `app_router.dart`.
+    - **Rozwiązanie:** Regularne sprawdzanie komunikatów builda, które wskazują konkretne pliki i linie.
+
+3. **Błędy Typów w Badge'ach (Dashboard Badges):**
+    - **Błąd:** `The getter 'count' isn't defined for the type 'int'`.
+    - **Powód:** Metoda `.count()` w nowszych wersjach Supabase SDK zwraca bezpośrednio `int` zamiast obiektu z polem `.count`.
+    - **Rozwiązanie:** Bezpośrednie użycie wyniku (np. `if (count > 0)`).
+
+4. **Błędne Referencje Design Tokens:**
+    - **Błąd:** `Member not found: 'radiusMedium'`.
+    - **Powód:** Odwołanie do nieistniejącego tokenu w `HaccpDesignTokens`.
+    - **Rozwiązanie:** Sprawdzenie dostępnych tokenów w `lib/core/constants/design_tokens.dart` i użycie np. `cardRadius`.
+
+5. **Przestarzała Składnia Supabase Filters:**
+    - **Błąd:** `The method 'in_' isn't defined`.
+    - **Powód:** Zmiana API w `supabase_flutter`.
+    - **Rozwiązanie:** Zastąpienie `.in_('col', list)` przez `.filter('col', 'in', list)`.
+
+### 15.2 Problem "Stale Cache" na Vercelu
+
+Jeśli build na Vercel **nie powiedzie się (Failed)**, platforma może serwować **poprzednią działającą wersję** aplikacji (cached build).
+
+- **Objaw:** Wprowadziłeś poprawkę (np. usunąłeś hardcoded ID), ale w przeglądarce nadal widzisz stary błąd.
+- **Działanie:** Zawsze sprawdzaj status deploymentu w panelu Vercel. Jeśli jest czerwony ("Error"), popraw błędy kompilacji pokazane w logach, zpushuj kod i poczekaj na status "Ready".
+
 ---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-15 (Monitoring & Data Seeding Update)
+Data wersji: 2026-02-15 (Vercel Build Fixes & Logic Cleanup)
