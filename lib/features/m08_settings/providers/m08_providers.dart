@@ -21,7 +21,10 @@ class VenueSettingsController extends _$VenueSettingsController {
     required String name,
     required String nip,
     required String address,
+    required String address,
     String? logoUrl,
+    int? tempInterval,
+    double? tempThreshold,
   }) async {
     final repository = ref.read(venueRepositoryProvider);
     state = const AsyncValue.loading();
@@ -32,6 +35,8 @@ class VenueSettingsController extends _$VenueSettingsController {
         nip: nip,
         address: address,
         logoUrl: logoUrl,
+        tempInterval: tempInterval,
+        tempThreshold: tempThreshold,
       );
       return repository.getSettings(venueId);
     });

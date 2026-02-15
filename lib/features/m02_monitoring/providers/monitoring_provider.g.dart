@@ -173,3 +173,209 @@ final class LatestMeasurementsProvider
 
 String _$latestMeasurementsHash() =>
     r'85331ccea6ddb34dfb310d4e2550c65e9a0b4d44';
+
+@ProviderFor(sensorHistory)
+final sensorHistoryProvider = SensorHistoryFamily._();
+
+final class SensorHistoryProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<TemperatureLog>>,
+          List<TemperatureLog>,
+          FutureOr<List<TemperatureLog>>
+        >
+    with
+        $FutureModifier<List<TemperatureLog>>,
+        $FutureProvider<List<TemperatureLog>> {
+  SensorHistoryProvider._({
+    required SensorHistoryFamily super.from,
+    required (String, Duration) super.argument,
+  }) : super(
+         retry: null,
+         name: r'sensorHistoryProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$sensorHistoryHash();
+
+  @override
+  String toString() {
+    return r'sensorHistoryProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<TemperatureLog>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<TemperatureLog>> create(Ref ref) {
+    final argument = this.argument as (String, Duration);
+    return sensorHistory(ref, argument.$1, argument.$2);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SensorHistoryProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$sensorHistoryHash() => r'5e80c13d6ac027ea0964caccce1aee3c7e87c5e1';
+
+final class SensorHistoryFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<List<TemperatureLog>>,
+          (String, Duration)
+        > {
+  SensorHistoryFamily._()
+    : super(
+        retry: null,
+        name: r'sensorHistoryProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  SensorHistoryProvider call(String sensorId, Duration range) =>
+      SensorHistoryProvider._(argument: (sensorId, range), from: this);
+
+  @override
+  String toString() => r'sensorHistoryProvider';
+}
+
+@ProviderFor(alarms)
+final alarmsProvider = AlarmsFamily._();
+
+final class AlarmsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<TemperatureLog>>,
+          List<TemperatureLog>,
+          FutureOr<List<TemperatureLog>>
+        >
+    with
+        $FutureModifier<List<TemperatureLog>>,
+        $FutureProvider<List<TemperatureLog>> {
+  AlarmsProvider._({
+    required AlarmsFamily super.from,
+    required (String, {bool activeOnly}) super.argument,
+  }) : super(
+         retry: null,
+         name: r'alarmsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$alarmsHash();
+
+  @override
+  String toString() {
+    return r'alarmsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<TemperatureLog>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<TemperatureLog>> create(Ref ref) {
+    final argument = this.argument as (String, {bool activeOnly});
+    return alarms(ref, argument.$1, activeOnly: argument.activeOnly);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is AlarmsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$alarmsHash() => r'8d0a2fa6dc7fd7c987b4dfc95b1b303f7428681e';
+
+final class AlarmsFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<List<TemperatureLog>>,
+          (String, {bool activeOnly})
+        > {
+  AlarmsFamily._()
+    : super(
+        retry: null,
+        name: r'alarmsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  AlarmsProvider call(String zoneId, {bool activeOnly = true}) =>
+      AlarmsProvider._(argument: (zoneId, activeOnly: activeOnly), from: this);
+
+  @override
+  String toString() => r'alarmsProvider';
+}
+
+@ProviderFor(AlarmAction)
+final alarmActionProvider = AlarmActionProvider._();
+
+final class AlarmActionProvider
+    extends $AsyncNotifierProvider<AlarmAction, void> {
+  AlarmActionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'alarmActionProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$alarmActionHash();
+
+  @$internal
+  @override
+  AlarmAction create() => AlarmAction();
+}
+
+String _$alarmActionHash() => r'7f793ba02fbcc128baca605004478f23aa92eae8';
+
+abstract class _$AlarmAction extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

@@ -16,6 +16,7 @@ import '../../features/m03_gmp/screens/delivery_control_form_screen.dart';
 import '../../features/m03_gmp/screens/gmp_history_screen.dart';
 import '../../features/m04_ghp/screens/ghp_category_selector_screen.dart';
 import '../../features/m04_ghp/screens/ghp_checklist_screen.dart';
+import '../../features/m04_ghp/screens/ghp_chemicals_screen.dart';
 import '../../features/m05_waste/screens/waste_panel_screen.dart';
 import '../../features/m05_waste/screens/waste_registration_form_screen.dart';
 import '../../features/m05_waste/screens/haccp_camera_screen.dart';
@@ -147,6 +148,14 @@ GoRouter appRouter(Ref ref) {
           final categoryId = state.extra as String? ?? 'personnel'; // Default fallback
           return GhpChecklistScreen(categoryId: categoryId);
         },
+      ),
+      GoRoute(
+        path: '/ghp/history',
+        builder: (context, state) => const GhpHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/ghp/chemicals',
+        builder: (context, state) => const GhpChemicalsScreen(),
       ),
 
       // M08 Settings

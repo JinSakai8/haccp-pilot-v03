@@ -79,4 +79,15 @@ class HrController extends _$HrController {
       state = AsyncValue.error(e, st);
     }
   }
+  Future<void> updatePin(String employeeId, String newPin) async {
+    state = const AsyncValue.loading();
+    try {
+      final repository = ref.read(hrRepositoryProvider);
+      await repository.updatePin(employeeId, newPin);
+      // No need to invalidate employees list as PIN is not returned
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
 }

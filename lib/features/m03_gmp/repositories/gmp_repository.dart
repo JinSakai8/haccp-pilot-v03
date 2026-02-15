@@ -21,13 +21,29 @@ class GmpRepository {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getHistory(String zoneId) async {
-    final response = await _client
+  Future<List<Map<String, dynamic>>> getHistory(String zoneId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? formId,
+  }) async {
+    var query = _client
         .from(_table)
         .select()
         .eq('category', 'gmp')
-        .eq('zone_id', zoneId)
-        .order('created_at', ascending: false);
+        .eq('zone_id', zoneId);
+
+    if (fromDate != null) {
+      query = query.gte('created_at', fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      query = query.lte('created_at', toDate.toIso8601String());
+    }
+    if (formId != null) {
+       // Allow partial match if needed, but exact match is safer for now
+       query = query.eq('form_id', formId);
+    }
+        
+    final response = await query.order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 }

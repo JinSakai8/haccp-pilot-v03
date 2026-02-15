@@ -54,7 +54,7 @@ abstract class _$GmpFormSubmission extends $AsyncNotifier<void> {
 }
 
 @ProviderFor(gmpHistory)
-final gmpHistoryProvider = GmpHistoryProvider._();
+final gmpHistoryProvider = GmpHistoryFamily._();
 
 final class GmpHistoryProvider
     extends
@@ -66,19 +66,27 @@ final class GmpHistoryProvider
     with
         $FutureModifier<List<Map<String, dynamic>>>,
         $FutureProvider<List<Map<String, dynamic>>> {
-  GmpHistoryProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'gmpHistoryProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  GmpHistoryProvider._({
+    required GmpHistoryFamily super.from,
+    required ({DateTime? fromDate, DateTime? toDate, String? formId})
+    super.argument,
+  }) : super(
+         retry: null,
+         name: r'gmpHistoryProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$gmpHistoryHash();
+
+  @override
+  String toString() {
+    return r'gmpHistoryProvider'
+        ''
+        '$argument';
+  }
 
   @$internal
   @override
@@ -88,8 +96,54 @@ final class GmpHistoryProvider
 
   @override
   FutureOr<List<Map<String, dynamic>>> create(Ref ref) {
-    return gmpHistory(ref);
+    final argument =
+        this.argument
+            as ({DateTime? fromDate, DateTime? toDate, String? formId});
+    return gmpHistory(
+      ref,
+      fromDate: argument.fromDate,
+      toDate: argument.toDate,
+      formId: argument.formId,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is GmpHistoryProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
-String _$gmpHistoryHash() => r'2a94e7201c159e1ce432eac3cb261b86fb4d8988';
+String _$gmpHistoryHash() => r'80ffe77c84efd3c50edd6959c3b88dfb4a9a9885';
+
+final class GmpHistoryFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<List<Map<String, dynamic>>>,
+          ({DateTime? fromDate, DateTime? toDate, String? formId})
+        > {
+  GmpHistoryFamily._()
+    : super(
+        retry: null,
+        name: r'gmpHistoryProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  GmpHistoryProvider call({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? formId,
+  }) => GmpHistoryProvider._(
+    argument: (fromDate: fromDate, toDate: toDate, formId: formId),
+    from: this,
+  );
+
+  @override
+  String toString() => r'gmpHistoryProvider';
+}

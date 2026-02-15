@@ -37,13 +37,13 @@ class GhpCategorySelectorScreen extends StatelessWidget {
           HaccpTile(
             icon: Icons.science,
             label: 'Środki Czystości',
-            onTap: () => context.push('/ghp/checklist', extra: 'chemicals'),
+            onTap: () => context.push('/ghp/chemicals'), // Use dedicated screen
             color: Colors.purple,
           ),
            HaccpTile(
             icon: Icons.history,
             label: 'Historia',
-            onTap: () => {}, // Placeholder for now
+            onTap: () => context.push('/ghp/history'),
             color: Colors.grey,
           ),
         ],

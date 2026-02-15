@@ -1,12 +1,21 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PdfPreviewScreen extends StatelessWidget {
   final String filePath;
 
   const PdfPreviewScreen({super.key, required this.filePath});
+
+  Future<void> _shareFile() async {
+    if (await File(filePath).exists()) {
+      await Share.shareXFiles([XFile(filePath)], text: 'Raport HACCP');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,17 +39,18 @@ class PdfPreviewScreen extends StatelessWidget {
       );
     }
 
-    // On mobile, we could use SfPdfViewer.file, but since we removed dart:io,
-    // we need to handle this differently. For now, show a placeholder.
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Podgląd PDF'),
-      backgroundColor: AppTheme.background,
-      body: Center(
-        child: Text(
-          'Plik: $filePath',
-          style: const TextStyle(color: Colors.white70),
-        ),
+      appBar: HaccpTopBar(
+        title: 'Podgląd PDF',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () => _shareFile(),
+          ),
+        ],
       ),
+      backgroundColor: AppTheme.background,
+      body: SfPdfViewer.file(File(filePath)),
     );
   }
 }

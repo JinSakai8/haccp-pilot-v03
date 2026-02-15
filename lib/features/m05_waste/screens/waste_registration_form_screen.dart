@@ -21,7 +21,7 @@ import '../../shared/widgets/dynamic_form/haccp_numpad_input.dart';
 // I'll make it a ConsumerStatefulWidget.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:haccp_pilot/core/providers/auth_provider.dart'; // Unknown path
+import 'package:haccp_pilot/core/providers/auth_provider.dart';
 // I will just use placeholders for IDs for now to ensure code compiles 
 // and logic is clear. User can hook up providers. 
 // BUT, I should try to be as complete as possible.
@@ -75,7 +75,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
     
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const HaccpCameraScreen(venueId: 'test_venue_id'), // TODO: Get real venue ID
+        builder: (context) => HaccpCameraScreen(venueId: ref.read(currentZoneProvider)?.venueId ?? ''),
       ),
     );
 
@@ -110,9 +110,9 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
         // But WasteRecord model has 'required this.id'.
         // I should probably generate a temp ID or make it optional in model.
         // id: '', // Supabase generates UUID if omitted
-        venueId: 'test_venue_id', // TODO: Real IDs
-        zoneId: 'test_zone_id',
-        userId: 'test_user_id',
+        venueId: ref.read(currentZoneProvider)?.venueId ?? '',
+        zoneId: ref.read(currentZoneProvider)?.id ?? '',
+        userId: ref.read(currentUserProvider)?.id ?? '',
         wasteType: _selectedWasteType!,
         wasteCode: _wasteTypes[_selectedWasteType]!.split('(').last.replaceAll(')', ''),
         massKg: _massCt,

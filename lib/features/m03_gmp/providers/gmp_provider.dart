@@ -41,12 +41,23 @@ class GmpFormSubmission extends _$GmpFormSubmission {
 }
 
 @riverpod
-Future<List<Map<String, dynamic>>> gmpHistory(Ref ref) {
+@riverpod
+Future<List<Map<String, dynamic>>> gmpHistory(
+  Ref ref, {
+  DateTime? fromDate,
+  DateTime? toDate,
+  String? formId,
+}) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Future.value([]);
   
   final zoneId = ref.watch(currentZoneProvider)?.id ?? 
                  (user.zones.isNotEmpty ? user.zones.first : 'default_zone');
                  
-  return ref.watch(gmpRepositoryProvider).getHistory(zoneId);
+  return ref.watch(gmpRepositoryProvider).getHistory(
+        zoneId,
+        fromDate: fromDate,
+        toDate: toDate,
+        formId: formId,
+      );
 }

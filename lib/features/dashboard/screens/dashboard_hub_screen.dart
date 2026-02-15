@@ -5,15 +5,22 @@ import '../../../core/router/route_names.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/widgets/haccp_tile.dart';
 import '../../../core/widgets/offline_banner.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../providers/dashboard_badges_provider.dart';
 
 class DashboardHubScreen extends ConsumerWidget {
   const DashboardHubScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // In future: ref.watch(userProvider) to get name/venue
-    final userName = "Jan Kowalski"; // Placeholder
-    final venueName = "Kuchnia Główna"; // Placeholder
+    final employee = ref.watch(currentUserProvider);
+    final zone = ref.watch(currentZoneProvider);
+    final badgesAsync = ref.watch(dashboardBadgesProvider);
+    final badges = badgesAsync.value ?? {};
+
+    final userName = employee?.fullName ?? '...';
+    final venueName = zone?.name ?? '...';
+    final isManager = employee?.isManager ?? false;
 
     return Scaffold(
       appBar: HaccpTopBar(
@@ -40,46 +47,50 @@ class DashboardHubScreen extends ConsumerWidget {
                       HaccpTile(
                         icon: Icons.thermostat,
                         label: 'Monitoring Temperatur',
-                        badgeText: null, // Dynamic in future
+                        badgeText: badges['monitoring'],
                         onTap: () => context.push(RouteNames.monitoring),
                       ),
                       // 2. Procesy GMP
                       HaccpTile(
                         icon: Icons.soup_kitchen, // meat/cooking icon
                         label: 'Procesy GMP',
-                        badgeText: null,
+                        badgeText: badges['gmp'],
                         onTap: () => context.push(RouteNames.gmp),
                       ),
                       // 3. Higiena GHP
                       HaccpTile(
                         icon: Icons.cleaning_services,
                         label: 'Higiena GHP',
+                        badgeText: badges['ghp'],
                         onTap: () => context.push('/ghp'),
                       ),
                       // 4. Odpady BDO
                       HaccpTile(
                         icon: Icons.recycling,
                         label: 'Odpady BDO',
+                        badgeText: badges['waste'],
                         onTap: () => context.push('/waste'),
                       ),
                        // 5. Raporty
                       HaccpTile(
                         icon: Icons.bar_chart,
                         label: 'Raporty',
+                        badgeText: badges['reports'],
                         onTap: () => context.push('/reports'),
                       ),
                        // 6. HR (Manager only)
                       HaccpTile(
                         icon: Icons.people,
                         label: 'HR & Personel',
-                        isVisible: true, // Check role in future
+                        badgeText: badges['hr'],
+                        isVisible: isManager,
                         onTap: () => context.push('/hr'),
                       ),
                        // 7. Ustawienia (Manager only)
                       HaccpTile(
                         icon: Icons.settings,
                         label: 'Ustawienia',
-                        isVisible: true, // Check role in future
+                        isVisible: isManager,
                         onTap: () => context.push('/settings'),
                       ),
                     ],

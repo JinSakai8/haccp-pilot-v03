@@ -10,16 +10,26 @@ class TemperatureDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // In a real app, get zoneId from auth/context
-    const currentZoneId = 'some-zone-id'; 
-    // We might need to mock this or fetch active sensors differently if zone isn't ready
+    final currentZone = ref.watch(currentZoneProvider);
+    if (currentZone == null) {
+      return const Scaffold(
+        appBar: HaccpTopBar(title: "Monitoring Temperatur"),
+        body: Center(child: Text("Brak wybranej strefy")),
+      );
+    }
     
-    final activeSensorsAsync = ref.watch(activeSensorsProvider(currentZoneId));
+    final activeSensorsAsync = ref.watch(activeSensorsProvider(currentZone.id));
     final latestMeasurementsAsync = ref.watch(latestMeasurementsProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(
+      appBar: HaccpTopBar(
         title: "Monitoring Temperatur",
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.orange),
+            onPressed: () => context.push('/monitoring/alarms'),
+          ),
+        ],
       ),
       body: activeSensorsAsync.when(
         data: (sensors) {
@@ -40,7 +50,10 @@ class TemperatureDashboardScreen extends ConsumerWidget {
                       .where((l) => l.sensorId == sensor.id)
                       .firstOrNull; // Requires Dart 3
 
-                  return _SensorCard(sensor: sensor, latestLog: latestLog);
+                  return InkWell(
+                    onTap: () => context.push('/monitoring/chart/${sensor.id}'),
+                    child: _SensorCard(sensor: sensor, latestLog: latestLog),
+                  );
                 },
               );
             },
@@ -97,6 +110,18 @@ class _SensorCard extends StatelessWidget {
                   )
                 else
                   const Text("Brak danych"),
+                const SizedBox(height: 4),
+                // Additional Mock Info for Dashboard
+                Row(
+                  children: [
+                    const Icon(Icons.refresh, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text("Co ${sensor.intervalMinutes} min", style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(width: 16),
+                    // Trend Mock
+                    const Icon(Icons.trending_flat, size: 16, color: Colors.grey),
+                  ],
+                ),
               ],
             ),
             if (latestLog != null)

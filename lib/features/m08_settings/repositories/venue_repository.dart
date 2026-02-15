@@ -11,7 +11,7 @@ class VenueRepository {
   Future<Map<String, dynamic>?> getSettings(String venueId) async {
     final response = await _client
         .from('venues')
-        .select('name, nip, address, logo_url')
+        .select('name, nip, address, logo_url, temp_interval, temp_threshold')
         .eq('id', venueId)
         .maybeSingle();
     return response;
@@ -23,13 +23,18 @@ class VenueRepository {
     required String name,
     required String nip,
     required String address,
+    required String address,
     String? logoUrl,
+    int? tempInterval,
+    double? tempThreshold,
   }) async {
     final updates = {
       'name': name,
       'nip': nip,
       'address': address,
       if (logoUrl != null) 'logo_url': logoUrl,
+      if (tempInterval != null) 'temp_interval': tempInterval,
+      if (tempThreshold != null) 'temp_threshold': tempThreshold,
     };
 
     await _client.from('venues').update(updates).eq('id', venueId);

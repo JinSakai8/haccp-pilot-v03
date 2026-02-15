@@ -63,4 +63,10 @@ class HrRepository {
       'is_active': isActive,
     }).eq('id', employeeId);
   }
+  Future<void> updatePin(String employeeId, String newPin) async {
+    final hashedPin = _hashPin(newPin);
+    await _client.from('employees').update({
+      'pin_hash': hashedPin,
+    }).eq('id', employeeId);
+  }
 }

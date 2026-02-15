@@ -155,6 +155,7 @@ Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 - **NO `dart:io`**: The application is strictly web-compatible. All usages of `dart:io` (`File`, `Platform`, etc.) have been removed or guarded with `kIsWeb`.
 - **Blob/Data Storage**: Files (images, PDFs) are handled as `Uint8List` in memory or uploaded directly to Supabase Storage/Google Drive without local filesystem intermediate steps.
 - **Printing/PDF**: `pdf` package is used for generation. `printing` package handles web printing/preview. `syncfusion_flutter_pdf` is used for advanced PDF creation.
+- **File Picker**: `file_picker` is used for selecting files on Web (replacing `image_picker` or direct camera access), ensuring cross-platform compatibility for logo uploads and waste photos.
 
 ## 3. Key Modules & Providers
 
@@ -215,7 +216,8 @@ Moduł zamykający, obsługujący dane lokalu i łączność.
 ### Ustawienia Lokalu (`VenueRepository`)
 
 - Pozwala na zmianę nazwy lokalu, NIPu i adresu.
-- **Logo Upload**: Użytkownik może wgrać logo, które jest zapisywane w bucket `branding`.
+- **Logo Upload**: Użytkownik może wgrać logo using `file_picker` (działa na Web), które jest zapisywane w bucket `branding`.
+- **Sensory Config**: Ustawianie interwału pomiarów (5/15/60 min) i progu alarmowego dla sensorów.
 - **PDF Integration**: Logo jest automatycznie pobierane i wstawiane do nagłówka każdego generowanego raportu PDF.
 
 ### Connectivity & Offline Mode
@@ -226,7 +228,9 @@ Moduł zamykający, obsługujący dane lokalu i łączność.
 ### UX Audit (Glove-Friendly Polish)
 
 - Przycisk "Zapisz" w ustawieniach używa `HaccpLongPressButton` (wymaga przytrzymania).
+- Przycisk "Zapisz" w ustawieniach używa `HaccpLongPressButton` (wymaga przytrzymania).
 - Wszystkie kluczowe interakcje są przystosowane do obsługi w rękawiczkach.
+- **Empty States**: Wprowadzono `HaccpEmptyState` - spójny widget informujący o braku danych (np. historycznych), zastępujący surowe listy.
 
 ---
 

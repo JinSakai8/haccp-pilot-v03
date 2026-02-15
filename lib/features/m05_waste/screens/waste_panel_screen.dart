@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 import '../../m05_waste/models/waste_record.dart';
 import '../../m05_waste/repositories/waste_repository.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -60,18 +61,15 @@ class _WastePanelScreenState extends ConsumerState<WastePanelScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _records == null || _records!.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.recycling, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Brak wpisów dzisiaj',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
+              ? HaccpEmptyState(
+                  headline: 'Brak wpisów dzisiaj',
+                  subtext: 'Zarejestruj pierwszy odpad używając przycisku poniżej.',
+                  icon: Icons.recycling,
+                  buttonLabel: 'Zarejestruj Odpad',
+                  onButtonPressed: () async {
+                    await context.push('/waste/register');
+                    _loadData();
+                  },
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),

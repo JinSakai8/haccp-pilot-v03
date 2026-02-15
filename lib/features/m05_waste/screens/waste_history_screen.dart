@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../m05_waste/repositories/waste_repository.dart';
 import '../../m05_waste/models/waste_record.dart';
@@ -28,10 +29,12 @@ class _WasteHistoryScreenState extends ConsumerState<WasteHistoryScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final user = ref.read(currentUserProvider);
-    if (user != null && user.venues.isNotEmpty) {
-      // Assuming first venue for now, or use a provider for current venue
-      final venueId = user.venues.first; 
+    // Use currentZoneProvider for venueId
+    final zone = ref.read(currentZoneProvider);
+    // If no zone (shouldn't happen in logged in state), fallback to user's first venue or empty
+    final venueId = zone?.venueId ?? ref.read(currentUserProvider)?.venues.firstOrNull;
+
+    if (venueId != null) {
       final records = await WasteRepository().getHistory(venueId, fromDate: _fromDate, toDate: _toDate);
       if (mounted) {
         setState(() {
@@ -67,11 +70,16 @@ class _WasteHistoryScreenState extends ConsumerState<WasteHistoryScreen> {
       body: Column(
         children: [
           _buildFilterBar(),
+          if (!_isLoading && _records.isNotEmpty) _buildSummaryCard(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _records.isEmpty
-                    ? _buildEmptyState()
+                    ? const HaccpEmptyState(
+                        headline: 'Brak wpisów',
+                        subtext: 'Brak wpisów w wybranym okresie.',
+                        icon: Icons.history,
+                      )
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _records.length,
@@ -110,18 +118,7 @@ class _WasteHistoryScreenState extends ConsumerState<WasteHistoryScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.history, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Brak wpisów w wybranym okresie', style: TextStyle(color: Colors.grey)),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildRecordCard(WasteRecord record) {
     return Card(
@@ -134,6 +131,27 @@ class _WasteHistoryScreenState extends ConsumerState<WasteHistoryScreen> {
         trailing: record.photoUrl != null 
           ? const Icon(Icons.photo, color: Colors.grey) 
           : null,
+      ),
+    );
+  }
+  Widget _buildSummaryCard() {
+    final totalMass = _records.fold(0.0, (sum, record) => sum + record.massKg);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: HaccpDesignTokens.primary.withOpacity(0.1),
+      child: Column(
+        children: [
+          Text(
+            'SUMA MASY ODPADÓW',
+            style: TextStyle(color: HaccpDesignTokens.primary, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${totalMass.toStringAsFixed(1)} kg',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
