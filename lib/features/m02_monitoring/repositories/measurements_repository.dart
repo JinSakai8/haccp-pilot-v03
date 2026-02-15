@@ -42,24 +42,19 @@ class MeasurementsRepository {
 
   // Pobierz alerty (aktywne lub historyczne)
   Future<List<TemperatureLog>> getAlerts(String zoneId, {bool activeOnly = true}) async {
-    var query = _client.from('temperature_logs')
-        .select()
-        .eq('is_alert', true)
-        // We might need to join with sensors to filter by zone, 
-        // but for now let's assume we filter in app or if we had zone_id in logs.
-        // Since logs don't have zone_id directly typically (normalized), we should filter by sensor IDs from that zone.
-        // For Valid MVP: fetch all alerts and filter in memory or assume simplistic model.
-        // Better: filtering by sensor_id list.
-        .eq('is_acknowledged', !activeOnly) // true = history (ack), false = active (not ack)
-        .order('recorded_at', ascending: false);
-    
-    // FETCH SENSORS FIRST to filter by zone
+    // 1. FETCH SENSORS FIRST to filter by zone
     final sensors = await getSensors(zoneId);
     final sensorIds = sensors.map((s) => s.id).toList();
 
     if (sensorIds.isEmpty) return [];
 
-    final response = await query.filter('sensor_id', 'in', sensorIds);
+    // 2. Build query with all filters first
+    final response = await _client.from('temperature_logs')
+        .select()
+        .eq('is_alert', true)
+        .eq('is_acknowledged', !activeOnly)
+        .filter('sensor_id', 'in', sensorIds)
+        .order('recorded_at', ascending: false);
 
     return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
   }
