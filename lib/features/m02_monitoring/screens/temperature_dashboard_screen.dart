@@ -11,12 +11,24 @@ class TemperatureDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentZone = ref.watch(currentZoneProvider);
+    
+    // DEBUG: Check zone ID
+    print('DEBUG: TemperatureDashboardScreen build. Zone: ${currentZone?.name}, ID: ${currentZone?.id}');
+
     if (currentZone == null) {
       return const Scaffold(
         appBar: HaccpTopBar(title: "Monitoring Temperatur"),
         body: Center(child: Text("Brak wybranej strefy")),
       );
     }
+
+    if (currentZone.id == 'some-zone-id') {
+       return Scaffold(
+        appBar: const HaccpTopBar(title: "Monitoring Temperatur"),
+        body: Center(child: Text("BŁĄD: Wykryto 'some-zone-id'. Zaloguj się ponownie lub wybierz strefę.")),
+      );
+    }
+
     
     final activeSensorsAsync = ref.watch(activeSensorsProvider(currentZone.id));
     final latestMeasurementsAsync = ref.watch(latestMeasurementsProvider);

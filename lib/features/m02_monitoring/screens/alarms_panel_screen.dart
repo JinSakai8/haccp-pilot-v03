@@ -61,24 +61,34 @@ class _AlarmsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alarmsAsync = ref.watch(alarmsProvider(zoneId, activeOnly: isActive));
+    final sensorsAsync = ref.watch(activeSensorsProvider(zoneId));
 
     return alarmsAsync.when(
       data: (alarms) {
-        if (alarms.isEmpty) {
-          return HaccpEmptyState(
-            headline: isActive ? "Brak aktywnych alarmów" : "Brak historii alarmów",
-            subtext: isActive ? "Wszystkie parametry w normie." : "",
-            icon: isActive ? Icons.check_circle_outline : Icons.history,
-          );
-        }
+        return sensorsAsync.when(
+          data: (sensors) {
+             if (alarms.isEmpty) {
+              return HaccpEmptyState(
+                headline: isActive ? "Brak aktywnych alarmów" : "Brak historii alarmów",
+                subtext: isActive ? "Wszystkie parametry w normie." : "",
+                icon: isActive ? Icons.check_circle_outline : Icons.history,
+              );
+            }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: alarms.length,
-          itemBuilder: (context, index) {
-            final log = alarms[index];
-            return _AlarmCard(log: log, isActive: isActive);
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: alarms.length,
+              itemBuilder: (context, index) {
+                final log = alarms[index];
+                final sensor = sensors.where((s) => s.id == log.sensorId).firstOrNull;
+                final sensorName = sensor?.name ?? 'Sensor ${log.sensorId.substring(0, 4)}...';
+                
+                return _AlarmCard(log: log, isActive: isActive, sensorName: sensorName);
+              },
+            );
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(child: Text('Błąd sensorów: $e')),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -90,8 +100,9 @@ class _AlarmsList extends ConsumerWidget {
 class _AlarmCard extends ConsumerWidget {
   final TemperatureLog log;
   final bool isActive;
+  final String sensorName;
 
-  const _AlarmCard({required this.log, required this.isActive});
+  const _AlarmCard({required this.log, required this.isActive, required this.sensorName});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,7 +124,7 @@ class _AlarmCard extends ConsumerWidget {
           ),
         ),
         title: Text(
-          "${log.temperature.toStringAsFixed(1)}°C - Sensor ${log.sensorId}", 
+          "${log.temperature.toStringAsFixed(1)}°C - $sensorName", 
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
