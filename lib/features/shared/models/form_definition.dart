@@ -44,13 +44,18 @@ class FormFieldConfig {
 
 class FormDefinition {
   final List<FormFieldConfig> fields;
+  final String title;
 
-  FormDefinition({required this.fields});
+  FormDefinition({
+    required this.fields,
+    this.title = 'Raport',
+  });
 
   factory FormDefinition.fromJson(Map<String, dynamic> json) {
     final fieldsJson = json['fields'] as List;
     return FormDefinition(
       fields: fieldsJson.map((f) => FormFieldConfig.fromJson(f as Map<String, dynamic>)).toList(),
+      title: json['title'] as String? ?? 'Raport',
     );
   }
 }

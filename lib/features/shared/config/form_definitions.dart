@@ -2,6 +2,7 @@ import '../models/form_definition.dart';
 
 class FormDefinitions {
   static final roastingFormDef = FormDefinition(
+    title: 'Proces Pieczenia',
     fields: [
       FormFieldConfig(
         id: 'product_name',
@@ -34,6 +35,7 @@ class FormDefinitions {
   );
 
   static final coolingFormDef = FormDefinition(
+    title: 'Proces Chłodzenia',
     fields: [
       FormFieldConfig(id: 'product_name', type: HaccpFieldType.dropdown, label: 'Produkt', config: {'options': ['Zupa Dnia', 'Sos Boloński', 'Gulasz']}, required: true),
       FormFieldConfig(id: 'prep_date', type: HaccpFieldType.date, label: 'Data Przygotowania', required: true),
@@ -46,6 +48,7 @@ class FormDefinitions {
   );
 
   static final deliveryControlFormDef = FormDefinition(
+    title: 'Kontrola Dostaw',
     fields: [
       FormFieldConfig(id: 'supplier', type: HaccpFieldType.text, label: 'Dostawca', required: true),
       FormFieldConfig(id: 'invoice_no', type: HaccpFieldType.text, label: 'Nr WZ/Faktury', required: true),

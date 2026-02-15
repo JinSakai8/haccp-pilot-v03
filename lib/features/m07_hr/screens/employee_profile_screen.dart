@@ -42,7 +42,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
       body: employeesAsync.when(
         data: (employees) {
           final employee = employees.firstWhere(
-            (e) => e.id == employeeId,
+            (e) => e.id == widget.employeeId,
             orElse: () => Employee(id: 'notFound', fullName: 'Nieznany', role: 'unknown', isActive: false, zones: []),
           );
 
