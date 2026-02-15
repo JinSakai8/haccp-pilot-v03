@@ -22,7 +22,7 @@ class TemperatureDashboardScreen extends ConsumerWidget {
     }
 
     final activeSensorsAsync = ref.watch(activeSensorsProvider(currentZone.id));
-    final latestMeasurementsAsync = ref.watch(latestMeasurementsProvider);
+    final latestMeasurementsAsync = ref.watch(latestMeasurementsProvider(currentZone.id));
 
     return Scaffold(
       appBar: HaccpTopBar(

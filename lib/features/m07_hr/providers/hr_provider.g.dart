@@ -126,7 +126,7 @@ final class HrControllerProvider
   HrController create() => HrController();
 }
 
-String _$hrControllerHash() => r'1d7eac5398e26083302dde3b6a4a2d303558f6db';
+String _$hrControllerHash() => r'767d5e00dd21e89e1e4cd9111b654a23e156269c';
 
 /// AsyncNotifier for HR actions (create, update, delete)
 

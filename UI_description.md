@@ -91,7 +91,7 @@
 
 #### Logika
 
-```
+```dart
 onDigitPressed(digit):
   pin += digit
   updateDots()
@@ -225,7 +225,7 @@ onLogin():
 
 #### Logika Kolorów Temperatury (Algorytm 10/5/3)
 
-```
+```text
 if (temp <= 10):
   color = GREEN (#2E7D32)
   interval = 15 min
@@ -323,14 +323,10 @@ LIMIT 1 PER device
 
 #### Logika "Przyjąłem do wiadomości"
 
-```
+```dart
 onLongPressComplete():
-  await supabase.from('alarm_acknowledgments').insert({
-    alarm_id: alarm.id,
-    user_id: currentUser.id,
-    acknowledged_at: DateTime.now()
-  })
-  // Alarm NIE jest usuwany — tylko logowane potwierdzenie!
+  await measurementsRepository.acknowledgeAlert(alarm.id, currentUser.id);
+  // UPDATE temperature_logs SET is_acknowledged = true, acknowledged_by = user.id
   showSnackBar("Potwierdzono")
 ```
 
@@ -576,7 +572,7 @@ ORDER BY created_at DESC
 
 #### Logika Toggle → Komentarz
 
-```
+```dart
 onToggleChanged(item, value):
   if (value == false):  // Czerwony = Problem
     showCommentField(item)  // AnimatedContainer expand

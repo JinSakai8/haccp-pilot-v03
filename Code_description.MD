@@ -415,6 +415,41 @@ Jeśli build na Vercel **nie powiedzie się (Failed)**, platforma może serwowa�
 - **Objaw:** Wprowadziłeś poprawkę (np. usunąłeś hardcoded ID), ale w przeglądarce nadal widzisz stary błąd.
 - **Działanie:** Zawsze sprawdzaj status deploymentu w panelu Vercel. Jeśli jest czerwony ("Error"), popraw błędy kompilacji pokazane w logach, zpushuj kod i poczekaj na status "Ready".
 
+## 6. M02 - Monitoring & IoT (Directive 14)
+
+Moduł ten odpowiada za strumieniowe odbieranie danych z czujników temperatury, generowanie alarmów i wizualizację danych. Jest to jeden z najbardziej krytycznych elementów systemu pod kątem wydajności i UX.
+
+### 6.1 Architektura Danych
+
+Z powodu ograniczeń Supabase Realtime (brak możliwości filtrowania po JOIN-ach `measurements` -> `devices` -> `zones`), przyjęto architekturę **dwuetapową (`Two-Stage Streaming`)**:
+
+1. **Global Stream:** Subskrybujemy tabelę `measurements` (INSERT) bez filtrowania po strefie, ale z filtrem `venue_id`.
+2. **Local Filtering:** W aplikacji (`MonitoringProvider`) sprawdzamy każde przychodzące zdarzenie payloadu. Jeśli `device_id` pomiaru należy do aktualnie wybranej strefy (mapa `device -> zone` w pamięci), pomiar jest procesowany. W przeciwnym razie jest ignorowany.
+
+Plik odpowiedzialny: `lib/features/m02_monitoring/repositories/measurements_repository.dart`
+
+### 6.2 Kluczowe Komponenty
+
+1. **Repository Layer (`MeasurementsRepository`)**:
+    - Obsługuje strumień realtime.
+    - Pobiera historię pomiarów (ostatnie 24h) przy starcie.
+    - Obsługuje funkcję `acknowledgeAlert` (aktualizacja pola `is_acknowledged` w `temperature_logs`).
+
+2. **State Management (`MonitoringProvider`)**:
+    - Udostępnia `activeSensorsProvider` (lista sensorów w strefie).
+    - Udostępnia `latestMeasurementsProvider` (mapa `sensor_id -> Measurement`).
+    - Oblicza statusy alarmowe w czasie rzeczywistym.
+
+3. **UI Components**:
+    - `TemperatureDashboardScreen`: Główny widok z kafelkami sensorów.
+    - `SensorChartScreen`: Wykres temperatury (biblioteka `fl_chart`) z przedziałami czasowymi (1h, 6h, 12h, 24h).
+    - `AlarmsPanelScreen`: Lista aktywnych i historycznych alarmów z funkcją potwierdzania (Long Press).
+
+### 6.3 Decyzje Projektowe
+
+- **Glove-Friendly UX:** Wszystkie interakcje krytyczne (potwierdzenie alarmu) wymagają przytrzymania przycisku przez 1 sekundę (`HaccpLongPressButton`) co zapobiega przypadkowym kliknięciom w rękawicach.
+- **Dark Mode Only:** Interfejs jest zoptymalizowany pod kątem pracy w ciemnych pomieszczeniach (chłodnie), używając ciemnego tła i jaskrawych kolorów akcentowych (zielony/czerwony) dla szybkiej identyfikacji statusu.
+
 ---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-15 (Vercel Build Fixes & Logic Cleanup)
+Data wersji: 2026-02-15 (M02 Architecture & Vercel Fixes)

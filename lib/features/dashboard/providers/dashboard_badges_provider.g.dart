@@ -33,7 +33,7 @@ final class DashboardBadgesProvider
   DashboardBadges create() => DashboardBadges();
 }
 
-String _$dashboardBadgesHash() => r'b37688cbca3f0d786697432e1e1fe5e174bbc1e7';
+String _$dashboardBadgesHash() => r'49317d15d7ae032f1962263d3e7b0ccb7349ccac';
 
 abstract class _$DashboardBadges extends $AsyncNotifier<Map<String, String?>> {
   FutureOr<Map<String, String?>> build();

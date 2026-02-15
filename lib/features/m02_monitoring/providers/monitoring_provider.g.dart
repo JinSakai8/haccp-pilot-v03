@@ -133,7 +133,7 @@ final class ActiveSensorsFamily extends $Family
 }
 
 @ProviderFor(latestMeasurements)
-final latestMeasurementsProvider = LatestMeasurementsProvider._();
+final latestMeasurementsProvider = LatestMeasurementsFamily._();
 
 final class LatestMeasurementsProvider
     extends
@@ -145,19 +145,26 @@ final class LatestMeasurementsProvider
     with
         $FutureModifier<List<TemperatureLog>>,
         $StreamProvider<List<TemperatureLog>> {
-  LatestMeasurementsProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'latestMeasurementsProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  LatestMeasurementsProvider._({
+    required LatestMeasurementsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'latestMeasurementsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$latestMeasurementsHash();
+
+  @override
+  String toString() {
+    return r'latestMeasurementsProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -167,12 +174,41 @@ final class LatestMeasurementsProvider
 
   @override
   Stream<List<TemperatureLog>> create(Ref ref) {
-    return latestMeasurements(ref);
+    final argument = this.argument as String;
+    return latestMeasurements(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is LatestMeasurementsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
   }
 }
 
 String _$latestMeasurementsHash() =>
-    r'85331ccea6ddb34dfb310d4e2550c65e9a0b4d44';
+    r'00f9ca7e784f3599fe8be3cbde2aba6748a5e7be';
+
+final class LatestMeasurementsFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<List<TemperatureLog>>, String> {
+  LatestMeasurementsFamily._()
+    : super(
+        retry: null,
+        name: r'latestMeasurementsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  LatestMeasurementsProvider call(String zoneId) =>
+      LatestMeasurementsProvider._(argument: zoneId, from: this);
+
+  @override
+  String toString() => r'latestMeasurementsProvider';
+}
 
 @ProviderFor(sensorHistory)
 final sensorHistoryProvider = SensorHistoryFamily._();
@@ -360,9 +396,53 @@ final class AlarmActionProvider
   AlarmAction create() => AlarmAction();
 }
 
-String _$alarmActionHash() => r'7f793ba02fbcc128baca605004478f23aa92eae8';
+String _$alarmActionHash() => r'521d4dca23b629576dfe74083c5a17dbd6dbcca6';
 
 abstract class _$AlarmAction extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(AnnotationAction)
+final annotationActionProvider = AnnotationActionProvider._();
+
+final class AnnotationActionProvider
+    extends $AsyncNotifierProvider<AnnotationAction, void> {
+  AnnotationActionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'annotationActionProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$annotationActionHash();
+
+  @$internal
+  @override
+  AnnotationAction create() => AnnotationAction();
+}
+
+String _$annotationActionHash() => r'904f2ebfd7de4e4eedda645d6532712408067d8a';
+
+abstract class _$AnnotationAction extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override

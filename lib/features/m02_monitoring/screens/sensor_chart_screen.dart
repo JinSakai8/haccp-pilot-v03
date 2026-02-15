@@ -16,6 +16,13 @@ class SensorChartScreen extends ConsumerStatefulWidget {
 
 class _SensorChartScreenState extends ConsumerState<SensorChartScreen> {
   Duration _selectedRange = const Duration(hours: 24);
+  final TextEditingController _commentController = TextEditingController();
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,8 +218,9 @@ class _SensorChartScreenState extends ConsumerState<SensorChartScreen> {
                ],
              ),
              const SizedBox(height: 16),
-             const TextField(
-               decoration: InputDecoration(
+             TextField(
+               controller: _commentController,
+               decoration: const InputDecoration(
                  hintText: 'Komentarz (opcjonalnie)',
                  border: OutlineInputBorder(),
                ),
@@ -223,11 +231,20 @@ class _SensorChartScreenState extends ConsumerState<SensorChartScreen> {
                width: double.infinity,
                height: 50,
                child: ElevatedButton(
-                 onPressed: () {
-                   Navigator.pop(context);
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text('Adnotacja dodana (Mock)')),
-                   );
+                 onPressed: () async {
+                   final comment = _commentController.text;
+                   // Use selected label or default
+                   const label = 'Adnotacja'; // TODO: State for selected chip
+                   
+                   await ref.read(annotationActionProvider.notifier)
+                       .add(widget.deviceId, label, comment);
+                       
+                   if (context.mounted) {
+                     Navigator.pop(context);
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text('Adnotacja zapisana')),
+                     );
+                   }
                  },
                  child: const Text('ZAPISZ'),
                ),

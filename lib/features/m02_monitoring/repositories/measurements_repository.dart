@@ -17,13 +17,16 @@ class MeasurementsRepository {
     return (response as List).map((e) => Sensor.fromJson(e)).toList();
   }
 
-  // Stream najnowszych pomiarów (Realtime)
-  Stream<List<TemperatureLog>> streamLogs() {
+  // Stream najnowszych pomiarów (Realtime) - filtrowany po liście ID sensorów
+  Stream<List<TemperatureLog>> streamLogs(List<String> sensorIds) {
+    if (sensorIds.isEmpty) return Stream.value([]);
+
     return _client
         .from('temperature_logs')
         .stream(primaryKey: ['id'])
+        .inFilter('sensor_id', sensorIds)
         .order('recorded_at', ascending: false)
-        .limit(20) // Limit to keep memory usage low, we only need latest for dashboard
+        .limit(20)
         .map((data) => data.map((json) => TemperatureLog.fromJson(json)).toList());
   }
 
@@ -65,5 +68,16 @@ class MeasurementsRepository {
       'acknowledged_by': userId,
       'acknowledged_at': DateTime.now().toIso8601String(),
     }).eq('id', logId);
+  }
+
+  // Nowa metoda do dodawania adnotacji
+  Future<void> insertAnnotation(String sensorId, String label, String comment, String userId) async {
+    await _client.from('annotations').insert({
+      'sensor_id': sensorId,
+      'label': label,
+      'comment': comment,
+      'created_by': userId,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 }

@@ -1,10 +1,10 @@
 # 00 — Architecture Master Plan: HACCP Pilot v03-00
 
 > **Autor:** Lead System Architect (AI)
-> **Data:** 2026-02-13
-> **Status:** DRAFT — Do zatwierdzenia
+> **Data:** 2026-02-15
+> **Status:** ACTIVE — Po audycie M02
 > **Deadline:** 2 tygodnie (do 2026-02-27)
-> **Źródła:** [Gemini.MD.md](file:///c:/Users/HP/OneDrive%20-%20flowsforge.com/Projekty/HACCP%20Mięso%20i%20Piana/Up%20to%20date/Gemini.MD.md), [UI_description.md](file:///c:/Users/HP/OneDrive%20-%20flowsforge.com/Projekty/HACCP%20Mięso%20i%20Piana/Up%20to%20date/UI_description.md), [Specyfikacja V3](file:///c:/Users/HP/OneDrive%20-%20flowsforge.com/Projekty/HACCP%20Mięso%20i%20Piana/Up%20to%20date/Specyfikacja%20Projektu%20HACCP%20Pilot%20V3.txt)
+> **Źródła:** [Code_description.MD](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/Code_description.MD), [UI_description.md](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/UI_description.md)
 
 ---
 
@@ -375,7 +375,7 @@ Każdy moduł posiada **jeden** Repository, który enkapsuluje wszystkie operacj
 | Moduł | Repository | Tabele Supabase | Kluczowe metody |
 |:------|:-----------|:----------------|:----------------|
 | M01 | `AuthRepository` | `employees`, `employee_zones`, `zones` | `loginWithPin()`, `getZonesForEmployee()` |
-| M02 | `MeasurementsRepository` | `measurements`, `devices`, `annotations` | `streamMeasurements()`, `getAlarms()`, `addAnnotation()` |
+| M02 | `MeasurementsRepository` | `measurements`, `devices`, `temperature_logs` | `streamRealtime()`, `acknowledgeAlert()`, `getHistoricalData()` |
 | M03 | `GmpRepository` | `gmp_logs` | `insertLog()`, `getHistory()`, `getTodayCount()` |
 | M04 | `GhpRepository` | `ghp_logs` | `insertChecklist()`, `getHistory()` |
 | M05 | `WasteRepository` | `waste_records` + Storage | `insertRecord()`, `uploadPhoto()`, `getHistory()` |
@@ -470,5 +470,7 @@ dev_dependencies:
 1. **Zmienne Środowiskowe:** Klucze `SUPABASE_URL` i `SUPABASE_ANON_KEY` są wdrożone w pliku `.env`.
 2. **Baza Danych:** Schemat SQL (M01: `employees`, `zones`, `employee_zones`) jest wdrożony i aktywny.
 3. **Motyw UI:** Wymuszamy **Dark Mode** (tło Onyx/Charcoal) zgodnie z plikiem `UI_description.md`.
-4. **Synchronizacja Danych (M02 IoT):** Wymuszamy **Supabase Realtime (WebSockets)**. Do zarządzania strumieniami danych w czasie rzeczywistym używamy `StreamProvider` z Riverpoda.
+4. **Synchronizacja Danych (Two-Stage Streaming):** Supabase Realtime nie obsługuje filtrów po JOINach. Wdrażamy architekturę dwuetapową: subskrypcja globalna na `venue_id` + filtrowanie strefy w warstwie Providera (`MonitoringProvider`).
 5. **Autoryzacja Usług:** Plik `credentials.json` (Google Service Account) będzie używany współdzielenie dla Google Stitch oraz do automatyzacji w Google Drive API (M06).
+6. **Enforcement "Glove-Friendly":** Wszystkie krytyczne akcje (Zapisz/Potwierdź) MUSZĄ używać `HaccpLongPressButton` (1s). Touch target min. 60x60dp jest twardym warunkiem architektonicznym.
+7. **Alarm Acknowledgement:** Logujemy potwierdzenia bezpośrednio w `temperature_logs` (kolumny `is_acknowledged`, `acknowledged_by`), eliminując potrzebę osobnej tabeli junction dla uproszczenia zapytań realtime.
