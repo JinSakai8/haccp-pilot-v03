@@ -403,10 +403,10 @@ W dniu 2026-02-15 zidentyfikowano i naprawiono szereg błędów blokujących wdr
     - **Powód:** Odwołanie do nieistniejącego tokenu w `HaccpDesignTokens`.
     - **Rozwiązanie:** Sprawdzenie dostępnych tokenów w `lib/core/constants/design_tokens.dart` i użycie np. `cardRadius`.
 
-5. **Przestarzała Składnia Supabase Filters:**
-    - **Błąd:** `The method 'in_' isn't defined`.
-    - **Powód:** Zmiana API w `supabase_flutter`.
-    - **Rozwiązanie:** Zastąpienie `.in_('col', list)` przez `.filter('col', 'in', list)`.
+5. **Przestarzała Składnia i Kolejność Filtrowania Supabase:**
+    - **Błąd:** `The method 'filter' (lub 'in_') isn't defined for the type 'PostgrestTransformBuilder'`.
+    - **Powód:** Wywołanie `.order()`, `.limit()` lub `.range()` zmienia typ buildera na `TransformBuilder`, który nie obsługuje już metod filtrujących. Wszystkie filtry (`.eq()`, `.filter()`, `.in_()`) muszą wystąpić **PRZED** metodami sortowania/limitowania.
+    - **Rozwiązanie:** Zastąpienie `.in_('col', list)` przez `.filter('col', 'in', list)` oraz przesunięcie `.order()` na sam koniec łańcucha zapytań.
 
 ### 15.2 Problem "Stale Cache" na Vercelu
 
