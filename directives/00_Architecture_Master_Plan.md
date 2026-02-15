@@ -2,7 +2,7 @@
 
 > **Autor:** Lead System Architect (AI)
 > **Data:** 2026-02-15
-> **Status:** ACTIVE — Po audycie M02
+> **Status:** ACTIVE — Po wdrożeniu M06 (Raporty)
 > **Deadline:** 2 tygodnie (do 2026-02-27)
 > **Źródła:** [Code_description.MD](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/Code_description.MD), [UI_description.md](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/UI_description.md)
 

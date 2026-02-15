@@ -143,19 +143,20 @@ Ten moduł wprowadza natywną obsługę kamery bez interfejsu systemowego (Glove
 
 Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 
-### Generowanie PDF (`PdfService`)
+### Generowanie Raportów (M06)
 
-- **Silnik**: `syncfusion_flutter_pdf`.
-- **Izolacja**: Generowanie odbywa się w osobnym wątku (`compute`), aby nie blokować UI.
-- **Dynamiczność**: Wykorzystuje `FormDefinition` do automatycznego tworzenia kolumn tabeli na podstawie pól formularza. Jeśli dodasz pole w configu, pojawi się w PDF.
-- **Zdjęcia**: Pobiera zdjęcia (z URL lub pliku), skaluje je i dołącza pod tabelą raportu.
+- **Raporty PDF (`PdfService`)**: Używa `syncfusion_flutter_pdf` do generowania raportów GMP/GHP i Odpadów.
+- **Raporty Temperatur (HTML)**: Ze względu na dużą ilość danych (tysiące pomiarów miesięcznie), raporty temperatur są najpierw agregowane do statystyk dziennych (`TemperatureAggregatorService`), a następnie renderowane do formatu HTML (`HtmlReportGenerator`).
+- **Agregacja**: Wylicza Min, Max i Średnią temperaturę dla każdego urządzenia w każdym dniu miesiąca.
+- **Wyróżnienie Alarmów**: HTML automatycznie koloruje na czerwono wartości przekraczające progi (np. > 8°C dla lodówek).
+- **Otwieranie plików**: Wykorzystuje `FileOpener` do podglądu HTML/PDF w nowej karcie przeglądarki (Web).
 
 ### 2.3 Web Compatibility & Platform Specifics
 
-- **NO `dart:io`**: The application is strictly web-compatible. All usages of `dart:io` (`File`, `Platform`, etc.) have been removed or guarded with `kIsWeb`.
-- **Blob/Data Storage**: Files (images, PDFs) are handled as `Uint8List` in memory or uploaded directly to Supabase Storage/Google Drive without local filesystem intermediate steps.
-- **Printing/PDF**: `pdf` package is used for generation. `printing` package handles web printing/preview. `syncfusion_flutter_pdf` is used for advanced PDF creation.
-- **File Picker**: `file_picker` is used for selecting files on Web (replacing `image_picker` or direct camera access), ensuring cross-platform compatibility for logo uploads and waste photos.
+- **NO `dart:io`**: Aplikacja jest w pełni kompatybilna z Web. Wszystkie użycia `dart:io` zostały usunięte lub zabezpieczone przez `kIsWeb`.
+- **File Opener (`lib/core/services/file_opener.dart`)**: Specjalny helper wykorzystujący **warunkowe importy** (`dart:html` na web, stub na mobile). Pozwala na otwieranie wygenerowanych raportów bezpośrednio w nowej karcie przeglądarki.
+- **Blob Handling**: Pliki są obsługiwane jako `Uint8List` w pamięci, co eliminuje potrzebę zapisu na dysku lokalnym przed wysyłką do Supabase/Drive.
+- **Printing**: Raporty HTML są zoptymalizowane pod kątem wydruku systemowego (`@media print`).
 
 ## 3. Key Modules & Providers
 

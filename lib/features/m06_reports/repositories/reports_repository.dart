@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 // import 'package:http/http.dart' as http; // Use supabase storage download instead
@@ -29,6 +29,9 @@ class ReportsRepository {
   }
 
   Future<List<Map<String, dynamic>>> getMeasurements(DateTime start, DateTime end) async {
+    // We join 'devices' table to get the name.
+    // Ensure RLS allows reading 'devices' and 'measurements'.
+    // The query '*, devices(name)' fetches all measurement columns + device name.
     final response = await SupabaseService.client
         .from('measurements')
         .select('*, devices(name)')

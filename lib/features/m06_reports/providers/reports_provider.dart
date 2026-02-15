@@ -1,11 +1,15 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:haccp_pilot/core/services/drive_service.dart';
 import 'package:haccp_pilot/core/services/pdf_service.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/shared/config/form_definitions.dart';
+import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
+import 'package:haccp_pilot/features/m06_reports/services/temperature_aggregator_service.dart';
+import 'package:haccp_pilot/features/m06_reports/services/html_report_generator.dart';
+import 'dart:convert'; // for utf8
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'reports_provider.g.dart';
@@ -99,6 +103,47 @@ class ReportsNotifier extends _$ReportsNotifier {
           userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
+        
+      } else if (reportType == 'temperature') {
+        // 1. Fetch raw data
+        final rawLogs = await repo.getMeasurements(start, end);
+        if (rawLogs.isEmpty) {
+           throw Exception('Brak pomiarów temperatur w tym miesiącu');
+        }
+
+        // 2. Map to TemperatureLog model & extract device names
+        final logs = <TemperatureLog>[];
+        final deviceNames = <String, String>{};
+
+        for (var raw in rawLogs) {
+          final log = TemperatureLog.fromJson(raw);
+          logs.add(log);
+          
+          // Extract device name from join: devices: { name: "..." }
+          if (raw['devices'] != null) {
+            final deviceData = raw['devices'];
+            // Supabase join can return map or list depending on relationship (one-to-one here)
+            if (deviceData is Map) {
+              deviceNames[log.sensorId] = deviceData['name']?.toString() ?? 'Sensor ${log.sensorId}';
+            }
+          }
+        }
+
+        // 3. Aggregate
+        final stats = TemperatureAggregatorService.aggregate(logs, deviceNames: deviceNames);
+
+        // 4. Generate HTML
+        final htmlContent = HtmlReportGenerator.generateHtml(
+          stats: stats, 
+          month: month,
+          userName: user?.fullName,
+          // TODO: Fetch venue name if needed, or pass from settings
+          venueName: 'Lokal ${user?.role ?? ""}', 
+        );
+
+        // 5. Convert to bytes (UTF-8)
+        pdfBytes = Uint8List.fromList(utf8.encode(htmlContent));
+        fileName = 'Raport_Temperatur_${month.year}_${month.month}.html';
         
       } else {
         throw UnimplementedError('Raport $reportType nie jest jeszcze zaimplementowany');

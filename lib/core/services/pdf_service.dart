@@ -1,9 +1,10 @@
 import 'dart:ui';
-import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
+import 'package:haccp_pilot/core/services/file_opener.dart'; // Conditional import helper
 
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
@@ -226,6 +227,16 @@ class PdfService {
     final List<int> bytes = await document.save();
     document.dispose();
     return bytes;
+  }
+
+  /// Opens the file (PDF or HTML) in the browser (Web) or viewer (Mobile).
+  void openFile(Uint8List bytes, String fileName) {
+    if (kIsWeb) {
+      openFileFromBytes(bytes, fileName);
+    } else {
+      // Mobile implementation would go here (e.g. open_file package)
+      debugPrint('Opening $fileName on mobile is not yet implemented.');
+    }
   }
 }
 

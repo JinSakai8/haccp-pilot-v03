@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
@@ -81,7 +81,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
             if (reportsState.hasError)
                Container(
                  padding: const EdgeInsets.all(16),
-                 color: AppTheme.error.withOpacity(0.1),
+                 color: AppTheme.error.withValues(alpha: 0.1),
                  child: Text(
                    'Błąd: ${reportsState.error}',
                    style: const TextStyle(color: AppTheme.error),
@@ -94,12 +94,14 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
   }
 
   Widget _buildReportPreview(ReportData reportData) {
+    final isHtml = reportData.fileName.toLowerCase().endsWith('.html');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,18 +130,36 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
           const SizedBox(height: 24),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement in-memory PDF preview for web
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Podgląd PDF niedostępny w przeglądarce')),
-                    );
-                  },
-                  icon: const Icon(Icons.visibility),
-                  label: const Text('PODGLĄD'),
+              if (isHtml) ...[
+                 Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Save/Open HTML (Cross-platform way using PdfService/Drive or just local open)
+                      // For now, on web we might want to just download/open blob.
+                      // Since we are inside the app, maybe just Drive upload is safer for Kiosk?
+                      // But requirement says "Open in browser to print".
+                       ref.read(pdfServiceProvider).openFile(
+                        reportData.bytes, 
+                        reportData.fileName
+                      );
+                    },
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('OTWÓRZ (DRUKUJ)'),
+                  ),
                 ),
-              ),
+              ] else ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Podgląd PDF niedostępny w przeglądarce')),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility),
+                    label: const Text('PODGLĄD'),
+                  ),
+                ),
+              ],
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton.icon(
