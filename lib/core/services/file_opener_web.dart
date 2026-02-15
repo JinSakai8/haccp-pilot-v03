@@ -2,7 +2,14 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 
 void openFileFromBytes(Uint8List bytes, String filename) {
-  final blob = html.Blob([bytes]);
+  String? mimeType;
+  if (filename.toLowerCase().endsWith('.html')) {
+    mimeType = 'text/html;charset=utf-8';
+  } else if (filename.toLowerCase().endsWith('.pdf')) {
+    mimeType = 'application/pdf';
+  }
+
+  final blob = html.Blob([bytes], mimeType);
   final url = html.Url.createObjectUrlFromBlob(blob);
   
   // Open in new tab

@@ -298,37 +298,50 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
         return sensorsAsync.when(
           data: (sensors) {
-             debugPrint('Sensors loaded: ${sensors.length}');
-             return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface)),
-                  leading: const Icon(Icons.apps, color: AppTheme.primary),
-                  onTap: () {
-                    setState(() {
-                      _selectedSensorId = null;
-                      _selectedSensorName = null;
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                if (sensors.isEmpty)
-                   const ListTile(title: Text('Brak czujników w tej strefie', style: TextStyle(color: Colors.grey))),
-                ...sensors.map((s) => ListTile(
-                  title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
-                  leading: const Icon(Icons.thermostat, color: AppTheme.onSurfaceVariant),
-                  onTap: () {
-                    setState(() {
-                      _selectedSensorId = s.id;
-                      _selectedSensorName = s.name;
-                    });
-                    Navigator.pop(context);
-                  },
-                )),
-                const SizedBox(height: 16),
-              ],
-            );
+             debugPrint('Sensors loaded: ${sensors.length} for zone ${zone.name}');
+             return Container(
+               padding: const EdgeInsets.symmetric(vertical: 16),
+               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text('Wybierz urządzenie (${sensors.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant)),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
+                    leading: const Icon(Icons.apps, color: AppTheme.primary),
+                    trailing: _selectedSensorId == null ? const Icon(Icons.check, color: AppTheme.success) : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedSensorId = null;
+                        _selectedSensorName = null;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                  if (sensors.isEmpty)
+                     ListTile(
+                       title: Text('Brak czujników w strefie "${zone.name}"', style: const TextStyle(color: AppTheme.error)),
+                       subtitle: const Text('Upewnij się, że sensory są przypisane do tej strefy i aktywne.', style: TextStyle(color: Colors.grey)),
+                     ),
+                  ...sensors.map((s) => ListTile(
+                    title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
+                    leading: const Icon(Icons.thermostat, color: AppTheme.onSurfaceVariant),
+                    trailing: _selectedSensorId == s.id ? const Icon(Icons.check, color: AppTheme.success) : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedSensorId = s.id;
+                        _selectedSensorName = s.name;
+                      });
+                      Navigator.pop(context);
+                    },
+                  )),
+                  const SizedBox(height: 16),
+                ],
+              ),
+             );
           },
           loading: () => const SizedBox(
             height: 200, 
@@ -338,7 +351,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
              debugPrint('Sensor load error: $e');
              return SizedBox(
               height: 200, 
-              child: Center(child: Text('Błąd pobierania czujników: $e', style: const TextStyle(color: AppTheme.error)))
+              child: Center(child: Text('Błąd: $e', style: const TextStyle(color: AppTheme.error)))
              );
           },
         );
