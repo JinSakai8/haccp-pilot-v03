@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../../../core/models/employee.dart';
+import '../../../core/models/zone.dart';
 import '../../../../core/services/supabase_service.dart';
 
 class HrRepository {
@@ -36,8 +37,20 @@ class HrRepository {
     return (response as List).map((json) => Employee.fromJson(json)).toList();
   }
 
-  /// Creates a new employee.
-  Future<void> createEmployee(Employee employee, String pin) async {
+  /// Fetches available zones (for dropdown).
+  Future<List<Zone>> getZones() async {
+    // Assuming 'zones' table is readable by anon/auth (via RLS or public)
+    // If not, we might need an RPC, but zones are usually public metadata.
+    final response = await _client
+        .from('zones')
+        .select()
+        .order('name', ascending: true);
+        
+    return (response as List).map((json) => Zone.fromJson(json)).toList();
+  }
+
+  /// Creates a new employee with assigned zones.
+  Future<void> createEmployee(Employee employee, String pin, List<String> zoneIds) async {
     final hashedPin = _hashPin(pin);
     
     // Use RPC to create employee (bypassing RLS)
@@ -46,6 +59,7 @@ class HrRepository {
       'pin_hash_input': hashedPin,
       'role_input': employee.role,
       'sanepid_input': employee.sanepidExpiry?.toIso8601String(),
+      'zone_ids_input': zoneIds, // Pass List<String> which maps to uuid[]
       'is_active_input': employee.isActive,
     });
   }

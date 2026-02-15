@@ -22,6 +22,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
   String _role = 'cook'; // Default role
   String _pin = '';
   DateTime? _sanepidDate;
+  final List<String> _selectedZones = []; // New state for zones
   
   bool _isPinUnique = false;
   bool _isCheckingPin = false;
@@ -150,6 +151,12 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       );
       return;
     }
+    if (_selectedZones.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Przypisz przynajmniej jedną strefę!')),
+      );
+      return;
+    }
 
     try {
       // Call Provider to create
@@ -158,6 +165,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
         pin: _pin,
         role: _role,
         sanepidExpiry: _sanepidDate,
+        zoneIds: _selectedZones,
       );
 
       if (mounted) {
@@ -275,6 +283,46 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           ),
                         ),
                         
+                      const SizedBox(height: 24),
+                      
+                      // Zones
+                      Text('Przypisz Strefy', style: theme.textTheme.labelLarge),
+                      const SizedBox(height: 8),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final zonesAsync = ref.watch(hrZonesProvider);
+                          return zonesAsync.when(
+                            data: (zones) => Wrap(
+                              spacing: 8,
+                              children: zones.map((zone) {
+                                final isSelected = _selectedZones.contains(zone.id);
+                                return FilterChip(
+                                  label: Text(zone.name),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedZones.add(zone.id);
+                                      } else {
+                                        _selectedZones.remove(zone.id);
+                                      }
+                                    });
+                                  },
+                                  backgroundColor: Colors.white10,
+                                  selectedColor: DesignTokens.accentColor.withOpacity(0.3),
+                                  labelStyle: TextStyle(
+                                    color: isSelected ? DesignTokens.accentColor : Colors.white70,
+                                  ),
+                                  checkmarkColor: DesignTokens.accentColor,
+                                );
+                              }).toList(),
+                            ),
+                            loading: () => const CircularProgressIndicator(),
+                            error: (e, st) => Text('Błąd pobierania stref: $e', style: const TextStyle(color: DesignTokens.errorColor)),
+                          );
+                        },
+                      ),
+
                       const SizedBox(height: 24),
                       
                       // Sanepid

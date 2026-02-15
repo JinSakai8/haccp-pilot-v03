@@ -199,8 +199,8 @@ Moduł do zarządzania pracownikami, ich rolami (Manager/Pracownik) oraz ważno�
 - **Providers**: `HrProvider` - zarządza listą pracowników i logiką dodawania/edycji.
 - **Ekrany**:
   - `EmployeeListScreen`: Lista z filtrowaniem i feedbackiem "Pracownik dodany".
-  - `AddEmployeeScreen`: Dodawanie pracownika z blokadą przycisku dla duplikatów PIN.
-  - `EmployeeProfileScreen`: Profil z obsługą błędów przełącznika statusu.
+  - `AddEmployeeScreen`: Dodawanie pracownika z blokadą przycisku dla duplikatów PIN oraz **przypisywaniem stref (Zones)**.
+  - `EmployeeProfileScreen`: Profil z obsługą błędów przełącznika statusu i **aktualizacją daty Sanepid** z potwierdzeniem.
 
 ### Kluczowe funkcje
 

@@ -127,14 +127,16 @@ lib/
 │   │   └── providers/
 │   │       └── reports_provider.dart
 │   │
-│   ├── m07_hr/
+│   ├── m07_hr/                     # [COMPLETED] Zarządzanie personelem
 │   │   ├── screens/
-│   │   │   ├── hr_dashboard_screen.dart        # Ekran 7.1
-│   │   │   ├── employee_profile_screen.dart    # Ekran 7.2
-│   │   │   ├── add_employee_screen.dart        # Ekran 7.3
-│   │   │   └── employee_list_screen.dart       # Ekran 7.4
+│   │   │   ├── hr_dashboard_screen.dart        # Panel główny z alertami
+│   │   │   ├── employee_profile_screen.dart    # Edycja profilu + Sanepid
+│   │   │   ├── add_employee_screen.dart        # Dodawanie + Przypisywanie Stref
+│   │   │   └── employee_list_screen.dart       # Lista pracowników
 │   │   ├── repositories/
-│   │   │   └── hr_repository.dart
+│   │   │   └── hr_repository.dart              # Secure RPCs (Auth & Anon)
+│   │   ├── models/
+│   │   │   └── employee.dart
 │   │   └── providers/
 │   │       └── hr_provider.dart
 │   │

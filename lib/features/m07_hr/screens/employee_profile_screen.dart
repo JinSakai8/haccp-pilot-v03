@@ -120,7 +120,19 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
                             ),
                           );
                           if (picked != null) {
-                             ref.read(hrControllerProvider.notifier).updateSanepid(employee.id, picked);
+                             try {
+                               await ref.read(hrControllerProvider.notifier).updateSanepid(employee.id, picked);
+                               if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Data badań zaktualizowana"),
+                                      backgroundColor: HaccpDesignTokens.success,
+                                    ),
+                                  );
+                               }
+                             } catch (e) {
+                                // Error handled by global listener, but good to have safety here
+                             }
                           }
                         } : null,
                       ),

@@ -6,6 +6,8 @@ import '../repositories/hr_repository.dart';
 
 part 'hr_provider.g.dart';
 
+import '../../../core/models/zone.dart';
+
 /// Provider for HR Repository
 @riverpod
 HrRepository hrRepository(Ref ref) {
@@ -17,6 +19,13 @@ HrRepository hrRepository(Ref ref) {
 Future<List<Employee>> hrEmployees(Ref ref) async {
   final repository = ref.watch(hrRepositoryProvider);
   return repository.getEmployees();
+}
+
+/// Provider to fetch available zones
+@riverpod
+Future<List<Zone>> hrZones(Ref ref) async {
+  final repository = ref.watch(hrRepositoryProvider);
+  return repository.getZones();
 }
 
 /// AsyncNotifier for HR actions (create, update, delete)
@@ -37,6 +46,7 @@ class HrController extends _$HrController {
     required String pin,
     required String role,
     required DateTime? sanepidExpiry,
+    required List<String> zoneIds,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -47,8 +57,9 @@ class HrController extends _$HrController {
         role: role,
         isActive: true,
         sanepidExpiry: sanepidExpiry,
+        zones: zoneIds, // Optional based on model, but useful for local state
       );
-      await repository.createEmployee(employee, pin);
+      await repository.createEmployee(employee, pin, zoneIds);
       ref.invalidate(hrEmployeesProvider);
       state = const AsyncValue.data(null);
     } catch (e, st) {
