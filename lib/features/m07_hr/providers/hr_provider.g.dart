@@ -98,6 +98,49 @@ final class HrEmployeesProvider
 
 String _$hrEmployeesHash() => r'78c21d7142cb800bea4599d130ce41ff3e510d10';
 
+/// Provider to fetch available zones
+
+@ProviderFor(hrZones)
+final hrZonesProvider = HrZonesProvider._();
+
+/// Provider to fetch available zones
+
+final class HrZonesProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<Zone>>,
+          List<Zone>,
+          FutureOr<List<Zone>>
+        >
+    with $FutureModifier<List<Zone>>, $FutureProvider<List<Zone>> {
+  /// Provider to fetch available zones
+  HrZonesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'hrZonesProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$hrZonesHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<List<Zone>> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<Zone>> create(Ref ref) {
+    return hrZones(ref);
+  }
+}
+
+String _$hrZonesHash() => r'd0f4628a02495109295dcd3ffdd673f0fd79a24f';
+
 /// AsyncNotifier for HR actions (create, update, delete)
 
 @ProviderFor(HrController)
@@ -126,7 +169,7 @@ final class HrControllerProvider
   HrController create() => HrController();
 }
 
-String _$hrControllerHash() => r'767d5e00dd21e89e1e4cd9111b654a23e156269c';
+String _$hrControllerHash() => r'bf7fa511297746e4b9c70308faba460c721acf91';
 
 /// AsyncNotifier for HR actions (create, update, delete)
 

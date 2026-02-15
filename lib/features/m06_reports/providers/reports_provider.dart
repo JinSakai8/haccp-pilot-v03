@@ -41,7 +41,9 @@ class ReportsNotifier extends _$ReportsNotifier {
   Future<void> generateReport({
     required String reportType,
     required DateTime month,
+    String? sensorId,
   }) async {
+    debugPrint('M06: Generating report: $reportType, Month: $month, Sensor: $sensorId');
     state = const AsyncLoading();
     try {
       final start = DateTime(month.year, month.month, 1);
@@ -76,13 +78,14 @@ class ReportsNotifier extends _$ReportsNotifier {
           userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
-      } else if (reportType == 'gmp_roasting') {
+      } else if (reportType == 'gmp_roasting' || reportType == 'gmp') {
         final records = await repo.getGmpLogs(start, end);
         if (records.isEmpty) {
-           throw Exception('Brak logów pieczenia w tym miesiącu');
+           throw Exception('Brak logów HACCP w tym miesiącu');
         }
 
-        final definition = FormDefinitions.getDefinition(reportType);
+        final typeKey = reportType == 'gmp' ? 'gmp_roasting' : reportType;
+        final definition = FormDefinitions.getDefinition(typeKey);
         final columns = ['Data', ...definition.fields.map((e) => e.label)];
         
         final rows = records.map((r) {
@@ -95,15 +98,21 @@ class ReportsNotifier extends _$ReportsNotifier {
            return row;
         }).toList();
 
-        fileName = 'Rejestr_Pieczenia_${month.year}_${month.month}.pdf';
+        fileName = 'Rejestr_HACCP_${month.year}_${month.month}.pdf';
         pdfBytes = await pdf.generateTableReport(
-          title: 'Rejestr Procesu: Pieczenie',
+          title: 'Rejestr Procesu: ${definition.title}',
           columns: columns,
           rows: rows,
           userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
         
+      } else if (reportType == 'ghp') {
+          // Add basic GHP handling if needed, or similar to GMP
+          final records = await repo.getGmpLogs(start, end); // Repository should be updated for unified categories
+          // Filter by categories if needed. For now let's focus on temperature.
+          throw Exception('Raport GHP jest w trakcie przygotowania. Użyj GMP lub Temperatur.');
+
       } else if (reportType == 'temperature') {
         // 1. Fetch raw data
         final rawLogs = await repo.getMeasurements(start, end);
@@ -112,36 +121,38 @@ class ReportsNotifier extends _$ReportsNotifier {
         }
 
         // 2. Map to TemperatureLog model & extract device names
-        final logs = <TemperatureLog>[];
+        var logs = rawLogs.map((raw) => TemperatureLog.fromJson(raw)).toList();
         final deviceNames = <String, String>{};
 
         for (var raw in rawLogs) {
-          final log = TemperatureLog.fromJson(raw);
-          logs.add(log);
-          
-          // Extract device name from join: devices: { name: "..." }
-          if (raw['devices'] != null) {
-            final deviceData = raw['devices'];
-            // Supabase join can return map or list depending on relationship (one-to-one here)
-            if (deviceData is Map) {
-              deviceNames[log.sensorId] = deviceData['name']?.toString() ?? 'Sensor ${log.sensorId}';
-            }
-          }
+           if (raw['devices'] != null) {
+              final deviceData = raw['devices'];
+              if (deviceData is Map) {
+                deviceNames[raw['sensor_id']] = deviceData['name']?.toString() ?? 'Sensor ${raw['sensor_id']}';
+              }
+           }
         }
 
-        // 3. Aggregate
+        // 3. Filter by sensorId if provided
+        if (sensorId != null && sensorId.isNotEmpty) {
+           logs = logs.where((l) => l.sensorId == sensorId).toList();
+           if (logs.isEmpty) {
+              throw Exception('Brak danych dla wybranego urządzenia w tym miesiącu');
+           }
+        }
+
+        // 4. Aggregate
         final stats = TemperatureAggregatorService.aggregate(logs, deviceNames: deviceNames);
 
-        // 4. Generate HTML
+        // 5. Generate HTML
         final htmlContent = HtmlReportGenerator.generateHtml(
           stats: stats, 
           month: month,
           userName: user?.fullName,
-          // TODO: Fetch venue name if needed, or pass from settings
           venueName: 'Lokal ${user?.role ?? ""}', 
         );
 
-        // 5. Convert to bytes (UTF-8)
+        // 6. Convert to bytes (UTF-8)
         pdfBytes = Uint8List.fromList(utf8.encode(htmlContent));
         fileName = 'Raport_Temperatur_${month.year}_${month.month}.html';
         

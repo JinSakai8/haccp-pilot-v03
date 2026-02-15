@@ -2,11 +2,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/employee.dart';
+import '../../../core/models/zone.dart';
 import '../repositories/hr_repository.dart';
 
 part 'hr_provider.g.dart';
-
-import '../../../core/models/zone.dart';
 
 /// Provider for HR Repository
 @riverpod

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
+import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
 
 class ReportsPanelScreen extends ConsumerStatefulWidget {
   const ReportsPanelScreen({super.key});
@@ -15,6 +17,8 @@ class ReportsPanelScreen extends ConsumerStatefulWidget {
 class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
   DateTime _selectedDate = DateTime.now();
   String _selectedReportType = 'waste';
+  String? _selectedSensorId;
+  String? _selectedSensorName;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +51,16 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+            if (_selectedReportType == 'temperature') ...[
+               _buildSelector(
+                 label: 'Urządzenie (Opcjonalnie)',
+                 value: _selectedSensorName ?? 'Wszystkie w strefie',
+                 onTap: _showSensorSelector,
+               ),
+               const SizedBox(height: 16),
+            ],
+            const SizedBox(height: 16),
 
             // 2. Action Buttons
             SizedBox(
@@ -62,6 +75,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   ref.read(reportsProvider.notifier).generateReport(
                     reportType: _selectedReportType,
                     month: _selectedDate,
+                    sensorId: _selectedSensorId,
                   );
                 },
                 icon: reportsState.isLoading 
@@ -260,5 +274,55 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
+  }
+
+  void _showSensorSelector() {
+    final zone = ref.read(currentZoneProvider);
+    if (zone == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wybierz strefę w menu głównym')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      builder: (context) {
+        final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
+        return sensorsAsync.when(
+          data: (sensors) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface)),
+                onTap: () {
+                  setState(() {
+                    _selectedSensorId = null;
+                    _selectedSensorName = null;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ...sensors.map((s) => ListTile(
+                title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
+                onTap: () {
+                  setState(() {
+                    _selectedSensorId = s.id;
+                    _selectedSensorName = s.name;
+                  });
+                  Navigator.pop(context);
+                },
+              )),
+            ],
+          ),
+          loading: () => const Center(child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: CircularProgressIndicator(),
+          )),
+          error: (e, __) => Center(child: Text('Błąd: $e')),
+        );
+      },
+    );
   }
 }
