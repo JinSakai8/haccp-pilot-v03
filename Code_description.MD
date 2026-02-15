@@ -143,6 +143,35 @@ Ten moduł wprowadza natywną obsługę kamery bez interfejsu systemowego (Glove
 
 Moduł odpowiedzialny za generowanie dokumentacji i archiwizację w chmurze.
 
+### 14.1 Moduł M06: Raporty Temperatur (Detale Techniczne)
+
+Raporty temperatur są najbardziej złożonym elementem modułu M06 ze względu na wolumen danych (tysiące pomiarów na sensor miesięcznie).
+
+#### Proces Generowania
+
+1. **Pobieranie Danych (`ReportsRepository.getMeasurements`)**:
+    - Zapytanie do tabeli `temperature_logs`.
+    - **Data Join**: Wykonujemy `JOIN` z tabelą `sensors`, aby uzyskać czytelne nazwy urządzeń (np. "Chłodnia Mięso") zamiast surowych identyfikatorów UUID.
+    - Filtrowanie: Po zakresie dat (cały miesiąc) oraz opcjonalnie po konkretnym `sensor_id`.
+2. **Agregacja (`TemperatureAggregatorService`)**:
+    - Ponieważ wyświetlanie każdego pomiaru (co 5 min) zajęłoby setki stron, dane są agregowane do **statystyk dziennych**.
+    - Dla każdego dnia i każdego urządzenia wyliczane są: `min`, `max`, `avg` oraz `measurement_count`.
+    - System sprawdza również wystąpienie alarmów krytycznych (breaches).
+3. **Generowanie Wizualne (`HtmlReportGenerator`)**:
+    - Agregaty są przekazywane do generatora HTML.
+    - Tworzony jest profesjonalny dokument HTML z sekcją podsumowania (Summary Cards) i tabelą szczegółową.
+    - Stylizacja oparta jest na CSS zgodnym z designem aplikacji (akcenty `#D2661E`).
+4. **Podgląd i Druk**:
+    - Wygenerowany kod HTML jest konwertowany na PDF (lub renderowany bezpośrednio w widoku Web) i otwierany za pomocą `FileOpener`.
+
+#### Źródła Danych (Database Mapping)
+
+- **Tabela:** `temperature_logs` (pomiary).
+- **Relacja:** `sensors_id` -> `sensors.id` (nazwa urządzenia).
+- **Branding:** Nazwa lokalu i logo pobierane są z tabeli `venues` via `VenueRepository`.
+
+---
+
 ### Generowanie Raportów (M06)
 
 - **Raporty PDF (`PdfService`)**: Używa `syncfusion_flutter_pdf` do generowania raportów GMP/GHP i Odpadów.

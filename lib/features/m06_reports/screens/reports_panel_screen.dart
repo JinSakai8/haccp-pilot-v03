@@ -368,11 +368,17 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16.0),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface, // Force dark background
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const Text('Wybierz miesiąc', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
+          const SizedBox(height: 16),
           // Year Selector
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -397,6 +403,12 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
               final isSelected = _year == widget.initialDate.year && month == widget.initialDate.month;
               final isFuture = _year == DateTime.now().year && month > DateTime.now().month;
 
+              // Polish month names hardcoded to avoid intl dependency issues in this widget
+              const months = [
+                'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+                'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+              ];
+
               return InkWell(
                 onTap: isFuture ? null : () {
                   widget.onDateSelected(DateTime(_year, month));
@@ -405,12 +417,12 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                   alignment: Alignment.center,
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primary : Colors.transparent,
+                    color: isSelected ? AppTheme.primary : (isFuture ? Colors.transparent : AppTheme.surface.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(8),
-                    border: isCurrent ? Border.all(color: AppTheme.primary) : null,
+                    border: isCurrent ? Border.all(color: AppTheme.primary) : Border.all(color: AppTheme.outline),
                   ),
                   child: Text(
-                    DateFormat('MMMM', 'pl').format(DateTime(2024, month)),
+                    months[index],
                     style: TextStyle(
                       color: isFuture ? Colors.grey : (isSelected ? AppTheme.onPrimary : AppTheme.onSurface),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

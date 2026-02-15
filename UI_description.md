@@ -880,6 +880,39 @@ onConfirm():
 
 ---
 
+### Ekran 6.1a: Generowanie Raportu Temperatury (Modal)
+
+**Plik:** `reports_panel_screen.dart` (MonthYearPicker + SensorSelector)
+
+#### Layout
+
+| Element | Typ | Opis |
+|:--------|:----|:-----|
+| Nagłówek | Text | "Wybierz miesiąc" / "Wybierz urządzenie" |
+| Selektor Miesiąca | Custom Widget | Siatka 12 miesięcy, nawigacja roku, ciemne tło (`AppTheme.surface`), wyraźne białe napisy |
+| Selektor Urządzenia | ModalBottomSheet | Lista dostępnych sensorów z bazy lub opcja "Wszystkie" |
+| Akcja | Button | Generuj Raport (HTML → PDF) |
+
+#### Szablon Raportu (HTML)
+
+Raport generowany jest jako dokument HTML stylizowany CSS `@media print` na format A4.
+
+**Sekcje Raportu:**
+
+1. **Nagłówek:** Logo/Nazwa lokalu, Data generowania, Użytkownik.
+2. **Podsumowanie (Karty):**
+   - Liczba dni pomiarowych
+   - Całkowita liczba odczytów
+   - Min / Max temperatura w miesiącu
+   - Liczba alarmów (na czerwono jeśli > 0)
+3. **Tabela Szczegółowa:**
+   - Kolumny: Data, Urządzenie, Min, Max, Średnia, Status (OK/ALARM)
+   - Wiersze: Agregacja dzienna per urządzenie
+   - Kolorowanie statusów: Zielony (norma) / Czerwony (krytyczne)
+4. **Stopka:** Data wydruku, podpis systemu.
+
+---
+
 ### Ekran 6.2: Podgląd PDF
 
 **Stitch ID:** `8ad32c828e69495482c8a79600f6507b`

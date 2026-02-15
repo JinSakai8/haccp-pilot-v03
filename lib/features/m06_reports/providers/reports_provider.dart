@@ -116,6 +116,7 @@ class ReportsNotifier extends _$ReportsNotifier {
       } else if (reportType == 'temperature') {
         // 1. Fetch raw data
         final rawLogs = await repo.getMeasurements(start, end);
+
         if (rawLogs.isEmpty) {
            throw Exception('Brak pomiarów temperatur w tym miesiącu');
         }
