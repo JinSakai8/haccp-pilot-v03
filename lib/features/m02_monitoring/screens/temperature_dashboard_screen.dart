@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/sensor.dart';
@@ -11,9 +13,6 @@ class TemperatureDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentZone = ref.watch(currentZoneProvider);
-    
-    // DEBUG: Check zone ID
-    print('DEBUG: TemperatureDashboardScreen build. Zone: ${currentZone?.name}, ID: ${currentZone?.id}');
 
     if (currentZone == null) {
       return const Scaffold(
@@ -22,14 +21,6 @@ class TemperatureDashboardScreen extends ConsumerWidget {
       );
     }
 
-    if (currentZone.id == 'some-zone-id') {
-       return Scaffold(
-        appBar: const HaccpTopBar(title: "Monitoring Temperatur"),
-        body: Center(child: Text("BŁĄD: Wykryto 'some-zone-id'. Zaloguj się ponownie lub wybierz strefę.")),
-      );
-    }
-
-    
     final activeSensorsAsync = ref.watch(activeSensorsProvider(currentZone.id));
     final latestMeasurementsAsync = ref.watch(latestMeasurementsProvider);
 
