@@ -32,13 +32,13 @@ class HaccpDatePicker extends StatelessWidget {
         const SizedBox(height: 8),
         InkWell(
           onTap: () => _pickDate(context),
-          borderRadius: BorderRadius.circular(HaccpDesignTokens.radiusMedium),
+          borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white10,
-              borderRadius: BorderRadius.circular(HaccpDesignTokens.radiusMedium),
+              borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
               border: Border.all(color: Colors.white24),
             ),
             child: Row(

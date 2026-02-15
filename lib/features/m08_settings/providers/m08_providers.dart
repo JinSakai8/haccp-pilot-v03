@@ -21,7 +21,6 @@ class VenueSettingsController extends _$VenueSettingsController {
     required String name,
     required String nip,
     required String address,
-    required String address,
     String? logoUrl,
     int? tempInterval,
     double? tempThreshold,

@@ -59,7 +59,7 @@ class MeasurementsRepository {
 
     if (sensorIds.isEmpty) return [];
 
-    final response = await query.in_('sensor_id', sensorIds);
+    final response = await query.filter('sensor_id', 'in', sensorIds);
 
     return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
   }

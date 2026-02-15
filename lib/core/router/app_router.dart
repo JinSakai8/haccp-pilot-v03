@@ -17,6 +17,7 @@ import '../../features/m03_gmp/screens/gmp_history_screen.dart';
 import '../../features/m04_ghp/screens/ghp_category_selector_screen.dart';
 import '../../features/m04_ghp/screens/ghp_checklist_screen.dart';
 import '../../features/m04_ghp/screens/ghp_chemicals_screen.dart';
+import '../../features/m04_ghp/screens/ghp_history_screen.dart';
 import '../../features/m05_waste/screens/waste_panel_screen.dart';
 import '../../features/m05_waste/screens/waste_registration_form_screen.dart';
 import '../../features/m05_waste/screens/haccp_camera_screen.dart';

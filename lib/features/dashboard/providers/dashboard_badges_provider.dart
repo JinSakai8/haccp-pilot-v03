@@ -54,7 +54,8 @@ class DashboardBadges extends _$DashboardBadges {
           .gte('created_at', startOfDay)
           .lte('created_at', endOfDay);
       
-      if (gmpCount.count > 0) badges['gmp'] = '${gmpCount.count}';
+      
+      if (gmpCount > 0) badges['gmp'] = '$gmpCount';
 
       // 3. Waste (Today's logs)
       final wasteCount = await supabase
@@ -64,7 +65,7 @@ class DashboardBadges extends _$DashboardBadges {
           .gte('created_at', startOfDay)
           .lte('created_at', endOfDay);
       
-      if (wasteCount.count > 0) badges['waste'] = '${wasteCount.count}';
+      if (wasteCount > 0) badges['waste'] = '$wasteCount';
 
       // 4. HR (Expiring Sanepid)
       // Only for managers
@@ -75,7 +76,7 @@ class DashboardBadges extends _$DashboardBadges {
           .count(CountOption.exact)
           .lt('sanepid_expiry', now.add(const Duration(days: 7)).toIso8601String()); // Expiring in 7 days
          
-         if (expiringCount.count > 0) badges['hr'] = '${expiringCount.count}';
+         if (expiringCount > 0) badges['hr'] = '$expiringCount';
       }
 
     } catch (e) {
