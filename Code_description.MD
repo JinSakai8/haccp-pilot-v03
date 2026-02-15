@@ -195,12 +195,12 @@ Moduł do zarządzania pracownikami, ich rolami (Manager/Pracownik) oraz ważno�
 
 ### Struktura (`lib/features/m07_hr/`)
 
-- **Repositories**: `HrRepository` - obsługuje tabelę `employees`, haszowanie PIN (SHA-256) oraz sprawdzanie unikalności PIN.
+- **Repositories**: `HrRepository` - obsługuje tabelę `employees` poprzez **Secure RPCs**, co pozwala na bezpieczne modyfikacje przez użytkowników anonimowych (Kiosk mode).
 - **Providers**: `HrProvider` - zarządza listą pracowników i logiką dodawania/edycji.
 - **Ekrany**:
-  - `EmployeeListScreen`: Lista z filtrowaniem (Wszyscy/Aktywni/Wygasające).
-  - `AddEmployeeScreen`: Dodawanie pracownika z **weryfikacją unikalności PIN na żywo**.
-  - `HrDashboardScreen`: Panel główny z alertami o wygasających badaniach (czerwone/żółte kropki).
+  - `EmployeeListScreen`: Lista z filtrowaniem i feedbackiem "Pracownik dodany".
+  - `AddEmployeeScreen`: Dodawanie pracownika z blokadą przycisku dla duplikatów PIN.
+  - `EmployeeProfileScreen`: Profil z obsługą błędów przełącznika statusu.
 
 ### Kluczowe funkcje
 
@@ -449,6 +449,18 @@ Plik odpowiedzialny: `lib/features/m02_monitoring/repositories/measurements_repo
 
 - **Glove-Friendly UX:** Wszystkie interakcje krytyczne (potwierdzenie alarmu) wymagają przytrzymania przycisku przez 1 sekundę (`HaccpLongPressButton`) co zapobiega przypadkowym kliknięciom w rękawicach.
 - **Dark Mode Only:** Interfejs jest zoptymalizowany pod kątem pracy w ciemnych pomieszczeniach (chłodnie), używając ciemnego tła i jaskrawych kolorów akcentowych (zielony/czerwony) dla szybkiej identyfikacji statusu.
+
+### 15.3 Troubleshooting M02 (Missing Sensors)
+
+W przypadku błędu "Brak aktywnych sensorów w tej strefie", mimo że dane są w bazie:
+
+1. **Problem: RLS Role Mismatch**
+   - **Przyczyna:** Aplikacja używa `signInAnonymously()`. Jeśli anonimowe logowanie jest wyłączone w Supabase, klient używa roli `anon`. Jeśli polityka RLS zezwala tylko `authenticated`, dane są blokowane.
+   - **Rozwiązanie:** Skrypt `27_fix_rls_anon.sql` nadaje uprawnienia obu rolom (`anon`, `authenticated`).
+
+2. **Problem: Zone ID Mismatch**
+   - **Przyczyna:** Sensory są przypisane do strefy o nazwie "Kuchnia", ale z innym ID niż ta, do której ma dostęp aktualny pracownik.
+   - **Rozwiązanie:** Skrypty diagnostyczne `23_diagnostic_mismatch.sql` oraz naprawczy `25_fix_force_kuchnia.sql`, który precyzyjnie paruje sensory z ID strefy zalogowanego użytkownika.
 
 ---
 Autor: Antigravity (AI Agent)

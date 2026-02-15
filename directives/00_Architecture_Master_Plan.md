@@ -474,3 +474,4 @@ dev_dependencies:
 5. **Autoryzacja Usług:** Plik `credentials.json` (Google Service Account) będzie używany współdzielenie dla Google Stitch oraz do automatyzacji w Google Drive API (M06).
 6. **Enforcement "Glove-Friendly":** Wszystkie krytyczne akcje (Zapisz/Potwierdź) MUSZĄ używać `HaccpLongPressButton` (1s). Touch target min. 60x60dp jest twardym warunkiem architektonicznym.
 7. **Alarm Acknowledgement:** Logujemy potwierdzenia bezpośrednio w `temperature_logs` (kolumny `is_acknowledged`, `acknowledged_by`), eliminując potrzebę osobnej tabeli junction dla uproszczenia zapytań realtime.
+8. **Strategia RLS dla Sessionless Auth:** Ponieważ aplikacja w trybie Kiosk często korzysta z autoryzacji anonimowej (`signInAnonymously()`), polityki RLS dla tabel odczytowych (`sensors`, `temperature_logs`) muszą obejmować zarówno rolę `authenticated`, jak i `anon`, aby zapobiec blokadzie danych przy błędach sesji.

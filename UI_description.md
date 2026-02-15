@@ -249,6 +249,14 @@ ORDER BY m.measured_at DESC
 LIMIT 1 PER device
 ```
 
+#### Empty State Handling
+
+Jeśli w wybranej strefie nie ma żadnych aktywnych sensorów (np. nowa strefa), wyświetlany jest centralny komunikat:
+
+- **Widget**: `HaccpEmptyState` (z M09) lub `Center(Text)`
+- **Komunikat**: "Brak aktywnych sensorów w tej strefie"
+- **Priorytet**: Wyświetlane zamiast listy sensorów.
+
 #### Nawigacja
 
 | Akcja | Cel |

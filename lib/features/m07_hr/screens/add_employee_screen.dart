@@ -151,22 +151,27 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       return;
     }
 
-    // Call Provider to create
-    await ref.read(hrControllerProvider.notifier).createEmployee(
-      fullName: _nameController.text,
-      pin: _pin,
-      role: _role,
-      sanepidExpiry: _sanepidDate,
-    );
-
-    if (mounted) {
-      context.pop(); // Go back to list
-      ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(
-           content: Text('Pracownik dodany!'),
-           backgroundColor: DesignTokens.successColor,
-         ),
+    try {
+      // Call Provider to create
+      await ref.read(hrControllerProvider.notifier).createEmployee(
+        fullName: _nameController.text,
+        pin: _pin,
+        role: _role,
+        sanepidExpiry: _sanepidDate,
       );
+
+      if (mounted) {
+        context.pop(true); // Return true to signal success
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text('Błąd: $e'),
+             backgroundColor: DesignTokens.errorColor,
+           ),
+        );
+      }
     }
   }
 
@@ -316,10 +321,12 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _saveEmployee,
+                          onPressed: (_pin.length == 4 && _isPinUnique) ? _saveEmployee : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: DesignTokens.primaryColor,
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.white10,
+                            disabledForegroundColor: Colors.white38,
                           ),
                           child: const Text('ZAPISZ PRACOWNIKA'),
                         ),

@@ -10,13 +10,30 @@ import '../../../../core/providers/auth_provider.dart';
 import '../providers/hr_provider.dart';
 import '../../../../core/widgets/haccp_num_pad.dart'; // Direct use for consolidated PIN logic
 
-class EmployeeProfileScreen extends ConsumerWidget {
+class EmployeeProfileScreen extends ConsumerStatefulWidget {
   final String employeeId;
 
   const EmployeeProfileScreen({super.key, required this.employeeId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmployeeProfileScreen> createState() => _EmployeeProfileScreenState();
+}
+
+class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen> {
+  @override
+  Widget build(BuildContext context) {
+    // Listen for global errors from HR controller
+    ref.listen(hrControllerProvider, (previous, next) {
+      if (next is AsyncError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd: ${next.error}'),
+            backgroundColor: DesignTokens.errorColor,
+          ),
+        );
+      }
+    });
+
     final employeesAsync = ref.watch(hrEmployeesProvider);
     final currentUser = ref.read(currentUserProvider);
 

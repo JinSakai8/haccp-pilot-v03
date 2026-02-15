@@ -33,7 +33,17 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person_add, size: 32),
-                  onPressed: () => context.push('/hr/add'),
+                  onPressed: () async {
+                    final success = await context.push<bool>('/hr/add');
+                    if (success == true && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Pracownik został dodany!'),
+                          backgroundColor: DesignTokens.successColor,
+                        ),
+                      );
+                    }
+                  },
                 ),
               ],
             ),
