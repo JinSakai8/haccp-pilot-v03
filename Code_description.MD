@@ -227,9 +227,9 @@ Moduł zamykający, obsługujący dane lokalu i łączność.
 
 ### UX Audit (Glove-Friendly Polish)
 
-- Przycisk "Zapisz" w ustawieniach używa `HaccpLongPressButton` (wymaga przytrzymania).
-- Przycisk "Zapisz" w ustawieniach używa `HaccpLongPressButton` (wymaga przytrzymania).
-- Wszystkie kluczowe interakcje są przystosowane do obsługi w rękawiczkach.
+- Przycisk "Zapisz" w ustawieniach i formularzach używa `HaccpLongPressButton` (wymaga przytrzymania).
+- Wszystkie kluczowe interakcje są przystosowane do obsługi w rękawiczkach (przyciski min. 60x60dp).
+- **Navigation Safety**: Wdrożono `GoRouter` we wszystkich modułach, eliminując niespójności `Navigatora`.
 - **Empty States**: Wprowadzono `HaccpEmptyState` - spójny widget informujący o braku danych (np. historycznych), zastępujący surowe listy.
 
 ---
@@ -377,4 +377,4 @@ W dniu 2026-02-14 przeprowadzono serię napraw struktury bazy danych w celu przy
 
 ---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-14 (Post-Fix Database Update)
+Data wersji: 2026-02-15 (Finalization of 6 Sprints)

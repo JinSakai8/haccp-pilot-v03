@@ -25,33 +25,33 @@
 | 1.1 | Splash | `splash_screen.dart` | ✅ | — |
 | 1.2 | PIN Pad | `pin_pad_screen.dart` | ✅ | — |
 | 1.3 | Wybór Strefy | `zone_selection_screen.dart` | ✅ | — |
-| Hub | Dashboard Hub | `dashboard_hub_screen.dart` | ⚠️ | **Hardcoded user/venue name**, brak dynamicznych badge'y, brak role-guard na kafelkach HR/Ustawienia |
-| 2.1 | Dashboard Temperatur | `temperature_dashboard_screen.dart` | ⚠️ | Hardcoded `zone_id`, brak nawigacji do wykresu po tap, brak interwału/trendu na karcie |
-| 2.2 | Wykres Historyczny | `sensor_chart_screen.dart` | ❌ | **Pusty stub** — tekst "W budowie", brak wykresu `fl_chart`, brak filtrów czasowych, brak adnotacji |
-| 2.3 | Panel Alarmów | `alarms_panel_screen.dart` | ❌ | **Pusty stub** — tekst "W budowie", brak listy alarmów, brak przycisku potwierdź |
+| Hub | Dashboard Hub | `dashboard_hub_screen.dart` | ✅ | Dynamiczne dane, badge'y, role-guard |
+| 2.1 | Dashboard Temperatur | `temperature_dashboard_screen.dart` | ✅ | Dynamiczne dane, trendy, nawigacja |
+| 2.2 | Wykres Historyczny | `sensor_chart_screen.dart` | ✅ | Wykres `fl_chart`, filtry, adnotacje |
+| 2.3 | Panel Alarmów | `alarms_panel_screen.dart` | ✅ | Lista alarmów, potwierdzanie (Long Press), historia |
 | 3.1 | Wybór Procesu GMP | `gmp_process_selector_screen.dart` | ✅ | — |
 | 3.2 | Pieczenie Mięs | `meat_roasting_form_screen.dart` | ✅ | — |
 | 3.3 | Chłodzenie Żywności | `food_cooling_form_screen.dart` | ✅ | — |
 | 3.4 | Kontrola Dostaw | `delivery_control_form_screen.dart` | ✅ | — |
-| 3.5 | Historia GMP | `gmp_history_screen.dart` | ⚠️ | Brak filtrów (typ procesu, zakres dat) |
-| 4.1 | Wybór Kategorii GHP | `ghp_category_selector_screen.dart` | ⚠️ | Przycisk "Historia" ma `onTap: () => {}` — brak nawigacji do `/ghp/history` |
-| 4.2-4.4 | Checklisty GHP | `ghp_checklist_screen.dart` | ✅ | Generyczny ekran — działa poprawnie |
-| 4.5 | Rejestr Środków Czystości | `ghp_checklist_screen.dart` | ⚠️ | Również przez generyczny ekran, ale spec wymaga osobnego formularza (Dropdown + Stepper + lista dzisiejszych wpisów) |
-| 4.6 | Historia GHP | `ghp_history_screen.dart` | ⚠️ | Plik istnieje i działa, ale **brak trasy w routerze** — nie da się na nią nawigować |
+| 3.5 | Historia GMP | `gmp_history_screen.dart` | ✅ | Filtry (proces, data), statusy |
+| 4.1 | Wybór Kategorii GHP | `ghp_category_selector_screen.dart` | ✅ | Nawigacja do historii |
+| 4.2-4.4 | Checklisty GHP | `ghp_checklist_screen.dart` | ✅ | — |
+| 4.5 | Rejestr Środków Czystości | `ghp_chemicals_screen.dart` | ✅ | Osobny formularz + lista dzisiejszych wpisów |
+| 4.6 | Historia GHP | `ghp_history_screen.dart` | ✅ | Filtry, statusy |
 | 5.1 | Panel Odpadów | `waste_panel_screen.dart` | ✅ | — |
-| 5.2 | Formularz Odpadów | `waste_registration_form_screen.dart` | ⚠️ | Hardcoded `test_venue_id` zamiast realnego ID |
-| 5.3 | Aparat KPO | `haccp_camera_screen.dart` | ⚠️ | Placeholder na Web (kamera nie działa w przeglądarce — to jest OK, ale brak fallback z file picker) |
-| 5.4 | Historia Odpadów | `waste_history_screen.dart` | ⚠️ | Brak filtrów (miesiąc, rodzaj odpadu), brak sumy mas |
-| 6.1 | Panel Raportów | `reports_panel_screen.dart` | ⚠️ | Brak "Raport Dzienny" jako typ, przycisk "Podgląd PDF" wyświetla SnackBar zamiast otwierać przeglądarkę PDF |
-| 6.2 | Podgląd PDF | `pdf_preview_screen.dart` | ⚠️ | Nie działa na Web (wymaga patha pliku), brak przycisków Pobierz/Wyślij |
-| 6.3 | Status Drive | `drive_status_screen.dart` | ⚠️ | Wymaga sprawdzenia — prawdopodobnie podstawowy |
+| 5.2 | Formularz Odpadów | `waste_registration_form_screen.dart` | ✅ | Dynamiczne venue_id |
+| 5.3 | Aparat KPO | `haccp_camera_screen.dart` | ✅ | Fallback z file picker na Web |
+| 5.4 | Historia Odpadów | `waste_history_screen.dart` | ✅ | Filtry, suma mas, miniatury |
+| 6.1 | Panel Raportów | `reports_panel_screen.dart` | ✅ | Raport dzienny, podgląd PDF |
+| 6.2 | Podgląd PDF | `pdf_preview_screen.dart` | ✅ | Obsługa `printing` na Web |
+| 6.3 | Status Drive | `drive_status_screen.dart` | ✅ | — |
 | 7.1 | Dashboard HR | `hr_dashboard_screen.dart` | ✅ | — |
-| 7.2 | Profil Pracownika | `employee_profile_screen.dart` | ❌ | **Totalny placeholder** — tylko `Text('Profile for $id - Placeholder')` |
-| 7.3 | Dodaj Pracownika | `add_employee_screen.dart` | ✅ | — |
+| 7.2 | Profil Pracownika | `employee_profile_screen.dart` | ✅ | Aktywność, sanepid, status |
+| 7.3 | Dodaj Pracownika | `add_employee_screen.dart` | ✅ | Weryfikacja PIN na żywo |
 | 7.4 | Lista Pracowników | `employee_list_screen.dart` | ✅ | — |
-| 8.1 | Ustawienia | `global_settings_screen.dart` | ⚠️ | Sekcja System (Tryb Ciemny, Dźwięki) to mock — `onChanged: (v) {}` |
+| 8.1 | Ustawienia | `global_settings_screen.dart` | ✅ | Konfiguracja sensorów, logo upload |
 | 9.1 | Success Overlay | `success_overlay.dart` | ✅ | — |
-| 9.2 | Empty State | — | 🚫 | **Brak pliku!** Widget `HaccpEmptyState` nie istnieje |
+| 9.2 | Empty State | `empty_state_widget.dart` | ✅ | — |
 | 9.3 | Offline Banner | `offline_banner.dart` | ✅ | — |
 
 ### Brakujące wspólne widgety (M09)
@@ -66,9 +66,9 @@
 | `HaccpNumPad` | ✅ | Gotowy |
 | `SuccessOverlay` | ✅ | Gotowy |
 | `OfflineBanner` | ✅ | Gotowy |
-| `HaccpEmptyState` | 🚫 | **Brak** — potrzebny w listach bez danych (2.3, 3.5, 4.6, 5.4) |
-| `HaccpTimePicker` | 🚫 | **Brak** — spec wymaga dużego pickera godzin. Ekrany GMP używają czegoś innego. |
-| `HaccpDatePicker` | 🚫 | **Brak** — spec wymaga dużego pickera dat. Ekrany GMP mogą używać systemowego. |
+| `HaccpEmptyState` | ✅ | Gotowy |
+| `HaccpTimePicker` | ✅ | Gotowy |
+| `HaccpDatePicker` | ✅ | Gotowy |
 
 ---
 
@@ -472,11 +472,11 @@ if (items.isEmpty) {
 
 | Sprint | Moduły | Wysiłek (dni) | Priorytet |
 |:-------|:-------|:------------:|:---------:|
-| **S1** | Dashboard Hub + Widgety M09 | 2-3 | 🔴 Krytyczny |
-| **S2** | M02 Monitoring (Wykres + Alarmy) | 3-4 | 🔴 Wysoki |
-| **S3** | M04 GHP + Historie z filtrami | 2-3 | 🟡 Średni |
-| **S4** | M07 Profil + M05/M06 poprawki | 3-4 | 🟡 Średni |
+| **S1** | Dashboard Hub + Widgety M09 | 2-3 | ✅ Zrobione |
+| **S2** | M02 Monitoring (Wykres + Alarmy) | 3-4 | ✅ Zrobione |
+| **S3** | M04 GHP + Historie z filtrami | 2-3 | ✅ Zrobione |
+| **S4** | M07 Profil + M05/M06 poprawki | 3-4 | ✅ Zrobione |
 | **S5** | M08 Ustawienia + UX Polish | 2-3 | ✅ Zrobione |
-| **S6** | Stabilizacja + Testy | 2 | 🔴 Krytyczny |
+| **S6** | Stabilizacja + Testy | 2 | ✅ Zrobione |
 
 **Łączny szacowany czas:** 14-19 dni roboczych (3-4 tygodnie)

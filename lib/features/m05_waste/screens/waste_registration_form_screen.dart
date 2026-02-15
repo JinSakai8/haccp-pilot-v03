@@ -73,10 +73,13 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
     // The directive mentioned GoRouter.
     // I will use Navigator for simplicity within the generated file, compatible with both.
     
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => HaccpCameraScreen(venueId: ref.read(currentZoneProvider)?.venueId ?? ''),
-      ),
+    final result = await context.push<String>(
+      '/waste/camera',
+      // extra: venueId if needed, but HaccpCameraScreen might need refactoring to accept it via route params or provider
+      // Looking at app_router, /waste/camera uses a builder that reads provider.
+      // So checking HaccpCameraScreen constructor.
+      // It takes venueId. AppRouter passes it.
+      // So just push '/waste/camera'.
     );
 
     if (result != null && result is String) {
@@ -128,7 +131,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Zapisano pomyślnie!'), backgroundColor: Colors.green),
         );
-        Navigator.pop(context);
+        context.pop();
       }
     } catch (e) {
       if (mounted) {
