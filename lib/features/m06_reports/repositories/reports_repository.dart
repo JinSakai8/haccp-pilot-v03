@@ -29,15 +29,14 @@ class ReportsRepository {
   }
 
   Future<List<Map<String, dynamic>>> getMeasurements(DateTime start, DateTime end) async {
-    // We join 'devices' table to get the name.
-    // Ensure RLS allows reading 'devices' and 'measurements'.
-    // The query '*, devices(name)' fetches all measurement columns + device name.
+    // We join 'sensors' table to get the name.
+    // The query '*, sensors(name)' fetches all measurement columns + sensor name.
     final response = await SupabaseService.client
-        .from('measurements')
-        .select('*, devices(name)')
-        .gte('timestamp', start.toIso8601String())
-        .lte('timestamp', end.toIso8601String())
-        .order('timestamp');
+        .from('temperature_logs')
+        .select('*, sensors(name)')
+        .gte('recorded_at', start.toIso8601String()) // Note: field is recorded_at, not timestamp
+        .lte('recorded_at', end.toIso8601String())
+        .order('recorded_at');
     
     return List<Map<String, dynamic>>.from(response);
   }

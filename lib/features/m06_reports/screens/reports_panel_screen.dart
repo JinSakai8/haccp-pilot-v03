@@ -264,26 +264,31 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     );
   }
 
-  void _showMonthSelector() async {
-    final picked = await showDatePicker(
+  void _showMonthSelector() {
+    showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2025),
-      lastDate: DateTime.now(),
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => _MonthYearPicker(
+        initialDate: _selectedDate,
+        onDateSelected: (date) {
+          setState(() => _selectedDate = date);
+          Navigator.pop(context);
+        },
+      ),
     );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
   }
 
   void _showSensorSelector() {
     final zone = ref.read(currentZoneProvider);
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wybierz strefę w menu głównym')),
+        const SnackBar(content: Text('Wybierz strefę w menu głównym (na górze)')),
       );
       return;
     }
+
+    debugPrint('Opening sensor selector for zone: ${zone.id}');
 
     showModalBottomSheet(
       context: context,
@@ -291,38 +296,131 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
       builder: (context) {
         final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
         return sensorsAsync.when(
-          data: (sensors) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface)),
-                onTap: () {
-                  setState(() {
-                    _selectedSensorId = null;
-                    _selectedSensorName = null;
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ...sensors.map((s) => ListTile(
-                title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
-                onTap: () {
-                  setState(() {
-                    _selectedSensorId = s.id;
-                    _selectedSensorName = s.name;
-                  });
-                  Navigator.pop(context);
-                },
-              )),
-            ],
+          data: (sensors) {
+             debugPrint('Sensors loaded: ${sensors.length}');
+             return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface)),
+                  leading: const Icon(Icons.apps, color: AppTheme.primary),
+                  onTap: () {
+                    setState(() {
+                      _selectedSensorId = null;
+                      _selectedSensorName = null;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                if (sensors.isEmpty)
+                   const ListTile(title: Text('Brak czujników w tej strefie', style: TextStyle(color: Colors.grey))),
+                ...sensors.map((s) => ListTile(
+                  title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
+                  leading: const Icon(Icons.thermostat, color: AppTheme.onSurfaceVariant),
+                  onTap: () {
+                    setState(() {
+                      _selectedSensorId = s.id;
+                      _selectedSensorName = s.name;
+                    });
+                    Navigator.pop(context);
+                  },
+                )),
+                const SizedBox(height: 16),
+              ],
+            );
+          },
+          loading: () => const SizedBox(
+            height: 200, 
+            child: Center(child: CircularProgressIndicator())
           ),
-          loading: () => const Center(child: Padding(
-            padding: EdgeInsets.all(32.0),
-            child: CircularProgressIndicator(),
-          )),
-          error: (e, __) => Center(child: Text('Błąd: $e')),
+          error: (e, st) {
+             debugPrint('Sensor load error: $e');
+             return SizedBox(
+              height: 200, 
+              child: Center(child: Text('Błąd pobierania czujników: $e', style: const TextStyle(color: AppTheme.error)))
+             );
+          },
         );
       },
+    );
+  }
+}
+
+class _MonthYearPicker extends StatefulWidget {
+  final DateTime initialDate;
+  final ValueChanged<DateTime> onDateSelected;
+
+  const _MonthYearPicker({required this.initialDate, required this.onDateSelected});
+
+  @override
+  State<_MonthYearPicker> createState() => _MonthYearPickerState();
+}
+
+class _MonthYearPickerState extends State<_MonthYearPicker> {
+  late int _year;
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.initialDate.year;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Year Selector
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(onPressed: () => setState(() => _year--), icon: const Icon(Icons.chevron_left, color: AppTheme.onSurface)),
+              Text('$_year', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
+              IconButton(
+                onPressed: _year >= DateTime.now().year ? null : () => setState(() => _year++), 
+                icon: Icon(Icons.chevron_right, color: _year >= DateTime.now().year ? Colors.grey : AppTheme.onSurface)
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Month Grid
+          GridView.builder(
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 2.0),
+            itemCount: 12,
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final isCurrent = _year == DateTime.now().year && month == DateTime.now().month;
+              final isSelected = _year == widget.initialDate.year && month == widget.initialDate.month;
+              final isFuture = _year == DateTime.now().year && month > DateTime.now().month;
+
+              return InkWell(
+                onTap: isFuture ? null : () {
+                  widget.onDateSelected(DateTime(_year, month));
+                },
+                child: Container(
+                  alignment: Alignment.center,
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: isCurrent ? Border.all(color: AppTheme.primary) : null,
+                  ),
+                  child: Text(
+                    DateFormat('MMMM', 'pl').format(DateTime(2024, month)),
+                    style: TextStyle(
+                      color: isFuture ? Colors.grey : (isSelected ? AppTheme.onPrimary : AppTheme.onSurface),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

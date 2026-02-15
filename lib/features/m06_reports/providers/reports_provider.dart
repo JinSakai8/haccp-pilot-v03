@@ -125,12 +125,14 @@ class ReportsNotifier extends _$ReportsNotifier {
         final deviceNames = <String, String>{};
 
         for (var raw in rawLogs) {
-           if (raw['devices'] != null) {
-              final deviceData = raw['devices'];
-              if (deviceData is Map) {
-                deviceNames[raw['sensor_id']] = deviceData['name']?.toString() ?? 'Sensor ${raw['sensor_id']}';
-              }
-           }
+          // Extract sensor name from join: sensors: { name: "..." }
+          if (raw['sensors'] != null) {
+            final sensorData = raw['sensors'];
+            // Supabase join can return map or list depending on relationship (one-to-one here)
+            if (sensorData is Map) {
+              deviceNames[raw['sensor_id']] = sensorData['name']?.toString() ?? 'Sensor ${raw['sensor_id']}';
+            }
+          }
         }
 
         // 3. Filter by sensorId if provided
