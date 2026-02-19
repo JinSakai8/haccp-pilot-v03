@@ -67,6 +67,30 @@ class DynamicFormRenderer extends ConsumerWidget {
 
   Widget _buildField(FormFieldConfig config, DynamicFieldState state, DynamicFormNotifier notifier) {
     switch (config.type) {
+      case HaccpFieldType.dropdown:
+        return HaccpDropdown(
+          value: state.value as String?,
+          onChanged: (val) => notifier.updateField(config.id, val),
+          staticOptions: (config.config['options'] as List<dynamic>?)?.cast<String>(),
+          source: config.config['source'] as String?,
+          sourceType: config.config['type'] as String?,
+        );
+      case HaccpFieldType.date:
+        return HaccpDatePicker(
+          value: state.value is String ? DateTime.tryParse(state.value) : (state.value as DateTime?),
+          onChanged: (val) => notifier.updateField(config.id, val),
+        );
+      case HaccpFieldType.time:
+        return HaccpTimePicker(
+          value: state.value is String 
+             ? TimeOfDay(
+                 hour: int.parse((state.value as String).split(':')[0]), 
+                 minute: int.parse((state.value as String).split(':')[1])
+               ) 
+             : (state.value as TimeOfDay?),
+          // If the value is stored as "HH:mm" string
+          onChanged: (val) => notifier.updateField(config.id, val),
+        );
       case HaccpFieldType.stepper:
         return HaccpStepper(
           value: (state.value as num?)?.toDouble() ?? 0.0,
@@ -89,7 +113,7 @@ class DynamicFormRenderer extends ConsumerWidget {
            maxLength: config.config['maxLength'] ?? 6,
         );
       default:
-        // Other types like dropdown or photo would be implemented here
+        // Other types like photo would be implemented here
         return Container(
           height: 60,
           decoration: BoxDecoration(

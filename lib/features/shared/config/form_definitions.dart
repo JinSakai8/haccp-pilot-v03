@@ -37,7 +37,16 @@ class FormDefinitions {
   static final coolingFormDef = FormDefinition(
     title: 'Proces Chłodzenia',
     fields: [
-      FormFieldConfig(id: 'product_name', type: HaccpFieldType.dropdown, label: 'Produkt', config: {'options': ['Zupa Dnia', 'Sos Boloński', 'Gulasz']}, required: true),
+      FormFieldConfig(
+        id: 'product_name', 
+        type: HaccpFieldType.dropdown, 
+        label: 'Produkt', 
+        config: {
+          'source': 'products_table',
+          'type': 'cooling'
+        }, 
+        required: true
+      ),
       FormFieldConfig(id: 'prep_date', type: HaccpFieldType.date, label: 'Data Przygotowania', required: true),
       FormFieldConfig(id: 'start_temp', type: HaccpFieldType.stepper, label: 'Temp. Początkowa [°C]', config: {'min': 0, 'max': 100, 'default': 65}, required: true),
       FormFieldConfig(id: 'start_time', type: HaccpFieldType.time, label: 'Godzina Rozpoczęcia', required: true),
