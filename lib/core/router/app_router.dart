@@ -23,9 +23,11 @@ import '../../features/m05_waste/screens/waste_registration_form_screen.dart';
 import '../../features/m05_waste/screens/haccp_camera_screen.dart';
 import '../../features/m05_waste/screens/waste_history_screen.dart';
 import '../../features/m08_settings/screens/global_settings_screen.dart';
+import '../../features/m08_settings/screens/manage_products_screen.dart';
 import '../../features/m06_reports/screens/reports_panel_screen.dart';
 import '../../features/m06_reports/screens/pdf_preview_screen.dart';
 import '../../features/m06_reports/screens/ccp3_preview_screen.dart';
+import '../../features/m06_reports/screens/saved_reports_screen.dart';
 import '../../features/m06_reports/screens/drive_status_screen.dart';
 import '../../features/m07_hr/screens/hr_dashboard_screen.dart';
 import '../../features/m07_hr/screens/employee_list_screen.dart';
@@ -165,6 +167,10 @@ GoRouter appRouter(Ref ref) {
         path: '/settings',
         builder: (context, state) => const GlobalSettingsScreen(),
       ),
+      GoRoute(
+        path: '/settings/products',
+        builder: (context, state) => const ManageProductsScreen(),
+      ),
 
       // M06 Reports
       GoRoute(
@@ -184,6 +190,10 @@ GoRouter appRouter(Ref ref) {
           final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String().split('T')[0];
           return Ccp3PreviewScreen(date: DateTime.tryParse(dateStr) ?? DateTime.now());
         },
+      ),
+      GoRoute(
+        path: '/reports/history',
+        builder: (context, state) => const SavedReportsScreen(),
       ),
       GoRoute(
         path: '/reports/drive',

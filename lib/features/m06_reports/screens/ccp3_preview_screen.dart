@@ -6,33 +6,72 @@ import 'package:share_plus/share_plus.dart';
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/core/services/pdf_service.dart';
+import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 
-// Simple provider to access ReportsRepository (assuming standard riverpod pattern or instance)
-// If not available globally, we instantiate here for the screen.
-final reportsRepositoryProvider = Provider((ref) => ReportsRepository());
+// reportsRepositoryProvider is now imported from reports_provider.dart
 
 final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
   final repo = ref.read(reportsRepositoryProvider);
+  final user = ref.read(currentUserProvider);
+  final zones = await ref.watch(employeeZonesProvider.future);
+  final venueId = zones.isNotEmpty ? zones.first.venueId : null;
+
+  // 1. Try to fetch saved report first (Cache)
+  // Only if venueId is available
+  if (venueId != null) {
+      final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
+      if (savedMetadata != null) {
+         final path = savedMetadata['storage_path'];
+         final bytes = await repo.downloadReport(path);
+         if (bytes != null) return bytes;
+      }
+  }
+
+  // 2. If not found, generate new
   final logs = await repo.getCoolingLogs(date);
   
   if (logs.isEmpty) return null; // Return null to signal empty state
 
-  // Get User Name (Mock or from Auth)
-  final user = ref.read(currentUserProvider);
   final userName = user?.fullName ?? 'Użytkownik';
   
-  // Get Logo (Mock or fetch)
-  // Uint8List? logo = await repo.getVenueLogo(venueId);
+  // Get Logo (if needed, implemented in repo but not used here yet)
+  // Uint8List? logo = venueId != null ? await repo.getVenueLogo(venueId) : null;
   
   final pdfService = PdfService();
-  return await pdfService.generateCcp3Report(
+  final bytes = await pdfService.generateCcp3Report(
     logs: logs,
     userName: userName,
     date: date.toIso8601String().split('T')[0], // YYYY-MM-DD
-    venueLogo: null, // Add logo logic if needed
+    venueLogo: null, 
   );
+  
+  // 3. Persist (Auto-save)
+  if (venueId != null && user != null && bytes.length > 0) {
+     final dateStr = date.toIso8601String().split('T')[0];
+     final year = date.year.toString();
+     final month = date.month.toString().padLeft(2, '0');
+     final fileName = 'ccp3_cooling_$dateStr.pdf'; // e.g. ccp3_cooling_2026-02-19.pdf
+     final storagePath = '$venueId/$year/$month/$fileName';
+     
+     // Upload
+     final uploadedPath = await repo.uploadReport(storagePath, bytes);
+     
+     if (uploadedPath != null) {
+        // Save Metadata
+        await repo.saveReportMetadata(
+           venueId: venueId,
+           reportType: 'ccp3_cooling',
+           generationDate: date,
+           storagePath: uploadedPath,
+           userId: user.id,
+           metadata: {'generated_automatically': true},
+        );
+     }
+  }
+
+  return bytes;
 });
 
 class Ccp3PreviewScreen extends ConsumerWidget {

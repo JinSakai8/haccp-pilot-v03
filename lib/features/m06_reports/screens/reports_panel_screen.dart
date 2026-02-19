@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:haccp_pilot/core/theme/app_theme.dart';
@@ -26,7 +27,16 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     final reportsState = ref.watch(reportsProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Raportowanie'),
+      appBar: HaccpTopBar(
+        title: 'Raportowanie',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Archiwum Raportów',
+            onPressed: () => context.push('/reports/history'),
+          ),
+        ],
+      ),
       backgroundColor: AppTheme.background,
       body: Padding(
         padding: const EdgeInsets.all(16.0),

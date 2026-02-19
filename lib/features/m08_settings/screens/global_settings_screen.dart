@@ -229,6 +229,21 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
 
                         const SizedBox(height: 32),
 
+                        // Menu Configuration
+                        _buildSectionHeader('Menu & Produkty', theme),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          title: const Text('Zarządzaj Produktami', style: TextStyle(color: Colors.white)),
+                          subtitle: const Text('Edytuj listę potraw dla chłodzenia i obróbki', style: TextStyle(color: Colors.white70)),
+                          leading: const Icon(Icons.restaurant_menu, color: HaccpDesignTokens.primary),
+                          trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                          onTap: () => context.push('/settings/products'),
+                          tileColor: Colors.white10, 
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+
+                        const SizedBox(height: 32),
+
                         // Temperature Sensors Configuration
                         _buildSectionHeader('Sensory Temperatury', theme),
                         const SizedBox(height: 16),

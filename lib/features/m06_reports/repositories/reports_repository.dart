@@ -99,4 +99,80 @@ class ReportsRepository {
     }
     return null;
   }
+  /// Uploads report bytes to Supabase Storage
+  Future<String?> uploadReport(String path, Uint8List bytes) async {
+    try {
+      await SupabaseService.client.storage
+          .from('reports')
+          .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+      return path;
+    } catch (e) {
+      debugPrint('Error uploading report: $e');
+      return null;
+    }
+  }
+
+  /// Saves report metadata to the database
+  Future<void> saveReportMetadata({
+    required String venueId,
+    required String reportType,
+    required DateTime generationDate,
+    required String storagePath,
+    required String userId,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await SupabaseService.client.from('generated_reports').insert({
+      'venue_id': venueId,
+      'report_type': reportType,
+      'generation_date': generationDate.toIso8601String().split('T')[0],
+      'created_by': userId,
+      'storage_path': storagePath,
+      'metadata': metadata ?? {},
+    });
+  }
+
+  /// Checks if a report already exists for the given date and type
+  Future<Map<String, dynamic>?> getSavedReport(DateTime date, String type) async {
+    final dateStr = date.toIso8601String().split('T')[0];
+    try {
+      // We assume one report per type per day? Or latest?
+      // Let's get the latest one.
+      final response = await SupabaseService.client
+          .from('generated_reports')
+          .select()
+          .eq('generation_date', dateStr)
+          .eq('report_type', type)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return response;
+    } catch (e) {
+      debugPrint('Error checking saved report: $e');
+      return null;
+    }
+  }
+
+  /// Downloads a report from storage
+  Future<Uint8List?> downloadReport(String path) async {
+    try {
+      return await SupabaseService.client.storage.from('reports').download(path);
+    } catch (e) {
+      debugPrint('Error downloading report: $e');
+      return null;
+    }
+  }
+  /// Fetches list of generated reports for a venue
+  Future<List<Map<String, dynamic>>> getGeneratedReports(String venueId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('generated_reports')
+          .select()
+          .eq('venue_id', venueId)
+          .order('generation_date', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching generated reports: $e');
+      return [];
+    }
+  }
 }
