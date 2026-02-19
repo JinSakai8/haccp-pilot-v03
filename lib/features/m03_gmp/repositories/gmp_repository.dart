@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/supabase_service.dart';
 
@@ -12,6 +13,8 @@ class GmpRepository {
     required String zoneId,
     String? venueId,
   }) async {
+    debugPrint('🔵 GmpRepository.insertLog: formId=$formId, category=gmp, zoneId=$zoneId, venueId=$venueId');
+    debugPrint('🔵 GmpRepository.insertLog: data keys=${data.keys.toList()}');
     await _client.from(_table).insert({
       'category': 'gmp',
       'form_id': formId,
@@ -21,6 +24,7 @@ class GmpRepository {
       if (venueId != null) 'venue_id': venueId,
       'created_at': DateTime.now().toIso8601String(),
     });
+    debugPrint('🟢 GmpRepository.insertLog: SUCCESS');
   }
 
   Future<List<Map<String, dynamic>>> getHistory(String zoneId, {

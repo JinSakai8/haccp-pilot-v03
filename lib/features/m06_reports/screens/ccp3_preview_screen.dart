@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -9,69 +10,101 @@ import 'package:haccp_pilot/core/services/pdf_service.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
-
-// reportsRepositoryProvider is now imported from reports_provider.dart
+import 'package:haccp_pilot/core/services/file_opener.dart';
 
 final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
-  final repo = ref.read(reportsRepositoryProvider);
-  final user = ref.read(currentUserProvider);
-  final zones = await ref.watch(employeeZonesProvider.future);
-  final venueId = zones.isNotEmpty ? zones.first.venueId : null;
+  debugPrint('🔵 CCP3 Provider: START for date=$date');
+  
+  try {
+    final repo = ref.read(reportsRepositoryProvider);
+    final user = ref.read(currentUserProvider);
+    debugPrint('🔵 CCP3 Provider: user=${user?.fullName ?? "NULL"}');
+    
+    String? venueId;
+    try {
+      final zones = await ref.watch(employeeZonesProvider.future);
+      venueId = zones.isNotEmpty ? zones.first.venueId : null;
+      debugPrint('🔵 CCP3 Provider: zones=${zones.length}, venueId=$venueId');
+    } catch (e) {
+      debugPrint('🔴 CCP3 Provider: employeeZones FAILED: $e');
+    }
 
-  // 1. Try to fetch saved report first (Cache)
-  // Only if venueId is available
-  if (venueId != null) {
-      final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
-      if (savedMetadata != null) {
-         final path = savedMetadata['storage_path'];
-         final bytes = await repo.downloadReport(path);
-         if (bytes != null) return bytes;
+    // 1. Try to fetch saved report first (Cache)
+    if (venueId != null) {
+      try {
+        final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
+        debugPrint('🔵 CCP3 Provider: savedMetadata=${savedMetadata != null ? "FOUND" : "NULL"}');
+        if (savedMetadata != null) {
+           final path = savedMetadata['storage_path'];
+           final bytes = await repo.downloadReport(path);
+           if (bytes != null) {
+             debugPrint('🟢 CCP3 Provider: Loaded from cache, ${bytes.length} bytes');
+             return bytes;
+           }
+        }
+      } catch (e) {
+        debugPrint('🟡 CCP3 Provider: Cache lookup failed (non-fatal): $e');
       }
+    }
+
+    // 2. If not found in cache, generate new
+    debugPrint('🔵 CCP3 Provider: Fetching cooling logs...');
+    final logs = await repo.getCoolingLogs(date);
+    debugPrint('🔵 CCP3 Provider: getCoolingLogs returned ${logs.length} logs');
+    
+    if (logs.isEmpty) {
+      debugPrint('🟡 CCP3 Provider: No logs found → returning null');
+      return null;
+    }
+
+    // Log first entry for debugging
+    debugPrint('🔵 CCP3 Provider: First log data keys: ${(logs.first['data'] as Map?)?.keys.toList()}');
+
+    final userName = user?.fullName ?? 'Użytkownik';
+    
+    final pdfService = PdfService();
+    debugPrint('🔵 CCP3 Provider: Generating PDF...');
+    final bytes = await pdfService.generateCcp3Report(
+      logs: logs,
+      userName: userName,
+      date: date.toIso8601String().split('T')[0],
+      venueLogo: null, 
+    );
+    debugPrint('🟢 CCP3 Provider: PDF generated, ${bytes.length} bytes');
+    
+    // 3. Persist (Auto-save) — non-blocking, errors won't break display
+    if (venueId != null && user != null && bytes.isNotEmpty) {
+       try {
+         final dateStr = date.toIso8601String().split('T')[0];
+         final year = date.year.toString();
+         final month = date.month.toString().padLeft(2, '0');
+         final fileName = 'ccp3_cooling_$dateStr.pdf';
+         final storagePath = '$venueId/$year/$month/$fileName';
+         
+         final uploadedPath = await repo.uploadReport(storagePath, bytes);
+         
+         if (uploadedPath != null) {
+            await repo.saveReportMetadata(
+               venueId: venueId,
+               reportType: 'ccp3_cooling',
+               generationDate: date,
+               storagePath: uploadedPath,
+               userId: user.id,
+               metadata: {'generated_automatically': true},
+            );
+            debugPrint('🟢 CCP3 Provider: Report persisted to $uploadedPath');
+         }
+       } catch (e) {
+         debugPrint('🟡 CCP3 Provider: Persistence failed (non-fatal): $e');
+       }
+    }
+
+    return bytes;
+  } catch (e, stackTrace) {
+    debugPrint('🔴 CCP3 Provider: FATAL ERROR: $e');
+    debugPrint('🔴 Stack: $stackTrace');
+    rethrow;
   }
-
-  // 2. If not found, generate new
-  final logs = await repo.getCoolingLogs(date);
-  
-  if (logs.isEmpty) return null; // Return null to signal empty state
-
-  final userName = user?.fullName ?? 'Użytkownik';
-  
-  // Get Logo (if needed, implemented in repo but not used here yet)
-  // Uint8List? logo = venueId != null ? await repo.getVenueLogo(venueId) : null;
-  
-  final pdfService = PdfService();
-  final bytes = await pdfService.generateCcp3Report(
-    logs: logs,
-    userName: userName,
-    date: date.toIso8601String().split('T')[0], // YYYY-MM-DD
-    venueLogo: null, 
-  );
-  
-  // 3. Persist (Auto-save)
-  if (venueId != null && user != null && bytes.length > 0) {
-     final dateStr = date.toIso8601String().split('T')[0];
-     final year = date.year.toString();
-     final month = date.month.toString().padLeft(2, '0');
-     final fileName = 'ccp3_cooling_$dateStr.pdf'; // e.g. ccp3_cooling_2026-02-19.pdf
-     final storagePath = '$venueId/$year/$month/$fileName';
-     
-     // Upload
-     final uploadedPath = await repo.uploadReport(storagePath, bytes);
-     
-     if (uploadedPath != null) {
-        // Save Metadata
-        await repo.saveReportMetadata(
-           venueId: venueId,
-           reportType: 'ccp3_cooling',
-           generationDate: date,
-           storagePath: uploadedPath,
-           userId: user.id,
-           metadata: {'generated_automatically': true},
-        );
-     }
-  }
-
-  return bytes;
 });
 
 class Ccp3PreviewScreen extends ConsumerWidget {
@@ -107,22 +140,96 @@ class Ccp3PreviewScreen extends ConsumerWidget {
       body: pdfAsync.when(
         data: (bytes) {
           if (bytes == null) {
+            debugPrint('🟡 CCP3 Screen: bytes == null → showing empty state');
             return const Center(
-              child: Text(
-                'Brak raportów dla wybranego dnia',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.description_outlined, size: 64, color: Colors.white38),
+                  SizedBox(height: 16),
+                  Text(
+                    'Brak raportów chłodzenia\ndla wybranego dnia',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Wypełnij formularz Chłodzenia Żywności,\naby wygenerować raport.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
+                ],
               ),
             );
           }
-          return SfPdfViewer.memory(bytes);
+          debugPrint('🟢 CCP3 Screen: Rendering PDF, ${bytes.length} bytes');
+          return Column(
+            children: [
+              // Debug info bar (visible during development)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.green.withOpacity(0.15),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'PDF załadowany: ${bytes.length} bajtów',
+                      style: const TextStyle(color: Colors.green, fontSize: 12),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      icon: const Icon(Icons.download, size: 16),
+                      label: const Text('Pobierz', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        openFileFromBytes(bytes, 'CCP3_Raport.pdf');
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // PDF Viewer
+              Expanded(
+                child: SfPdfViewer.memory(bytes),
+              ),
+            ],
+          );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text(
-            'Błąd generowania raportu: $err',
-            style: const TextStyle(color: Colors.white),
+        loading: () => const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Generowanie raportu...', style: TextStyle(color: Colors.white70)),
+            ],
           ),
         ),
+        error: (err, stack) {
+          debugPrint('🔴 CCP3 Screen: ERROR: $err\n$stack');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Błąd generowania raportu',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$err',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
