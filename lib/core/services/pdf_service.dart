@@ -388,7 +388,7 @@ class PdfService {
 
     for(int i=0; i<headers.length; i++) {
       header.cells[i].value = headers[i];
-      header.cells[i].style.backgroundBrush = PdfBrushes.e5E5e5; // Light gray like Excel
+      header.cells[i].style.backgroundBrush = PdfSolidBrush(PdfColor(229, 229, 229)); // Light gray like Excel
       header.cells[i].style.font = boldFont;
       header.cells[i].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
     }
