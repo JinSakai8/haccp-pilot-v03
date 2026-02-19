@@ -13,10 +13,12 @@ import 'package:haccp_pilot/core/providers/auth_provider.dart';
 // If not available globally, we instantiate here for the screen.
 final reportsRepositoryProvider = Provider((ref) => ReportsRepository());
 
-final ccp3ReportProvider = FutureProvider.family<Uint8List, DateTime>((ref, date) async {
+final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
   final repo = ref.read(reportsRepositoryProvider);
   final logs = await repo.getCoolingLogs(date);
   
+  if (logs.isEmpty) return null; // Return null to signal empty state
+
   // Get User Name (Mock or from Auth)
   final user = ref.read(currentUserProvider);
   final userName = user?.fullName ?? 'Użytkownik';
@@ -62,7 +64,17 @@ class Ccp3PreviewScreen extends ConsumerWidget {
       ),
       backgroundColor: AppTheme.background,
       body: pdfAsync.when(
-        data: (bytes) => SfPdfViewer.memory(bytes),
+        data: (bytes) {
+          if (bytes == null) {
+            return const Center(
+              child: Text(
+                'Brak raportów dla wybranego dnia',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            );
+          }
+          return SfPdfViewer.memory(bytes);
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
           child: Text(

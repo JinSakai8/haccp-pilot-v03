@@ -435,7 +435,7 @@ class PdfService {
       }
 
       // 6. Corrective Actions
-      row.cells[5].value = data['notes']?.toString() ?? '';
+      row.cells[5].value = data['comments']?.toString() ?? '';
 
       // 7. Signature (Initials)
       // row.cells[6].value = 'JK'; // Mock

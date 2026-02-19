@@ -56,9 +56,19 @@ class FoodCoolingFormScreen extends ConsumerWidget {
   }
 
   Future<void> _handleSubmit(BuildContext context, WidgetRef ref, DynamicFormState state, String formId) async {
+    // Sanitize data (TimeOfDay -> String, DateTime -> String)
+    final sanitizedData = state.values.map((key, value) {
+      if (value is TimeOfDay) {
+        return MapEntry(key, '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}');
+      } else if (value is DateTime) {
+        return MapEntry(key, value.toIso8601String());
+      }
+      return MapEntry(key, value);
+    });
+
     final success = await ref.read(gmpFormSubmissionProvider.notifier).submitLog(
       formId: formId,
-      data: state.values,
+      data: sanitizedData,
     );
 
     if (success && context.mounted) {
