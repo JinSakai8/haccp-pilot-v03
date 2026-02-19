@@ -6,6 +6,9 @@ import '../../providers/dynamic_form_provider.dart';
 import 'haccp_stepper.dart';
 import 'haccp_toggle.dart';
 import 'haccp_numpad_input.dart';
+import 'haccp_dropdown.dart';
+import 'haccp_date_picker.dart';
+import 'haccp_time_picker.dart';
 
 class DynamicFormRenderer extends ConsumerWidget {
   final String formId;
