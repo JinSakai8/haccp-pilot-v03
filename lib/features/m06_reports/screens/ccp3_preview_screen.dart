@@ -92,8 +92,10 @@ class Ccp3PreviewScreen extends ConsumerWidget {
               icon: const Icon(Icons.share),
               onPressed: () async {
                  // Share logic specific to bytes
+               if (bytes != null) {
                  final file = XFile.fromData(bytes, name: 'CCP3_Raport.pdf', mimeType: 'application/pdf');
-                 await Share.shareXFiles([file], text: 'Raport CCP-3');
+                 await Share.shareXFiles([file], text: 'Raport Chłodzenia');
+               }
               },
             ),
             loading: () => const SizedBox.shrink(),

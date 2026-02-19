@@ -104,7 +104,7 @@ class ReportsRepository {
     try {
       await SupabaseService.client.storage
           .from('reports')
-          .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+          .uploadBinary(path, bytes, fileOptions: FileOptions(upsert: true));
       return path;
     } catch (e) {
       debugPrint('Error uploading report: $e');

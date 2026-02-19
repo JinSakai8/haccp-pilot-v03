@@ -47,7 +47,7 @@ class VenueRepository {
       await _client.storage.from(_brandingBucket).uploadBinary(
         fileName,
         bytes,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+        fileOptions: FileOptions(cacheControl: '3600', upsert: true),
       );
 
       final publicUrl = _client.storage.from(_brandingBucket).getPublicUrl(fileName);

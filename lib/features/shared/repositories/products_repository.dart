@@ -39,7 +39,7 @@ class ProductsRepository {
         // (venue_id is null) OR (venue_id = venueId)
         query = query.or('venue_id.is.null,venue_id.eq.$venueId');
       } else {
-        query = query.is_('venue_id', null);
+        query = query.filter('venue_id', 'is', null);
       }
 
       final response = await query.order('name', ascending: true);

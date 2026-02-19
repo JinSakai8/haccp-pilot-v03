@@ -11,6 +11,8 @@ class HaccpDesignTokens {
   static const Color onBackground = Colors.white;
   static const Color onSurface = Colors.white70;
   static const Color textPrimary = onBackground;
+  static const Color textSecondary = Colors.white70;
+  static const Color border = Colors.white24;
 
   // Dimensions (Glove-Friendly)
   static const double minTouchTarget = 60.0; 
