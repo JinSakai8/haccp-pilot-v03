@@ -332,6 +332,7 @@ Poniżej przedstawiono strukturę głównych tabel wykorzystywanych w poszczegó
 | **`measurements`** | M02 | Logi temperatur (Realtime) | `id`, `sensor_id`, `temperature_celsius`, `timestamp` |
 | **`haccp_logs`** | M03, M04 | Zunifikowane logi GMP i GHP | `id`, `category` (gmp/ghp), `form_id`, `data` (JSONB), `user_id`, `zone_id`, `created_at` |
 | **`waste_records`** | M05, M06 | Rejestr odpadów | `id`, `venue_id`, `waste_type`, `mass_kg`, `photo_url`, `created_at` |
+| **`generated_reports`** | M06 | Archiwum wygenerowanych PDF | `id`, `venue_id`, `report_type`, `generation_date`, `storage_path`, `created_by` |
 | **`venues`** | M08 | Ustawienia lokalu | `id`, `name`, `address`, `nip`, `logo_url` |
 | **`public_employees`** | M07 | Widok bezpieczny (bez hashy PIN) | (View) `id`, `full_name`, `role`, `is_active` |
 
@@ -370,6 +371,8 @@ Każdy moduł implementuje specyficzne zapytania do bazy. Poniżej zestawienie o
 #### **M06: Raporty (`ReportsRepository`)**
 
 - **Odczyt:** Agregacja danych z `waste_records`, `measurements` oraz logów.
+- **Persistence:** Automatyczny zapis wygenerowanych PDF w tabeli `generated_reports` oraz bucket `reports` w Supabase Storage.
+- **Data Range:** Raporty CCP-3 są generowane dla konkretnego dnia na podstawie pola `generation_date`.
 - **UWAGA:** Raporty korzystają teraz z ujednoliconej tabeli `haccp_logs`.
 
 #### **M07: HR (`HrRepository`)**
@@ -406,6 +409,11 @@ W dniu 2026-02-14 przeprowadzono serię napraw struktury bazy danych w celu przy
     - Utworzono brakującą tabelę `venues`.
     - Dodano kolumnę `venue_id` do tabeli `zones`.
     - Przywrócono spójność danych poprzez przypisanie wszystkich stref do domyślnego lokalu.
+
+5. **Report Persistence (`31_create_generated_reports.sql`)**:
+    - Wdrożono tabelę `generated_reports` do archiwizacji PDF.
+    - Skonfigurowano bucket `reports` z politykami dostępu dla Kiosk/Anon mode.
+    - Dodano pole `comments` do formularza chłodzenia (CCP-3) dla działań korygujących.
 
 ## 15. Rozwiązywanie Problemów (Troubleshooting)
 

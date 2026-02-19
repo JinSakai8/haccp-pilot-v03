@@ -423,6 +423,8 @@ class _Ccp3ReportParams {
     this.venueLogo,
   });
 }
+
+class _PdfGenerationParams {
   final String title;
   final FormDefinition definition;
   final Map<String, dynamic> data;
