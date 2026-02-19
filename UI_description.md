@@ -945,26 +945,28 @@ Raport generowany jest jako dokument HTML stylizowany CSS `@media print` na form
 
 ---
 
-### Ekran 6.2: Podgląd PDF
+### Ekran 6.2: Podgląd Raportu CCP-3
 
-**Stitch ID:** `8ad32c828e69495482c8a79600f6507b`
-**Plik:** `pdf_preview_screen.dart`
+**Stitch ID:** `8ad32c828e69495482c8a79600f6507b` (Concept) / `3f7251793f6948469e9a85c9c8d1b962` (Report Design)
+**Plik:** `ccp3_preview_screen.dart`
 
 #### Layout
 
 | Element | Typ | Opis |
 |:--------|:----|:-----|
-| TopBar | HaccpTopBar | "Podgląd Raportu", Back → 6.1 |
-| PDFViewer | SfPdfViewer / flutter_pdfview | Wbudowany przeglądnik |
-| BottomBar | Row | 3 przyciski |
+| TopBar | HaccpTopBar | "Podgląd Raportu CCP-3", Back → 6.1 |
+| DebugBar | Container (Green) | Pasek diagnostyczny: "PDF załadowany: {bytes} bajtów" + Przycisk "Pobierz" |
+| PDFViewer | SfPdfViewer.memory | Wbudowany przeglądnik PDF |
 
 #### Przyciski
 
 | Przycisk | Ikona | Akcja |
 |:---------|:------|:------|
-| Zamknij | ✕ | → Back do 6.1 |
-| Pobierz | ⬇️ | Zapisz lokalnie (Downloads folder) |
-| Wyślij | ✉️ | Dialog z polem e-mail → `sendEmail()` |
+| Pobierz (DebugBar) | ⬇️ | Wymusza pobranie pliku PDF (`file_opener`) |
+| Back | ← | Powrót do formularza |
+
+> [!NOTE]
+> Ekran obsługuje automatyczne pobieranie/cache'owanie raportu jeśli został już wygenerowany tego dnia.
 
 ---
 

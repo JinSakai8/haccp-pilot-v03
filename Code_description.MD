@@ -122,14 +122,16 @@ System opiera się na relacyjnej bazie PostgreSQL. Poniżej aktualny schemat tab
 ### M06: Raportowanie (Reports)
 
 - **Generowanie:**
-  - CCP-3 (Chłodzenie): Pobiera logi z `haccp_logs`, generuje PDF (pixel-perfect z oryginałem).
-  - Temperatury: Agregacja pomiarów (Min/Max/Avg) -> HTML -> PDF.
+  - **CCP-3 (Chłodzenie):** Pobiera logi z `haccp_logs` (agregacja dzienna), generuje PDF (pixel-perfect z oryginałem). Obsługuje limity (20°C/2h, 30°C krytyczne) i kolorowanie niezgodności.
+  - **Temperatury:** Agregacja pomiarów (Min/Max/Avg) -> HTML -> PDF.
 - **Persistence (Trwałość):**
   - Każdy wygenerowany raport jest automatycznie:
         1. Wysyłany do Supabase Storage (`reports/`).
-        2. Rejestrowany w tabeli `generated_reports`.
+        2. Rejestrowany w tabeli `generated_reports` (metadata).
 - **Historia:** Ekran "Archiwum" (`SavedReportsScreen`) pozwala przeglądać i pobierać wcześniejsze raporty.
-- **Podgląd:** `PdfPreviewScreen` wykorzystuje `syncfusion_flutter_pdfviewer` do wyświetlania PDF w aplikacji.
+- **Podgląd:**
+  - `Ccp3PreviewScreen` wyświetla PDF z pamięci (`SfPdfViewer.memory`).
+  - Posiada fallback do pobierania pliku (`file_opener_web`) w razie problemów z renderowaniem w przeglądarce.
 
 ### M07: Kadry (HR)
 

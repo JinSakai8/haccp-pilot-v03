@@ -140,9 +140,9 @@ class PinLoginNotifier extends Notifier<LoginStatus> {
 final pinLoginProvider =
     NotifierProvider<PinLoginNotifier, LoginStatus>(PinLoginNotifier.new);
 
-// ─── Zones for Current Employee (autoDispose) ─────────────────
+// ─── Zones for Current Employee (Keep alive for reporting) ─────────────────
 final employeeZonesProvider =
-    FutureProvider.autoDispose<List<Zone>>((ref) async {
+    FutureProvider<List<Zone>>((ref) async {
   final employee = ref.watch(currentUserProvider);
   if (employee == null) return [];
   return ref.read(authRepositoryProvider).getZonesForEmployee(employee.id);
