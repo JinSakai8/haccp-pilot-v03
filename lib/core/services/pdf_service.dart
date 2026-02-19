@@ -11,7 +11,7 @@ import 'package:haccp_pilot/core/services/file_opener.dart'; // Conditional impo
 class PdfService {
   
   /// Generates a PDF report for a generic form (GMP/GHP).
-  Future<List<int>> generateFormReport({
+  Future<Uint8List> generateFormReport({
     required String title,
     required FormDefinition definition,
     required Map<String, dynamic> data,
@@ -66,7 +66,7 @@ class PdfService {
   }
 
   /// The static method that runs in an isolate.
-  static Future<List<int>> _generatePdfIsolate(_PdfGenerationParams params) async {
+  static Future<Uint8List> _generatePdfIsolate(_PdfGenerationParams params) async {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
@@ -158,11 +158,11 @@ class PdfService {
 
     final List<int> bytes = await document.save();
     document.dispose();
-    return bytes;
+    return Uint8List.fromList(bytes);
   }
 
   /// Generates a tabular report (e.g. Monthly Waste Log, Temperature Log).
-  Future<List<int>> generateTableReport({
+  Future<Uint8List> generateTableReport({
     required String title,
     required List<String> columns,
     required List<List<String>> rows,
@@ -183,7 +183,7 @@ class PdfService {
     return await compute(_generateTablePdfIsolate, params);
   }
 
-  static Future<List<int>> _generateTablePdfIsolate(_PdfTableParams params) async {
+  static Future<Uint8List> _generateTablePdfIsolate(_PdfTableParams params) async {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
@@ -226,7 +226,7 @@ class PdfService {
 
     final List<int> bytes = await document.save();
     document.dispose();
-    return bytes;
+    return Uint8List.fromList(bytes);
   }
 
   /// Opens the file (PDF or HTML) in the browser (Web) or viewer (Mobile).
@@ -240,7 +240,7 @@ class PdfService {
   }
 
   /// Generates the CCP-3 Cooling Report with custom header and 3-box limits layout.
-  Future<List<int>> generateCcp3Report({
+  Future<Uint8List> generateCcp3Report({
     required List<Map<String, dynamic>> logs,
     required String userName,
     required String date,
@@ -259,7 +259,7 @@ class PdfService {
     return await compute(_generateCcp3PdfIsolate, params);
   }
 
-  static Future<List<int>> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
+  static Future<Uint8List> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
@@ -406,7 +406,7 @@ class PdfService {
 
     final List<int> bytes = await document.save();
     document.dispose();
-    return bytes;
+    return Uint8List.fromList(bytes);
   }
 }
 

@@ -852,6 +852,7 @@ onConfirm():
 | 🧹 Raport Higieny GHP | — | Dane z `ghp_logs` |
 | 🍖 Raport Procesów GMP | — | Dane z `gmp_logs` |
 | ♻️ Raport BDO | — | Dane z `waste_records` |
+| ❄️ Raport CCP-3 | — | Arkusz monitorowania chłodzenia (Nowy!) |
 
 #### Layout — Sekcja "Ostatnie Raporty"
 
@@ -910,6 +911,32 @@ Raport generowany jest jako dokument HTML stylizowany CSS `@media print` na form
    - Wiersze: Agregacja dzienna per urządzenie
    - Kolorowanie statusów: Zielony (norma) / Czerwony (krytyczne)
 4. **Stopka:** Data wydruku, podpis systemu.
+
+---
+
+### Ekran 6.1b: Generowanie Raportu CCP-3 (Automatyczne)
+
+**Trigger:** Zapis formularza "Chłodzenie Żywności" (Ekran 3.3).
+
+#### Wygląd Raportu (Mockup)
+
+![Wzór Raportu CCP-3](/Users/HP/.gemini/antigravity/brain/d9f9ba21-63b9-47d5-acf1-ff6a0b71ea3b/ccp3_report_mockup.png)
+
+**Struktura:**
+
+1. **Nagłówek:** Dane lokalu, Tytuł "Arkusz monitorowania CCP-3".
+2. **Sekcja Limitów (3 kolorowe boksy):**
+   - 🟢 Wartość docelowa: 20°C w 2h
+   - 🟡 Tolerancja: +10°C
+   - 🔴 Wartość krytyczna: 30°C
+3. **Tabela Danych:**
+   - Data/Godz rozpoczęcia
+   - Produkt (np. "Pierogi")
+   - Godz. koniec
+   - Temp. (2h)
+   - Zgodność (TAK/NIE - automatyczne)
+   - Działania korygujące (z pola "Uwagi")
+   - Podpis (Użytkownik)
 
 ---
 
@@ -1257,6 +1284,7 @@ graph TD
     H --> M4[4.1 Wybór Kategorii GHP]
     H --> M5[5.1 Panel Odpadów]
     H --> M6[6.1 Panel Raportów]
+    H --> M6b[6.1b Raport CCP-3 Preview]
     H --> M7[7.1 Dashboard HR]
     H --> M8[8.1 Ustawienia]
 
