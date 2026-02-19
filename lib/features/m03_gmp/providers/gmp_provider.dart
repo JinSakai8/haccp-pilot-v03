@@ -41,7 +41,6 @@ class GmpFormSubmission extends _$GmpFormSubmission {
 }
 
 @riverpod
-@riverpod
 Future<List<Map<String, dynamic>>> gmpHistory(
   Ref ref, {
   DateTime? fromDate,

@@ -181,8 +181,8 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/reports/preview/ccp3',
         builder: (context, state) {
-          final dateStr = state.uri.queryParameters['date']!;
-          return Ccp3PreviewScreen(date: DateTime.parse(dateStr));
+          final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String().split('T')[0];
+          return Ccp3PreviewScreen(date: DateTime.tryParse(dateStr) ?? DateTime.now());
         },
       ),
       GoRoute(
