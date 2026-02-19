@@ -261,103 +261,151 @@ class PdfService {
 
   static Future<Uint8List> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
     final document = PdfDocument();
+    
+    // Set margins to match a standard printable sheet (approx 1 cm/0.5 inch)
+    document.pageSettings.margins.all = 20;
+
     final page = document.pages.add();
     final graphics = page.graphics;
-    final font = PdfStandardFont(PdfFontFamily.helvetica, 10);
-    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 12, style: PdfFontStyle.bold);
-    final largeFont = PdfStandardFont(PdfFontFamily.helvetica, 16, style: PdfFontStyle.bold);
-
-    // --- Header Row 1: Facility & Title ---
-    if (params.venueLogo != null) {
-      final logoBitmap = PdfBitmap(params.venueLogo!);
-      graphics.drawImage(logoBitmap, Rect.fromLTWH(0, 0, 60, 60));
-    }
     
-    // Restaurant Info (Mocked or passed - for now hardcoded as per image)
-    graphics.drawString(
-      'Restauracja "Mięso i Piana"\nul. Energetyków 18A,\n37-450 Stalowa Wola', 
-      font, 
-      bounds: Rect.fromLTWH(params.venueLogo != null ? 70 : 0, 10, 200, 50)
-    );
+    // Fonts
+    final font = PdfStandardFont(PdfFontFamily.helvetica, 9);
+    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 10, style: PdfFontStyle.bold);
+    final titleFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
 
-    // Title Box
-    final titleBounds = Rect.fromLTWH(200, 0, 315, 60);
-    graphics.drawRectangle(bounds: titleBounds, pen: PdfPens.black);
-    graphics.drawString(
-      'Arkusz monitorowania CCP-3', 
-      largeFont, 
-      bounds: Rect.fromLTWH(210, 10, 300, 20),
-    );
-    graphics.drawString(
-      'Odpowiedzialny:\nUpoważniony pracownik', 
-      font, 
-      bounds: Rect.fromLTWH(360, 10, 150, 40),
-      format: PdfStringFormat(alignment: PdfTextAlignment.right)
-    );
+    // --- Header Grid (Simulating the top block of the Excel) ---
+    // We use a grid to get the nice borders and structure.
+    final headerGrid = PdfGrid();
+    headerGrid.columns.add(count: 3); // 3 Main zones: Restaurant, Middle (Title), Right (Limits/Resp)
+    
+    // Column distribution: 
+    // Col 0: Restaurant Info (approx 30%)
+    // Col 1: Title (approx 40%)
+    // Col 2: Limits/Responsible (approx 30%)
+    // Note: Syncfusion column widths are dynamic unless set. We'll set them implicitly by content or fixed width later if needed.
+    // For "Pixel Perfect" matching the screenshot, we want strict tabular look.
+    
+    // We will actually build TWO grids. 
+    // Grid 1: The very top row (Restaurant | Title | Responsible)
+    // Grid 2: The limits row (Target | Tolerance | Critical)
+    
+    // 1. Top Info Grid
+    final topGrid = PdfGrid();
+    topGrid.columns.add(count: 3);
+    // Set proportional widths based on page width (~555 points)
+    final pageWidth = page.getClientSize().width;
+    topGrid.columns[0].width = pageWidth * 0.30;
+    topGrid.columns[1].width = pageWidth * 0.40;
+    topGrid.columns[2].width = pageWidth * 0.30;
 
-    // --- Header Row 2: Limits (Target, Tolerance, Critical) ---
-    final yStart = 70.0;
-    final boxWidth = 515 / 3; // Approx 171
-    final boxHeight = 40.0;
+    final topRow = topGrid.rows.add();
+    
+    // Cell 1: Restaurant Info
+    topRow.cells[0].value = 'Restauracja „Mięso i Piana”\nul. Energetyków 18A,\n37-450 Stalowa Wola';
+    topRow.cells[0].style.font = boldFont;
+    topRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    
+    // Cell 2: Title
+    topRow.cells[1].value = 'Arkusz monitorowania CCP-3';
+    topRow.cells[1].style.font = titleFont;
+    topRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
 
-    // Box 1: Target
-    graphics.drawRectangle(bounds: Rect.fromLTWH(0, yStart, boxWidth, boxHeight), brush: PdfBrushes.lightGreen);
-    graphics.drawRectangle(bounds: Rect.fromLTWH(0, yStart, boxWidth, boxHeight), pen: PdfPens.black); // Border
-    graphics.drawString('Wartość docelowa', boldFont, bounds: Rect.fromLTWH(5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
-    graphics.drawString('20°C w 2 godz.', font, bounds: Rect.fromLTWH(5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    // Cell 3: Responsible
+    topRow.cells[2].value = 'Odpowiedzialny:\nUpoważniony pracownik';
+    topRow.cells[2].style.font = font;
+    topRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
 
-    // Box 2: Tolerance
-    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth, yStart, boxWidth, boxHeight), brush: PdfBrushes.lightYellow);
-    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth, yStart, boxWidth, boxHeight), pen: PdfPens.black);
-    graphics.drawString('Tolerancja', boldFont, bounds: Rect.fromLTWH(boxWidth + 5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
-    graphics.drawString('+ 10°C', font, bounds: Rect.fromLTWH(boxWidth + 5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    // Set height for consistency
+    topRow.height = 50;
 
-    // Box 3: Critical
-    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth * 2, yStart, boxWidth, boxHeight), brush: PdfBrushes.mistyRose); // Light Red-ish
-    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth * 2, yStart, boxWidth, boxHeight), pen: PdfPens.black);
-    graphics.drawString('Wartość krytyczna', boldFont, bounds: Rect.fromLTWH(boxWidth * 2 + 5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
-    graphics.drawString('30°C', font, bounds: Rect.fromLTWH(boxWidth * 2 + 5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, 0, 0));
+    var currentY = topLayout!.bounds.bottom;
 
-    // --- Data Table ---
+    // 2. Limits Grid
+    final limitGrid = PdfGrid();
+    limitGrid.columns.add(count: 3);
+    limitGrid.columns[0].width = pageWidth * 0.45; // Target
+    limitGrid.columns[1].width = pageWidth * 0.25; // Tolerance
+    limitGrid.columns[2].width = pageWidth * 0.30; // Critical
+
+    final limitRow = limitGrid.rows.add();
+    
+    // Limit 1: Target
+    limitRow.cells[0].value = 'Wartość docelowa\n20°C w 2 godz.';
+    limitRow.cells[0].style.backgroundBrush = PdfBrushes.white; // Explicit white (or light green if requested)
+    limitRow.cells[0].style.font = boldFont;
+    limitRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+
+    // Limit 2: Tolerance
+    limitRow.cells[1].value = 'Tolerancja\n+ 10°C';
+    limitRow.cells[1].style.font = boldFont;
+    limitRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+
+    // Limit 3: Critical
+    limitRow.cells[2].value = 'Wartość krytyczna\n30°C';
+    limitRow.cells[2].style.font = boldFont;
+    limitRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+
+    limitRow.height = 35; // Compact height
+
+    final limitLayout = limitGrid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, 0, 0));
+    currentY = limitLayout!.bounds.bottom;
+
+    // --- Data Grid ---
     final grid = PdfGrid();
     grid.columns.add(count: 7);
     
-    // Column widths relative to total
-    // 0: Start (15%), 1: Product (20%), 2: End Time (10%), 3: Temp (10%), 4: Compliance (10%), 5: Actions (20%), 6: Sign (15%)
+    // Column Mapping & Widths
+    // 0: Data/godz rozpoczęcia (14%)
+    // 1: Rodzaj pierogów (22%)
+    // 2: Godz. zakończenia (12%)
+    // 3: Wartość temperatury (12%)
+    // 4: Zgodność (10%)
+    // 5: Działania korygujące (20%)
+    // 6: Podpis (10%)
     
-    final header = grid.headers.add(1)[0];
-    header.cells[0].value = 'Data/godz\nrozpoczęcia';
-    header.cells[1].value = 'Rodzaj\nproduktu';
-    header.cells[2].value = 'Godz.\nkoniec';
-    header.cells[3].value = 'Temp.\n(2h)';
-    header.cells[4].value = 'Zgodność';
-    header.cells[5].value = 'Działania\nkorygujące';
-    header.cells[6].value = 'Podpis';
+    grid.columns[0].width = pageWidth * 0.14;
+    grid.columns[1].width = pageWidth * 0.22;
+    grid.columns[2].width = pageWidth * 0.12;
+    grid.columns[3].width = pageWidth * 0.12;
+    grid.columns[4].width = pageWidth * 0.10;
+    grid.columns[5].width = pageWidth * 0.20;
+    grid.columns[6].width = pageWidth * 0.10;
 
-    // Style header
-    for(int i=0; i<header.cells.count; i++) {
-      header.cells[i].style.backgroundBrush = PdfBrushes.lightGray;
+    // Header Row
+    final header = grid.headers.add(1)[0];
+    header.height = 40; // Taller header for multi-line text
+    
+    final headers = [
+      'Data/godz\nrozpoczęcia\nschładzania',
+      'Rodzaj\npierogów',
+      'Godz.\nzakończenia\nschładzania',
+      'Wartość\ntemperatury',
+      'Zgodność z\nustaleniami',
+      'Działania\nkorygujące',
+      'Podpis'
+    ];
+
+    for(int i=0; i<headers.length; i++) {
+      header.cells[i].value = headers[i];
+      header.cells[i].style.backgroundBrush = PdfBrushes.e5E5e5; // Light gray like Excel
       header.cells[i].style.font = boldFont;
+      header.cells[i].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
     }
 
-    // Add Data Rows
+    // Data Rows
     for (var log in params.logs) {
       final data = log['data'] as Map<String, dynamic>;
       final row = grid.rows.add();
       
       // 1. Start Date/Time
-      // We expect 'prep_date' (YYYY-MM-DD or similar) and 'start_time' (HH:MM or TimeOfDay)
-      // If data structure varies, we handle gracefully.
       final prepDate = data['prep_date']?.toString() ?? '-';
       final startTime = data['start_time']?.toString() ?? '-';
-      // Format nicely if possible, e.g. "12.02 10:00"
-      // Check if prepDate is full timestamp
       String dateStr = prepDate; 
       try {
          final dt = DateTime.parse(prepDate);
          dateStr = '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}';
       } catch(_) {}
-      
       row.cells[0].value = '$dateStr\n$startTime';
 
       // 2. Product
@@ -368,41 +416,62 @@ class PdfService {
 
       // 4. Temp (2h check)
       final tempVal = data['temp_2h'];
-      row.cells[3].value = tempVal != null ? '$tempVal°C' : '-';
+      row.cells[3].value = tempVal != null ? '$tempVal' : '-'; // No °C here if header implies it, but adding helps clarity
 
       // 5. Compliance
-      // Logic: Target 20, Tolerance +10 = Max 30.
       bool isCompliant = false;
-      if (tempVal != null && (tempVal is num || double.tryParse(tempVal.toString()) != null)) {
-         final t = tempVal is num ? tempVal : double.parse(tempVal.toString());
-         isCompliant = t <= 30.0;
+      if (tempVal != null) {
+         final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+         if (t != null) isCompliant = t <= 30.0;
       }
+      row.cells[4].value = isCompliant ? '' : 'NIE'; // Excel often leaves "OK" empty or explicit. User mockup showed "Yes/No"? 
+      // Actually, standard is usually nothing if OK, or signature/check.
+      // Let's print 'TAK' or 'NIE' to be safe.
       row.cells[4].value = isCompliant ? 'TAK' : 'NIE';
+
       if (!isCompliant) {
         row.cells[4].style.textBrush = PdfBrushes.red;
         row.cells[4].style.font = boldFont;
       }
 
-      // 6. Corrective Actions (comments)
-      final comments = data['comments'] ?? data['notes'] ?? '';
-      row.cells[5].value = comments.toString();
+      // 6. Corrective Actions
+      row.cells[5].value = data['notes']?.toString() ?? '';
 
-      // 7. Signature (User who created)
-      // Since logs usually map user_id -> Name via repository logic before reaching here, or we use userName param?
-      // For now, let's use the main userName passed to function if it matches, or simplistic placeholder.
-      // Often the report is for one user (the one generating), or we'd need to fetch user names.
-      // Assuming 'user_id' is in log.
-      row.cells[6].value = 'User ${log['user_id'].toString().substring(0,4)}...'; // Simplified
+      // 7. Signature (Initials)
+      // row.cells[6].value = 'JK'; // Mock
+      row.cells[6].value = ''; // Leave blank for manual sign or fill if digital
+    }
+    
+    // Add empty rows to fill page if needed (Excel sheets often have blank lines)
+    // Adding 10 empty lines for printing usage
+    for(int i=0; i<15; i++) {
+       final row = grid.rows.add();
+       for(int j=0; j<7; j++) row.cells[j].value = '';
+       row.height = 20;
     }
 
-    grid.draw(
-      page: page,
-      bounds: Rect.fromLTWH(0, 120, 0, 0), // Start after header
-    );
+    // Set Cell Style for all rows
+    for(int i=0; i<grid.rows.count; i++) {
+      final row = grid.rows[i];
+      for(int j=0; j<row.cells.count; j++) {
+        // Center align everything except maybe Product Name
+        if (j != 1 && j != 5) {
+           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+        } else {
+           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.left, lineAlignment: PdfVerticalAlignment.middle);
+           // Add padding for left aligned text
+           row.cells[j].style.cellPadding = PdfPaddings(left: 4, right: 2, top: 2, bottom: 2);
+        }
+        row.cells[j].style.font = font;
+      }
+    }
 
-    // Footer
-    final footerY = page.getClientSize().height - 30;
-    graphics.drawString('Sprawdził/zatwierdził: ...........................', font, bounds: Rect.fromLTWH(0, footerY, 300, 20));
+    grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, 0, 0));
+
+    // Footer Signature Line
+    final footerY = page.getClientSize().height - 40;
+    graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
+    graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
 
     final List<int> bytes = await document.save();
     document.dispose();
