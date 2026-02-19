@@ -98,8 +98,8 @@ erDiagram
 | Tabela | Kolumna | Typ | Opis |
 |:---|:---|:---|:---|
 | **`products`** | `id` | UUID (PK) | ID produktu. |
-| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny. Jeśli podane -> Produkt Lokalny. |
-| | `name` | TEXT | Nazwa potrawy/produktu. |
+| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny. Jeśli podane -> Produkt Lokalny. Naprawione w skrypcie `34_fix...`. |
+| | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (composite unique constraint). |
 | | `type` | TEXT | Typ: `cooling`, `roasting`, `general`. |
 | **`haccp_logs`** | `id` | UUID (PK) | ID wpisu loga. |
 | | `category` | TEXT | `gmp` (formularze) lub `ghp` (checklisty). |
