@@ -102,9 +102,13 @@ erDiagram
 | | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (composite unique constraint). |
 | | `type` | TEXT | Typ: `cooling`, `roasting`, `general`. |
 | **`haccp_logs`** | `id` | UUID (PK) | ID wpisu loga. |
+| | `venue_id` | UUID (FK) | Powiązanie z lokalem (dla RLS). Dodane w `35_fix...`. |
+| | `zone_id` | UUID (FK) | Powiązanie ze strefą. Dodane w `35_fix...`. |
 | | `category` | TEXT | `gmp` (formularze) lub `ghp` (checklisty). |
 | | `form_id` | TEXT | ID formularza, np. `food_cooling`. |
 | | `data` | JSONB | Pełne dane wpisu (pola dynamiczne). |
+| | `user_id` | UUID (FK) | ID pracownika (`employees`) wykonującego czynność. |
+| | `created_by` | UUID (FK) | ID użytkownika Supabase Auth (techniczne). |
 
 ### 2.3 Monitoring IoT (`sensors`, `temperature_logs`)
 

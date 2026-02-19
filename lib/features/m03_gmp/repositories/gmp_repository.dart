@@ -10,6 +10,7 @@ class GmpRepository {
     required Map<String, dynamic> data,
     required String userId,
     required String zoneId,
+    String? venueId,
   }) async {
     await _client.from(_table).insert({
       'category': 'gmp',
@@ -17,6 +18,7 @@ class GmpRepository {
       'data': data,
       'user_id': userId,
       'zone_id': zoneId,
+      if (venueId != null) 'venue_id': venueId,
       'created_at': DateTime.now().toIso8601String(),
     });
   }
