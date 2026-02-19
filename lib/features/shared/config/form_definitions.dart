@@ -48,12 +48,11 @@ class FormDefinitions {
         required: true
       ),
       FormFieldConfig(id: 'prep_date', type: HaccpFieldType.date, label: 'Data Przygotowania', required: true),
-      FormFieldConfig(id: 'start_temp', type: HaccpFieldType.stepper, label: 'Temp. Początkowa [°C]', config: {'min': 0, 'max': 100, 'default': 65}, required: true),
       FormFieldConfig(id: 'start_time', type: HaccpFieldType.time, label: 'Godzina Rozpoczęcia', required: true),
-      FormFieldConfig(id: 'temp_2h', type: HaccpFieldType.stepper, label: 'Temp. po 2h [°C]', config: {'min': 0, 'max': 100, 'warningRange': {'max': 21}}, required: true),
-      FormFieldConfig(id: 'end_temp', type: HaccpFieldType.stepper, label: 'Temp. Końcowa [°C]', config: {'min': 0, 'max': 10, 'warningRange': {'max': 4}}, required: true),
       FormFieldConfig(id: 'end_time', type: HaccpFieldType.time, label: 'Godzina Zakończenia', required: true),
-      FormFieldConfig(id: 'comments', type: HaccpFieldType.text, label: 'Uwagi / Działania korygujące', required: false),
+      FormFieldConfig(id: 'temperature', type: HaccpFieldType.stepper, label: 'Wartość temperatury [°C]', config: {'min': -10, 'max': 100, 'default': 4, 'step': 0.1}, required: true),
+      FormFieldConfig(id: 'compliance', type: HaccpFieldType.toggle, label: 'Zgodność z ustaleniami', required: true),
+      FormFieldConfig(id: 'corrective_actions', type: HaccpFieldType.text, label: 'Działania korygujące', required: false),
     ],
   );
 

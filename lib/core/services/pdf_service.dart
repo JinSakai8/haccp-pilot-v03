@@ -414,19 +414,23 @@ class PdfService {
       // 3. End Time
       row.cells[2].value = data['end_time']?.toString() ?? '-';
 
-      // 4. Temp (2h check)
-      final tempVal = data['temp_2h'];
-      row.cells[3].value = tempVal != null ? '$tempVal' : '-'; // No °C here if header implies it, but adding helps clarity
+      // 4. Temp (New 'temperature' or fallback to 'temp_2h'/'end_temp')
+      final tempVal = data['temperature'] ?? data['temp_2h'] ?? data['end_temp'];
+      row.cells[3].value = tempVal != null ? '$tempVal' : '-'; 
 
       // 5. Compliance
+      // Priority: 1. explicit 'compliance' toggle, 2. calculation from temp
       bool isCompliant = false;
-      if (tempVal != null) {
-         final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-         if (t != null) isCompliant = t <= 30.0;
+      if (data.containsKey('compliance')) {
+         isCompliant = data['compliance'] == true;
+      } else {
+         // Fallback calculation for old logs
+         if (tempVal != null) {
+            final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+            if (t != null) isCompliant = t <= 30.0;
+         }
       }
-      row.cells[4].value = isCompliant ? '' : 'NIE'; // Excel often leaves "OK" empty or explicit. User mockup showed "Yes/No"? 
-      // Actually, standard is usually nothing if OK, or signature/check.
-      // Let's print 'TAK' or 'NIE' to be safe.
+      
       row.cells[4].value = isCompliant ? 'TAK' : 'NIE';
 
       if (!isCompliant) {
@@ -434,11 +438,11 @@ class PdfService {
         row.cells[4].style.font = boldFont;
       }
 
-      // 6. Corrective Actions
-      row.cells[5].value = data['comments']?.toString() ?? '';
+      // 6. Corrective Actions (New 'corrective_actions' or fallback to 'comments')
+      final comments = data['corrective_actions'] ?? data['comments'];
+      row.cells[5].value = comments?.toString() ?? '';
 
       // 7. Signature (Initials)
-      // row.cells[6].value = 'JK'; // Mock
       row.cells[6].value = ''; // Leave blank for manual sign or fill if digital
     }
     
