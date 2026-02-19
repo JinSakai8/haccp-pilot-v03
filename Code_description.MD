@@ -501,5 +501,213 @@ W przypadku błędu "Brak aktywnych sensorów w tej strefie", mimo że dane są 
    - **Rozwiązanie:** Skrypty diagnostyczne `23_diagnostic_mismatch.sql` oraz naprawczy `25_fix_force_kuchnia.sql`, który precyzyjnie paruje sensory z ID strefy zalogowanego użytkownika.
 
 ---
+
+## 16. Pipeline Chłodzenia → Baza Danych → Raporty (Plan Implementacji)
+
+Sekcja opisuje pełny przepływ danych od formularza M03 przez bazę po generowanie raportu CCP-3 w M06.
+
+### 16.1 Architektura Przepływu (Data Flow)
+
+```
+┌─────────────────────┐     ┌──────────────────────┐     ┌──────────────────────┐
+│  FoodCoolingForm     │     │    Supabase DB        │     │   Raport CCP-3       │
+│  (M03)               │     │                      │     │   (M06)              │
+│                     │     │                      │     │                      │
+│ DynamicFormRenderer  │     │  ┌────────────────┐  │     │  ReportsRepository   │
+│ ↓                   │────▶│  │  haccp_logs     │  │────▶│  .getCoolingLogs()   │
+│ GmpProvider          │     │  │  category='gmp' │  │     │  ↓                  │
+│ ↓                   │     │  │  form_id=       │  │     │  PdfService          │
+│ GmpRepository        │     │  │    'food_cooling│  │     │  .generateCcp3Report │
+│ .insertLog()         │     │  │    _daily'      │  │     │  ↓                  │
+│                     │     │  │  data=JSONB     │  │     │  Ccp3PreviewScreen   │
+└─────────────────────┘     │  └────────────────┘  │     └──────────────────────┘
+                            │                      │
+                            │  ┌────────────────┐  │
+                            │  │  products       │  │
+                            │  │  name, type     │  │
+                            │  └────────────────┘  │
+                            └──────────────────────┘
+```
+
+### 16.2 Znane Bugi (Do Naprawy Przed Sprintem 1)
+
+| # | Bug | Plik | Opis |
+|---|-----|------|------|
+| 1 | **form_id mismatch** | `food_cooling_form_screen.dart` L20 vs `reports_repository.dart` L27 | Formularz zapisuje `form_id='food_cooling_daily'`, ale `ReportsRepository.getCoolingLogs()` filtruje po `form_id='food_cooling'`. **Dane nigdy nie są znajdowane w raporcie.** |
+| 2 | **Brak widgetu Text** | `dynamic_form_renderer.dart` | `HaccpFieldType.text` (pole "Uwagi") wpada do `default:` i renderuje placeholder zamiast funkcjonalnego pola tekstowego. |
+| 3 | **Duplikat @riverpod** | `gmp_provider.dart` L43-44 | Podwójna adnotacja `@riverpod` nad `gmpHistory`. |
+| 4 | **Brak trasy CCP-3** | `app_router.dart` | Trasa `/reports/preview/ccp3` prawdopodobnie nie jest zarejestrowana w GoRouter, co powoduje błąd nawigacji po zapisaniu formularza. |
+
+### 16.3 Struktura JSONB w `haccp_logs.data`
+
+Po zapisaniu formularza Chłodzenia, kolumna `data` (JSONB) zawiera:
+
+```json
+{
+  "product_name": "Pierogi Ruskie",
+  "prep_date": "2026-02-19",
+  "start_temp": 65,
+  "start_time": "14:00",
+  "temp_2h": 20,
+  "end_temp": 4,
+  "end_time": "16:15",
+  "comments": "Brak uwag"
+}
+```
+
+Moduł raportów (`PdfService._generateCcp3PdfIsolate`) odczytuje te pola z mapy `data` i mapuje je na kolumny tabeli PDF.
+
+---
+
+### 16.4 Plan Sprintów (Dla Junior Developera)
+
+#### Sprint 1: Naprawa Krytycznych Bugów (Bug Fixes)
+
+**Cel:** Formularz zapisuje dane poprawnie → raport znajduje te dane → nawigacja działa.
+
+**Zadania:**
+
+1. **Ujednolicenie `form_id`**
+   - W pliku `food_cooling_form_screen.dart` zmień `const String formId = 'food_cooling_daily'` na `'food_cooling'`.
+   - **LUB** w pliku `reports_repository.dart` zmień `.eq('form_id', 'food_cooling')` na `.eq('form_id', 'food_cooling_daily')`.
+   - Wybierz **jedną** wersję i użyj jej wszędzie. Zalecane: `'food_cooling'` (krótsze, spójne z konwencją).
+
+2. **Usunięcie duplikatu `@riverpod`**
+   - W pliku `gmp_provider.dart` linia 43-44: usuń jedną z dwóch adnotacji `@riverpod`.
+   - Uruchom `dart run build_runner build --delete-conflicting-outputs` po edycji.
+
+3. **Dodanie trasy CCP-3 do GoRouter**
+   - W pliku `app_router.dart` dodaj trasę:
+
+     ```
+     /reports/preview/ccp3?date=...
+     ```
+
+   - Parametr `date` (queryParam) parsuj na `DateTime` i przekaż do `Ccp3PreviewScreen(date: ...)`.
+
+4. **Weryfikacja:**
+   - Wypełnij formularz → Zapisz → Sprawdź w Supabase Dashboard, że wiersz pojawił się w `haccp_logs` z poprawnym `form_id`.
+   - Sprawdź, że nawigacja do podglądu CCP-3 działa (nie pokazuje białego/pustego ekranu lub 404).
+
+---
+
+#### Sprint 2: Implementacja Brakującego Widgetu Text
+
+**Cel:** Pole "Uwagi / Działania korygujące" w formularzu jest w pełni funkcjonalne.
+
+**Zadania:**
+
+1. **Stwórz widget `HaccpTextInput`**
+   - Plik: `lib/features/shared/widgets/dynamic_form/haccp_text_input.dart`.
+   - Widget typu `StatelessWidget` wyświetlający `TextField` z ciemnym tłem (`HaccpDesignTokens.surface`).
+   - Parametry: `String? value`, `ValueChanged<String> onChanged`, `String? hintText`.
+   - **Glove-Friendly:** Min. height 56dp, duży fontSize (16), jasny placeholder.
+
+2. **Dodaj case do `DynamicFormRenderer`**
+   - W `_buildField()`, przed `default:`, dodaj:
+
+     ```
+     case HaccpFieldType.text:
+       return HaccpTextInput(...)
+     ```
+
+   - Import nowego pliku.
+
+3. **Weryfikacja:**
+   - Otwórz formularz Chłodzenia → Pole "Uwagi" powinno być edytowalne (klawiatura pojawia się przy kliknięciu).
+   - Zapisz formularz z wypełnionym polem "Uwagi" → Sprawdź w Supabase, że `data.comments` ma wartość.
+
+---
+
+#### Sprint 3: Integracja Raportu z Danymi z Bazy
+
+**Cel:** Po zapisaniu formularza użytkownik automatycznie widzi wygenerowany raport PDF z danymi.
+
+**Zadania:**
+
+1. **Poprawka `_handleSubmit` w `food_cooling_form_screen.dart`**
+   - Usuń blok komentarzy TODO (linie ~70-127).
+   - Po `HaccpSuccessOverlay.show(context)`:
+     - Parsuj `dateStr` z `state.values['prep_date']`.
+     - Nawiguj: `context.push('/reports/preview/ccp3?date=$dateStr')`.
+
+2. **Sprawdź `Ccp3PreviewScreen`**
+   - `ccp3ReportProvider` pobiera logi za dany dzień via `repo.getCoolingLogs(date)`.
+   - Upewnij się, że `getCoolingLogs` filtruje po `form_id` **spójnym** z wartością ustaloną w Sprincie 1.
+   - Zweryfikuj, że `PdfService.generateCcp3Report` poprawnie mapuje pola JSONB (patrz sekcja 16.3).
+
+3. **Obsługa pustych danych**
+   - Jeśli `logs` jest puste (np. brak danych za dany dzień), wyświetl komunikat zamiast pustego PDF.
+   - W `Ccp3PreviewScreen`: sprawdź `logs.isEmpty` i pokaż `HaccpEmptyState`.
+
+4. **Weryfikacja:**
+   - Wypełnij formularz → ZAPISZ → powinien pojawić się podgląd PDF z danymi z formularza.
+   - Sprawdź, że tabela w PDF zawiera poprawne wartości (produkt, temperatury, godziny).
+
+---
+
+#### Sprint 4: Trwałość Raportów (Persistence)
+
+**Cel:** Wygenerowane raporty są archiwizowane w chmurze i dostępne do przeglądania / pobrania.
+
+**Zadania:**
+
+1. **Uruchom SQL migrację `31_create_generated_reports.sql`** (jeśli jeszcze nie uruchomiona)
+   - Tabela `generated_reports`: `id`, `venue_id`, `report_type`, `generation_date`, `storage_path`, `created_by`, `created_at`.
+   - Bucket `reports` w Supabase Storage.
+
+2. **Dodaj przycisk "Zapisz do chmury" w `Ccp3PreviewScreen`**
+   - Po wygenerowaniu PDF (`pdfAsync.data`):
+     - Upload `Uint8List` do Supabase Storage: `reports/ccp3/YYYY-MM-DD_HHmmss.pdf`.
+     - Insert do `generated_reports` z metadanymi.
+   - Pokaż `SnackBar` sukcesu.
+
+3. **Lista zapisanych raportów w module M06**
+   - W istniejącym `ReportsPanelScreen` dodaj sekcję "Archiwum CCP-3".
+   - Pobierz z `generated_reports` WHERE `report_type = 'ccp3'`.
+   - Wyświetl listę z datą i przyciskiem "Otwórz" (pobiera z Storage i otwiera w viewerze).
+
+4. **Weryfikacja:**
+   - Zapisz PDF → sprawdź w Supabase Storage, że plik istnieje.
+   - Otwórz Archiwum → kliknij na raport → powinien się otworzyć ten sam PDF.
+
+---
+
+#### Sprint 5: Produkty z Bazy Danych (Products Table)
+
+**Cel:** Dropdown produktów w formularzu ładuje opcje z bazy danych zamiast hardcodowanych list.
+
+**Zadania:**
+
+1. **Uruchom SQL migrację `33_create_products_table.sql`** w Supabase Dashboard
+   - Tworzy tabelę `products` z kolumnami `id`, `name`, `type`, `created_at`.
+   - Dodaje seed data (Pierogi, Gołąbki, Bigos).
+
+2. **Sprawdź działanie `HaccpDropdown`**
+   - Widget jest już zaimplementowany (`haccp_dropdown.dart`).
+   - Konfiguracja formularza (`form_definitions.dart`) wskazuje na `source: 'products_table'`, `type: 'cooling'`.
+   - `ProductsRepository` (`products_repository.dart`) pobiera dane z tabeli.
+   - **TEST:** Otwórz formularz → dropdown powinien załadować produkty z Supabase (nie z hardcodowanej listy).
+
+3. **Dodaj ekran "Zarządzanie Produktami" (opcjonalnie)**
+   - Prosty CRUD screen dostępny z Ustawień (M08) dla roli `manager`/`owner`.
+   - Lista produktów z przyciskiem "Dodaj nowy".
+
+4. **Weryfikacja:**
+   - Dodaj nowy produkt w Supabase (np. "Pierogi z Serem") → otwórz formularz → nowy produkt powinien pojawić się w dropdown.
+
+---
+
+### 16.5 Kolejność Priorytetów
+
+| # | Sprint | Priorytet | Uzasadnienie |
+|---|--------|-----------|-------------|
+| 1 | Bug Fixes | 🔴 KRYTYCZNY | Bez tego dane nie docierają do raportu |
+| 2 | Widget Text | 🟠 WYSOKI | Pole "Uwagi" jest wymagane w procesie HACCP |
+| 3 | Integracja Raportu | 🟠 WYSOKI | Core feature: automatyczny raport po zapisie |
+| 4 | Persistence | 🟡 ŚREDNI | Archiwizacja dla audytu |
+| 5 | Produkty DB | 🟢 NISKI | Już częściowo działa (migracja do uruchomienia) |
+
+---
 Autor: Antigravity (AI Agent)
-Data wersji: 2026-02-15 (M02 Architecture & Vercel Fixes)
+Data wersji: 2026-02-19 (M03→M06 Pipeline Plan & Form Improvements)
