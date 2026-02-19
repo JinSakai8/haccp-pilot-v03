@@ -36,16 +36,18 @@ class ProductsRepository {
           .eq('type', type);
       
       if (venueId != null) {
-        // (venue_id is null) OR (venue_id = venueId)
         query = query.or('venue_id.is.null,venue_id.eq.$venueId');
       } else {
-        query = query.filter('venue_id', 'is', null);
+        // Safe fallback for "venue_id IS NULL" using the 'or' syntax which we know works
+        query = query.or('venue_id.is.null');
       }
 
       final response = await query.order('name', ascending: true);
 
       return (response as List).map((e) => Product.fromJson(e)).toList();
     } catch (e) {
+      // ignore: avoid_print
+      print('Error fetching products: $e');
       return [];
     }
   }
