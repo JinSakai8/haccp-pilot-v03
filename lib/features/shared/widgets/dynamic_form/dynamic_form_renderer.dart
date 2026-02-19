@@ -9,6 +9,7 @@ import 'haccp_numpad_input.dart';
 import 'haccp_dropdown.dart';
 import 'haccp_date_picker.dart';
 import 'haccp_time_picker.dart';
+import 'haccp_text_input.dart';
 
 class DynamicFormRenderer extends ConsumerWidget {
   final String formId;
@@ -114,6 +115,12 @@ class DynamicFormRenderer extends ConsumerWidget {
            onChanged: (val) => notifier.updateField(config.id, val),
            label: config.label,
            maxLength: config.config['maxLength'] ?? 6,
+        );
+      case HaccpFieldType.text:
+        return HaccpTextInput(
+          value: state.value as String?,
+          onChanged: (val) => notifier.updateField(config.id, val),
+          label: config.label,
         );
       default:
         // Other types like photo would be implemented here
