@@ -378,12 +378,12 @@ Każdy moduł posiada **jeden** Repository, który enkapsuluje wszystkie operacj
 |:------|:-----------|:----------------|:----------------|
 | M01 | `AuthRepository` | `employees`, `employee_zones`, `zones` | `loginWithPin()`, `getZonesForEmployee()` |
 | M02 | `MeasurementsRepository` | `measurements`, `devices`, `temperature_logs` | `streamRealtime()`, `acknowledgeAlert()`, `getHistoricalData()` |
-| M03 | `GmpRepository` | `gmp_logs` | `insertLog()`, `getHistory()`, `getTodayCount()` |
-| M04 | `GhpRepository` | `ghp_logs` | `insertChecklist()`, `getHistory()` |
+| M03 | `GmpRepository` | `haccp_logs`, `products` | `insertLog()`, `getHistory()`, `getTodayCount()` |
+| M04 | `GhpRepository` | `haccp_logs` | `insertChecklist()`, `getHistory()` |
 | M05 | `WasteRepository` | `waste_records` + Storage | `insertRecord()`, `uploadPhoto()`, `getHistory()` |
-| M06 | `ReportsRepository` | Agregacja SQL + Drive API | `generatePdf()`, `syncToDrive()`, `getReportsList()` |
+| M06 | `ReportsRepository` | `generated_reports`, `haccp_logs` + Drive API | `generatePdf()`, `syncToDrive()`, `getReportsList()` |
 | M07 | `HrRepository` | `employees` (profiles) | `getAlerts()`, `updateSanepid()`, `toggleActive()` |
-| M08 | `SettingsRepository` | `venue_settings` | `getSettings()`, `updateSettings()` |
+| M08 | `SettingsRepository` | `venues` | `getSettings()`, `updateSettings()` |
 
 ### 4.4 Reguła Złota: Repository → Provider → Screen
 
@@ -470,7 +470,7 @@ dev_dependencies:
 ## 7. Decyzje Architektoniczne (Zamrożone)
 
 1. **Zmienne Środowiskowe:** Klucze `SUPABASE_URL` i `SUPABASE_ANON_KEY` są wdrożone w pliku `.env`.
-2. **Baza Danych:** Schemat SQL (M01: `employees`, `zones`, `employee_zones`) jest wdrożony i aktywny.
+2. **Baza Danych:** Schemat SQL (M01-M08) jest wdrożony i aktywny. Kluczowe tabele: `employees`, `zones`, `products`, `haccp_logs`, `temperature_logs`, `generated_reports`.
 3. **Motyw UI:** Wymuszamy **Dark Mode** (tło Onyx/Charcoal) zgodnie z plikiem `UI_description.md`.
 4. **Synchronizacja Danych (Two-Stage Streaming):** Supabase Realtime nie obsługuje filtrów po JOINach. Wdrażamy architekturę dwuetapową: subskrypcja globalna na `venue_id` + filtrowanie strefy w warstwie Providera (`MonitoringProvider`).
 5. **Autoryzacja Usług:** Plik `credentials.json` (Google Service Account) będzie używany współdzielenie dla Google Stitch oraz do automatyzacji w Google Drive API (M06).
