@@ -434,11 +434,11 @@ AND zone_id = :current_zone_id
 |:--|:------|:-------------|:----------|:--------|
 | 1 | Produkt | Dropdown | Required | — |
 | 2 | Data Przygotowania | HaccpDatePicker | Required | Today |
-| 3 | Temp. Początkowa [°C] | HaccpStepper | Range: 0-100 | 65°C, krok 1 |
-| 4 | Godzina Rozpoczęcia | HaccpTimePicker | Required | Now() |
-| 5 | Temp. po 2h [°C] | HaccpStepper | Soft: <21°C | —, krok 1 |
-| 6 | Temp. Końcowa [°C] | HaccpStepper | Soft: <4°C | —, krok 1 |
-| 7 | Godzina Zakończenia | HaccpTimePicker | > Start | — |
+| 3 | Godzina Rozpoczęcia | HaccpTimePicker | Required | Now() |
+| 4 | Godzina Zakończenia | HaccpTimePicker | > Start | — |
+| 5 | Wartość temperatury [°C] | HaccpStepper | Range: -10 to 100 | 4°C, krok 0.1 |
+| 6 | Zgodność zkryteriami | HaccpToggle | Required | — |
+| 7 | Działania korygujące | TextField | Opcjonalne | — |
 
 #### Walidacja Miękka
 
@@ -517,7 +517,12 @@ AND created_at BETWEEN :date_from AND :date_to
 ORDER BY created_at DESC
 ```
 
-#### Nawigacja
+#### Nawigacja (Update v04)
+
+| Akcja | Cel |
+|:------|:----|
+| Back | → **Ekran 3.1** |
+| Tap "Schładzanie" | → **Ekran 6.2: Podgląd Raportu CCP-3** |
 
 | Akcja | Cel |
 |:------|:----|

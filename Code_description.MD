@@ -105,6 +105,7 @@ System opiera się na relacyjnej bazie PostgreSQL. Poniżej aktualny schemat tab
 - **Silnik:** `DynamicFormRenderer` generuje UI na podstawie definicji JSON (`FormDefinition`).
 - **Produkty:** Pola typu "produkt" pobierają listę z `ProductsRepository` (tabela `products`), uwzględniając menu lokalu.
 - **Zapis:** Dane trafiają do `haccp_logs` jako JSONB.
+- **Integracja:** Historia GMP (`GmpHistoryScreen`) umożliwia podgląd wygenerowanego raportu PDF (`PdfPreviewScreen`).
 
 ### M04: Higiena GHP
 
@@ -127,7 +128,8 @@ System opiera się na relacyjnej bazie PostgreSQL. Poniżej aktualny schemat tab
   - Każdy wygenerowany raport jest automatycznie:
         1. Wysyłany do Supabase Storage (`reports/`).
         2. Rejestrowany w tabeli `generated_reports`.
-- **Historia:** Ekran "Archiwum" (`SavedReportsScreen`) pozwala przeglądać i pobierać wcześniejsze raporty bez konieczności ich regenerowania.
+- **Historia:** Ekran "Archiwum" (`SavedReportsScreen`) pozwala przeglądać i pobierać wcześniejsze raporty.
+- **Podgląd:** `PdfPreviewScreen` wykorzystuje `syncfusion_flutter_pdfviewer` do wyświetlania PDF w aplikacji.
 
 ### M07: Kadry (HR)
 

@@ -96,18 +96,18 @@ erDiagram
 ### 2.2 Produkty i Procesy (`products`, `haccp_logs`)
 
 | Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
+| :--- | :--- | :--- | :--- |
 | **`products`** | `id` | UUID (PK) | ID produktu. |
-| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny. Jeśli podane -> Produkt Lokalny. Naprawione w skrypcie `34_fix...`. |
-| | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (composite unique constraint). |
+| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny (widoczny wszędzie). Jeśli podane -> Produkt Lokalny (tylko dla tego `venue`). |
+| | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (`UNIQUE NULLS NOT DISTINCT (name, venue_id)`). |
 | | `type` | TEXT | Typ: `cooling`, `roasting`, `general`. |
 | **`haccp_logs`** | `id` | UUID (PK) | ID wpisu loga. |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem (dla RLS). Dodane w `35_fix...`. |
-| | `zone_id` | UUID (FK) | Powiązanie ze strefą. Dodane w `35_fix...`. |
+| | `venue_id` | UUID (FK) | Powiązanie z lokalem (kluczowe do filtracji danych i RLS). |
+| | `zone_id` | UUID (FK) | Powiązanie ze strefą (np. Kuchnia). |
 | | `category` | TEXT | `gmp` (formularze) lub `ghp` (checklisty). |
 | | `form_id` | TEXT | ID formularza, np. `food_cooling`. |
-| | `data` | JSONB | Pełne dane wpisu (pola dynamiczne). |
-| | `user_id` | UUID (FK) | ID pracownika (`employees`) wykonującego czynność. |
+| | `data` | JSONB | Pełne dane wpisu (dynamiczna struktura formularza). |
+| | `user_id` | UUID (FK) | ID pracownika (`employees`), który wykonał czynność. |
 | | `created_by` | UUID (FK) | ID użytkownika Supabase Auth (techniczne). |
 
 ### 2.3 Monitoring IoT (`sensors`, `temperature_logs`)
@@ -147,27 +147,25 @@ Tabela przedstawia, które moduły (M01-M08) korzystają z których tabel (CRUD)
 
 ---
 
-## 4. Polityki Bezpieczeństwa (RLS)
+1. **Polityki Bezpieczeństwa (RLS)**
 
 Bezpieczeństwo opiera się na Row Level Security. Aplikacja nie korzysta ze standardowego logowania Supabase Auth (email/pass), lecz z własnego mechanizmu opartego na PIN.
 
 1. **Uwierzytelnianie:**
     - Użytkownik podaje PIN (4 cyfry).
     - Aplikacja woła funkcję RPC `login_with_pin(venue_nip, pin)`.
-    - Funkcja zwraca token JWT lub dane pracownika, jeśli hash się zgadza.
-    - *Kluczowe:* Tabela `employees` **NIE** jest dostępna publicznie (SELECT policy tylko dla `authenticated` lub przez RPC `SECURITY DEFINER`).
+    - Funkcja zwraca token JWT (z `role: authenticated`) oraz dane pracownika.
+    - **Ważne**: Tabela `employees` jest chroniona (SELECT tylko dla `authenticated`).
 
 2. **Izolacja Danych (Multi-tenancy):**
-    - Każda tabela z `venue_id` ma politykę:
-
-        ```sql
-        USING (venue_id = (select venue_id from employees where id = auth.uid()))
-        ```
-
-    - Dzięki temu pracownik widzi tylko dane swojego lokalu.
+    - Większość tabel (`products`, `haccp_logs`, `generated_reports`) posiada kolumnę `venue_id`.
+    - Docelowa polityka: `USING (venue_id = (select venue_id from employees where id = auth.uid()))`.
+    - **Faza Pilot (Aktualnie)**:
+        - `haccp_logs`: `USING (true)` / `CHECK (true)` (Uproszczone dla testów, filtracja w aplikacji).
+        - `products`: `USING (true)` (Odczyt globalny).
 
 3. **Role:**
-    - Kolumna `role` w `employees` determinuje dostęp po stronie aplikacji (Guardy w `GoRouter`), ale RLS na poziomie bazy jest zazwyczaj równy dla wszystkich pracowników danego lokalu (z wyjątkiem tabel kadrowych).
+    - Kolumna `role` w `employees` (`owner`, `manager`, `cook`) steruje dostępem do ekranów w aplikacji (Guardy).
 
 ---
 

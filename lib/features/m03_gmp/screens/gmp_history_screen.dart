@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_date_picker.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
@@ -126,7 +127,14 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                             subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
-                              // Details view logic
+                              if (formId == 'food_cooling') {
+                                final dateStr = DateFormat('yyyy-MM-dd').format(date);
+                                context.push('/reports/preview/ccp3?date=$dateStr');
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Podgląd szczegółów dostępny wkrótce')),
+                                );
+                              }
                             },
                           ),
                         );

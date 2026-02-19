@@ -273,29 +273,13 @@ class PdfService {
     final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 10, style: PdfFontStyle.bold);
     final titleFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
 
-    // --- Header Grid (Simulating the top block of the Excel) ---
-    // We use a grid to get the nice borders and structure.
-    final headerGrid = PdfGrid();
-    headerGrid.columns.add(count: 3); // 3 Main zones: Restaurant, Middle (Title), Right (Limits/Resp)
-    
-    // Column distribution: 
-    // Col 0: Restaurant Info (approx 30%)
-    // Col 1: Title (approx 40%)
-    // Col 2: Limits/Responsible (approx 30%)
-    // Note: Syncfusion column widths are dynamic unless set. We'll set them implicitly by content or fixed width later if needed.
-    // For "Pixel Perfect" matching the screenshot, we want strict tabular look.
-    
-    // We will actually build TWO grids. 
-    // Grid 1: The very top row (Restaurant | Title | Responsible)
-    // Grid 2: The limits row (Target | Tolerance | Critical)
-    
-    // 1. Top Info Grid
+    // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
     topGrid.columns.add(count: 3);
     // Set proportional widths based on page width (~555 points)
     final pageWidth = page.getClientSize().width;
-    topGrid.columns[0].width = pageWidth * 0.30;
-    topGrid.columns[1].width = pageWidth * 0.40;
+    topGrid.columns[0].width = pageWidth * 0.35;
+    topGrid.columns[1].width = pageWidth * 0.35;
     topGrid.columns[2].width = pageWidth * 0.30;
 
     final topRow = topGrid.rows.add();
@@ -318,7 +302,7 @@ class PdfService {
     // Set height for consistency
     topRow.height = 50;
 
-    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, 0, 0));
+    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
     var currentY = topLayout!.bounds.bottom;
 
     // 2. Limits Grid
@@ -348,7 +332,7 @@ class PdfService {
 
     limitRow.height = 35; // Compact height
 
-    final limitLayout = limitGrid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, 0, 0));
+    final limitLayout = limitGrid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
     currentY = limitLayout!.bounds.bottom;
 
     // --- Data Grid ---
@@ -470,7 +454,7 @@ class PdfService {
       }
     }
 
-    grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, 0, 0));
+    grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
 
     // Footer Signature Line
     final footerY = page.getClientSize().height - 40;
