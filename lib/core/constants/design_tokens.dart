@@ -16,6 +16,7 @@ class HaccpDesignTokens {
   static const double minTouchTarget = 60.0; 
   static const double standardPadding = 16.0;
   static const double cardRadius = 8.0;
+  static const double inputRadius = 8.0;
 
   // Typography
   static const String fontFamily = 'Work Sans';
