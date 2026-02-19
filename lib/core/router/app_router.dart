@@ -25,6 +25,7 @@ import '../../features/m05_waste/screens/waste_history_screen.dart';
 import '../../features/m08_settings/screens/global_settings_screen.dart';
 import '../../features/m06_reports/screens/reports_panel_screen.dart';
 import '../../features/m06_reports/screens/pdf_preview_screen.dart';
+import '../../features/m06_reports/screens/ccp3_preview_screen.dart';
 import '../../features/m06_reports/screens/drive_status_screen.dart';
 import '../../features/m07_hr/screens/hr_dashboard_screen.dart';
 import '../../features/m07_hr/screens/employee_list_screen.dart';
@@ -175,6 +176,13 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) {
           final path = state.extra as String;
           return PdfPreviewScreen(filePath: path);
+        },
+      ),
+      GoRoute(
+        path: '/reports/preview/ccp3',
+        builder: (context, state) {
+          final dateStr = state.uri.queryParameters['date']!;
+          return Ccp3PreviewScreen(date: DateTime.parse(dateStr));
         },
       ),
       GoRoute(

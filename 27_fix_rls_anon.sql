@@ -5,9 +5,7 @@
 
 BEGIN;
 
--- ═══════════════════════════════════════════
 -- SENSORS
--- ═══════════════════════════════════════════
 DROP POLICY IF EXISTS "Sensors readable by all authenticated" ON sensors;
 DROP POLICY IF EXISTS "Enable read access for authenticated users" ON sensors;
 DROP POLICY IF EXISTS "Sensors readable by all" ON sensors;
@@ -18,9 +16,7 @@ FOR SELECT
 TO anon, authenticated
 USING (true);
 
--- ═══════════════════════════════════════════
 -- TEMPERATURE_LOGS
--- ═══════════════════════════════════════════
 DROP POLICY IF EXISTS "Logs readable by all authenticated" ON temperature_logs;
 DROP POLICY IF EXISTS "Enable read access for authenticated users" ON temperature_logs;
 DROP POLICY IF EXISTS "Logs readable by all" ON temperature_logs;
@@ -40,9 +36,7 @@ TO anon, authenticated
 USING (true)
 WITH CHECK (true);
 
--- ═══════════════════════════════════════════
 -- ANNOTATIONS
--- ═══════════════════════════════════════════
 DROP POLICY IF EXISTS "Annotations readable by all" ON annotations;
 DROP POLICY IF EXISTS "Annotations insertable by authenticated" ON annotations;
 DROP POLICY IF EXISTS "Annotations readable" ON annotations;

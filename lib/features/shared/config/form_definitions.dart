@@ -44,6 +44,7 @@ class FormDefinitions {
       FormFieldConfig(id: 'temp_2h', type: HaccpFieldType.stepper, label: 'Temp. po 2h [°C]', config: {'min': 0, 'max': 100, 'warningRange': {'max': 21}}, required: true),
       FormFieldConfig(id: 'end_temp', type: HaccpFieldType.stepper, label: 'Temp. Końcowa [°C]', config: {'min': 0, 'max': 10, 'warningRange': {'max': 4}}, required: true),
       FormFieldConfig(id: 'end_time', type: HaccpFieldType.time, label: 'Godzina Zakończenia', required: true),
+      FormFieldConfig(id: 'comments', type: HaccpFieldType.text, label: 'Uwagi / Działania korygujące', required: false),
     ],
   );
 

@@ -238,9 +238,191 @@ class PdfService {
       debugPrint('Opening $fileName on mobile is not yet implemented.');
     }
   }
+
+  /// Generates the CCP-3 Cooling Report with custom header and 3-box limits layout.
+  Future<List<int>> generateCcp3Report({
+    required List<Map<String, dynamic>> logs,
+    required String userName,
+    required String date,
+    Uint8List? venueLogo,
+  }) async {
+    final params = _Ccp3ReportParams(
+      logs: logs,
+      userName: userName,
+      date: date,
+      venueLogo: venueLogo,
+    );
+
+    if (kIsWeb) {
+      return await _generateCcp3PdfIsolate(params);
+    }
+    return await compute(_generateCcp3PdfIsolate, params);
+  }
+
+  static Future<List<int>> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
+    final document = PdfDocument();
+    final page = document.pages.add();
+    final graphics = page.graphics;
+    final font = PdfStandardFont(PdfFontFamily.helvetica, 10);
+    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 12, style: PdfFontStyle.bold);
+    final largeFont = PdfStandardFont(PdfFontFamily.helvetica, 16, style: PdfFontStyle.bold);
+
+    // --- Header Row 1: Facility & Title ---
+    if (params.venueLogo != null) {
+      final logoBitmap = PdfBitmap(params.venueLogo!);
+      graphics.drawImage(logoBitmap, Rect.fromLTWH(0, 0, 60, 60));
+    }
+    
+    // Restaurant Info (Mocked or passed - for now hardcoded as per image)
+    graphics.drawString(
+      'Restauracja "Mięso i Piana"\nul. Energetyków 18A,\n37-450 Stalowa Wola', 
+      font, 
+      bounds: Rect.fromLTWH(params.venueLogo != null ? 70 : 0, 10, 200, 50)
+    );
+
+    // Title Box
+    final titleBounds = Rect.fromLTWH(200, 0, 315, 60);
+    graphics.drawRectangle(bounds: titleBounds, pen: PdfPens.black);
+    graphics.drawString(
+      'Arkusz monitorowania CCP-3', 
+      largeFont, 
+      bounds: Rect.fromLTWH(210, 10, 300, 20),
+    );
+    graphics.drawString(
+      'Odpowiedzialny:\nUpoważniony pracownik', 
+      font, 
+      bounds: Rect.fromLTWH(360, 10, 150, 40),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right)
+    );
+
+    // --- Header Row 2: Limits (Target, Tolerance, Critical) ---
+    final yStart = 70.0;
+    final boxWidth = 515 / 3; // Approx 171
+    final boxHeight = 40.0;
+
+    // Box 1: Target
+    graphics.drawRectangle(bounds: Rect.fromLTWH(0, yStart, boxWidth, boxHeight), brush: PdfBrushes.lightGreen);
+    graphics.drawRectangle(bounds: Rect.fromLTWH(0, yStart, boxWidth, boxHeight), pen: PdfPens.black); // Border
+    graphics.drawString('Wartość docelowa', boldFont, bounds: Rect.fromLTWH(5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    graphics.drawString('20°C w 2 godz.', font, bounds: Rect.fromLTWH(5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+
+    // Box 2: Tolerance
+    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth, yStart, boxWidth, boxHeight), brush: PdfBrushes.lightYellow);
+    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth, yStart, boxWidth, boxHeight), pen: PdfPens.black);
+    graphics.drawString('Tolerancja', boldFont, bounds: Rect.fromLTWH(boxWidth + 5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    graphics.drawString('+ 10°C', font, bounds: Rect.fromLTWH(boxWidth + 5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+
+    // Box 3: Critical
+    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth * 2, yStart, boxWidth, boxHeight), brush: PdfBrushes.mistyRose); // Light Red-ish
+    graphics.drawRectangle(bounds: Rect.fromLTWH(boxWidth * 2, yStart, boxWidth, boxHeight), pen: PdfPens.black);
+    graphics.drawString('Wartość krytyczna', boldFont, bounds: Rect.fromLTWH(boxWidth * 2 + 5, yStart + 5, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+    graphics.drawString('30°C', font, bounds: Rect.fromLTWH(boxWidth * 2 + 5, yStart + 20, boxWidth, 20), format: PdfStringFormat(alignment: PdfTextAlignment.center));
+
+    // --- Data Table ---
+    final grid = PdfGrid();
+    grid.columns.add(count: 7);
+    
+    // Column widths relative to total
+    // 0: Start (15%), 1: Product (20%), 2: End Time (10%), 3: Temp (10%), 4: Compliance (10%), 5: Actions (20%), 6: Sign (15%)
+    
+    final header = grid.headers.add(1)[0];
+    header.cells[0].value = 'Data/godz\nrozpoczęcia';
+    header.cells[1].value = 'Rodzaj\nproduktu';
+    header.cells[2].value = 'Godz.\nkoniec';
+    header.cells[3].value = 'Temp.\n(2h)';
+    header.cells[4].value = 'Zgodność';
+    header.cells[5].value = 'Działania\nkorygujące';
+    header.cells[6].value = 'Podpis';
+
+    // Style header
+    for(int i=0; i<header.cells.count; i++) {
+      header.cells[i].style.backgroundBrush = PdfBrushes.lightGray;
+      header.cells[i].style.font = boldFont;
+    }
+
+    // Add Data Rows
+    for (var log in params.logs) {
+      final data = log['data'] as Map<String, dynamic>;
+      final row = grid.rows.add();
+      
+      // 1. Start Date/Time
+      // We expect 'prep_date' (YYYY-MM-DD or similar) and 'start_time' (HH:MM or TimeOfDay)
+      // If data structure varies, we handle gracefully.
+      final prepDate = data['prep_date']?.toString() ?? '-';
+      final startTime = data['start_time']?.toString() ?? '-';
+      // Format nicely if possible, e.g. "12.02 10:00"
+      // Check if prepDate is full timestamp
+      String dateStr = prepDate; 
+      try {
+         final dt = DateTime.parse(prepDate);
+         dateStr = '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}';
+      } catch(_) {}
+      
+      row.cells[0].value = '$dateStr\n$startTime';
+
+      // 2. Product
+      row.cells[1].value = data['product_name']?.toString() ?? '-';
+
+      // 3. End Time
+      row.cells[2].value = data['end_time']?.toString() ?? '-';
+
+      // 4. Temp (2h check)
+      final tempVal = data['temp_2h'];
+      row.cells[3].value = tempVal != null ? '$tempVal°C' : '-';
+
+      // 5. Compliance
+      // Logic: Target 20, Tolerance +10 = Max 30.
+      bool isCompliant = false;
+      if (tempVal != null && (tempVal is num || double.tryParse(tempVal.toString()) != null)) {
+         final t = tempVal is num ? tempVal : double.parse(tempVal.toString());
+         isCompliant = t <= 30.0;
+      }
+      row.cells[4].value = isCompliant ? 'TAK' : 'NIE';
+      if (!isCompliant) {
+        row.cells[4].style.textBrush = PdfBrushes.red;
+        row.cells[4].style.font = boldFont;
+      }
+
+      // 6. Corrective Actions (comments)
+      final comments = data['comments'] ?? data['notes'] ?? '';
+      row.cells[5].value = comments.toString();
+
+      // 7. Signature (User who created)
+      // Since logs usually map user_id -> Name via repository logic before reaching here, or we use userName param?
+      // For now, let's use the main userName passed to function if it matches, or simplistic placeholder.
+      // Often the report is for one user (the one generating), or we'd need to fetch user names.
+      // Assuming 'user_id' is in log.
+      row.cells[6].value = 'User ${log['user_id'].toString().substring(0,4)}...'; // Simplified
+    }
+
+    grid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, 120, 0, 0), // Start after header
+    );
+
+    // Footer
+    final footerY = page.getClientSize().height - 30;
+    graphics.drawString('Sprawdził/zatwierdził: ...........................', font, bounds: Rect.fromLTWH(0, footerY, 300, 20));
+
+    final List<int> bytes = await document.save();
+    document.dispose();
+    return bytes;
+  }
 }
 
-class _PdfGenerationParams {
+class _Ccp3ReportParams {
+  final List<Map<String, dynamic>> logs;
+  final String userName;
+  final String date;
+  final Uint8List? venueLogo;
+
+  _Ccp3ReportParams({
+    required this.logs,
+    required this.userName,
+    required this.date,
+    this.venueLogo,
+  });
+}
   final String title;
   final FormDefinition definition;
   final Map<String, dynamic> data;

@@ -15,6 +15,23 @@ class ReportsRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Future<List<Map<String, dynamic>>> getCoolingLogs(DateTime date) async {
+    // Determine start and end of the day
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+
+    final response = await SupabaseService.client
+        .from('haccp_logs')
+        .select()
+        .eq('category', 'gmp')
+        .eq('form_id', 'food_cooling') // Specific filter for cooling logs
+        .gte('created_at', start.toIso8601String())
+        .lte('created_at', end.toIso8601String())
+        .order('created_at');
+    
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   Future<List<Map<String, dynamic>>> getGmpLogs(DateTime start, DateTime end) async {
     // CORRECTED: Read from unified 'haccp_logs' table with category filter
     final response = await SupabaseService.client
