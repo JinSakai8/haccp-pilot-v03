@@ -260,6 +260,7 @@ class PdfService {
   }
 
   static Future<Uint8List> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
+    debugPrint('🔵 _generateCcp3PdfIsolate: Start');
     final document = PdfDocument();
     
     // Set margins to match a standard printable sheet (approx 1 cm/0.5 inch)
@@ -268,7 +269,8 @@ class PdfService {
     final page = document.pages.add();
     final graphics = page.graphics;
     
-    // Fonts
+    // Fonts - Start with standard, but have fallbacks in mind if needed
+    // Helvetica is standard PDF font, usually safe.
     final font = PdfStandardFont(PdfFontFamily.helvetica, 9);
     final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 10, style: PdfFontStyle.bold);
     final titleFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
@@ -276,8 +278,16 @@ class PdfService {
     // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
     topGrid.columns.add(count: 3);
-    // Set proportional widths based on page width (~555 points)
-    final pageWidth = page.getClientSize().width;
+    
+    // Safety check for page width
+    double pageWidth = page.getClientSize().width;
+    if (pageWidth <= 0) {
+      debugPrint('⚠️ Page width is <= 0 ($pageWidth), defaulting to 500');
+      pageWidth = 500;
+    }
+    
+    debugPrint('🔵 _generateCcp3PdfIsolate: Page Width = $pageWidth');
+    
     topGrid.columns[0].width = pageWidth * 0.35;
     topGrid.columns[1].width = pageWidth * 0.35;
     topGrid.columns[2].width = pageWidth * 0.30;
@@ -302,6 +312,7 @@ class PdfService {
     // Set height for consistency
     topRow.height = 50;
 
+    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing header...');
     final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
     var currentY = topLayout!.bounds.bottom;
 
@@ -336,18 +347,11 @@ class PdfService {
     currentY = limitLayout!.bounds.bottom;
 
     // --- Data Grid ---
+    debugPrint('🔵 _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs');
     final grid = PdfGrid();
     grid.columns.add(count: 7);
     
     // Column Mapping & Widths
-    // 0: Data/godz rozpoczęcia (14%)
-    // 1: Rodzaj pierogów (22%)
-    // 2: Godz. zakończenia (12%)
-    // 3: Wartość temperatury (12%)
-    // 4: Zgodność (10%)
-    // 5: Działania korygujące (20%)
-    // 6: Podpis (10%)
-    
     grid.columns[0].width = pageWidth * 0.14;
     grid.columns[1].width = pageWidth * 0.22;
     grid.columns[2].width = pageWidth * 0.12;
@@ -401,14 +405,14 @@ class PdfService {
       // 4. Temp (New 'temperature' or fallback to 'temp_2h'/'end_temp')
       final tempVal = data['temperature'] ?? data['temp_2h'] ?? data['end_temp'];
       row.cells[3].value = tempVal != null ? '$tempVal' : '-'; 
+      // Ensure text is centered
+      row.cells[3].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
 
       // 5. Compliance
-      // Priority: 1. explicit 'compliance' toggle, 2. calculation from temp
       bool isCompliant = false;
       if (data.containsKey('compliance')) {
          isCompliant = data['compliance'] == true;
       } else {
-         // Fallback calculation for old logs
          if (tempVal != null) {
             final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
             if (t != null) isCompliant = t <= 30.0;
@@ -416,7 +420,6 @@ class PdfService {
       }
       
       row.cells[4].value = isCompliant ? 'TAK' : 'NIE';
-
       if (!isCompliant) {
         row.cells[4].style.textBrush = PdfBrushes.red;
         row.cells[4].style.font = boldFont;
@@ -427,11 +430,10 @@ class PdfService {
       row.cells[5].value = comments?.toString() ?? '';
 
       // 7. Signature (Initials)
-      row.cells[6].value = ''; // Leave blank for manual sign or fill if digital
+      row.cells[6].value = ''; 
     }
     
-    // Add empty rows to fill page if needed (Excel sheets often have blank lines)
-    // Adding 10 empty lines for printing usage
+    // Add empty rows
     for(int i=0; i<15; i++) {
        final row = grid.rows.add();
        for(int j=0; j<7; j++) row.cells[j].value = '';
@@ -442,27 +444,32 @@ class PdfService {
     for(int i=0; i<grid.rows.count; i++) {
       final row = grid.rows[i];
       for(int j=0; j<row.cells.count; j++) {
-        // Center align everything except maybe Product Name
+        // Center align everything except maybe Product Name (1) and Actions (5)
         if (j != 1 && j != 5) {
            row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
         } else {
            row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.left, lineAlignment: PdfVerticalAlignment.middle);
-           // Add padding for left aligned text
            row.cells[j].style.cellPadding = PdfPaddings(left: 4, right: 2, top: 2, bottom: 2);
         }
-        row.cells[j].style.font = font;
+        // Explicitly set font for cells if not already set (compliance warning sets it)
+        if (row.cells[j].style.font == null) {
+          row.cells[j].style.font = font;
+        }
       }
     }
 
+    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing data grid...');
     grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
 
     // Footer Signature Line
     final footerY = page.getClientSize().height - 40;
     graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
     graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
-
+    
+    debugPrint('🔵 _generateCcp3PdfIsolate: Saving document...');
     final List<int> bytes = await document.save();
     document.dispose();
+    debugPrint('🟢 _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.');
     return Uint8List.fromList(bytes);
   }
 }
