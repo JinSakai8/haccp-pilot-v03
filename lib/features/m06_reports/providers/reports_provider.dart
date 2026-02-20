@@ -9,6 +9,7 @@ import 'package:haccp_pilot/features/shared/config/form_definitions.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
 import 'package:haccp_pilot/features/m06_reports/services/temperature_aggregator_service.dart';
 import 'package:haccp_pilot/features/m06_reports/services/html_report_generator.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 import 'dart:convert'; // for utf8
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -43,7 +44,9 @@ class ReportsNotifier extends _$ReportsNotifier {
     required DateTime month,
     String? sensorId,
   }) async {
-    debugPrint('M06: Generating report: $reportType, Month: $month, Sensor: $sensorId');
+    AppLogger.debug(
+      'Generating report: type=$reportType month=$month sensor=$sensorId',
+    );
     state = const AsyncLoading();
     try {
       final start = DateTime(month.year, month.month, 1);

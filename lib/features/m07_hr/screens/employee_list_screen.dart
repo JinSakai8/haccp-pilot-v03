@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/router/route_names.dart';
 
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/constants/design_tokens.dart';
@@ -29,12 +30,12 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           children: [
             HaccpTopBar(
               title: 'Pracownicy',
-              onBackPressed: () => context.go('/hr'), // Go back to HR Dashboard
+              onBackPressed: () => context.go(RouteNames.hr), // Go back to HR Dashboard
               actions: [
                 IconButton(
                   icon: const Icon(Icons.person_add, size: 32),
                   onPressed: () async {
-                    final success = await context.push<bool>('/hr/add');
+                    final success = await context.push<bool>(RouteNames.hrAdd);
                     if (success == true && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -153,7 +154,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push('/hr/employee/${emp.id}'),
+        onTap: () => context.push(RouteNames.hrEmployee(emp.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

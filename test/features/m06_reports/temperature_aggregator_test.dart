@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
-import 'package:haccp_pilot/features/m06_reports/models/daily_temperature_stats.dart';
 import 'package:haccp_pilot/features/m06_reports/services/temperature_aggregator_service.dart';
 
 void main() {

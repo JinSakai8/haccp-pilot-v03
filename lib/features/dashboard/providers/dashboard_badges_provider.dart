@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:haccp_pilot/core/services/supabase_service.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 import '../../../core/providers/auth_provider.dart';
 
 part 'dashboard_badges_provider.g.dart';
@@ -14,7 +16,7 @@ class DashboardBadges extends _$DashboardBadges {
   }
 
   Future<Map<String, String?>> _fetchBadges() async {
-    final supabase = Supabase.instance.client;
+    final supabase = SupabaseService.client;
     final zone = ref.read(currentZoneProvider);
     
     // Default empty state
@@ -81,7 +83,7 @@ class DashboardBadges extends _$DashboardBadges {
 
     } catch (e) {
       // badge fetch error, just return empty
-      print('Badge fetch error: $e');
+      AppLogger.error('Dashboard badges fetch failed', e);
     }
 
     return badges;

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../shared/models/form_definition.dart';
 import '../../shared/widgets/dynamic_form/dynamic_form_renderer.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/constants/design_tokens.dart';
+import '../../../core/router/route_names.dart';
+import '../../../core/services/app_logger.dart';
 import '../../shared/providers/dynamic_form_provider.dart';
 import '../providers/gmp_provider.dart';
 import '../../../core/widgets/success_overlay.dart';
@@ -81,9 +82,9 @@ class FoodCoolingFormScreen extends ConsumerWidget {
       final dateStr = state.values['prep_date']?.toString() ?? DateTime.now().toIso8601String().split('T')[0];
 
       try {
-        context.push('/reports/preview/ccp3?date=$dateStr');
+        context.push('${RouteNames.reportsPreviewCcp3}?date=$dateStr');
       } catch (e) {
-        debugPrint('Report navigation failed: $e');
+        AppLogger.error('Report preview navigation failed', e);
         if (context.mounted) context.pop();
       }
 

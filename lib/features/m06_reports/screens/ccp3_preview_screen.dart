@@ -11,66 +11,67 @@ import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/services/file_opener.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 
 final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
-  debugPrint('🔵 CCP3 Provider: START for date=$date');
+  AppLogger.debug('🔵 CCP3 Provider: START for date=$date');
   
   try {
     final repo = ref.read(reportsRepositoryProvider);
     final user = ref.read(currentUserProvider);
-    debugPrint('🔵 CCP3 Provider: user=${user?.fullName ?? "NULL"}');
+    AppLogger.debug('🔵 CCP3 Provider: user=${user?.fullName ?? "NULL"}');
     
     String? venueId;
     try {
       final zones = await ref.watch(employeeZonesProvider.future);
       venueId = zones.isNotEmpty ? zones.first.venueId : null;
-      debugPrint('🔵 CCP3 Provider: zones=${zones.length}, venueId=$venueId');
+      AppLogger.debug('🔵 CCP3 Provider: zones=${zones.length}, venueId=$venueId');
     } catch (e) {
-      debugPrint('🔴 CCP3 Provider: employeeZones FAILED: $e');
+      AppLogger.debug('🔴 CCP3 Provider: employeeZones FAILED: $e');
     }
 
     // 1. Try to fetch saved report first (Cache)
     if (venueId != null) {
       try {
         final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
-        debugPrint('🔵 CCP3 Provider: savedMetadata=${savedMetadata != null ? "FOUND" : "NULL"}');
+        AppLogger.debug('🔵 CCP3 Provider: savedMetadata=${savedMetadata != null ? "FOUND" : "NULL"}');
         if (savedMetadata != null) {
            final path = savedMetadata['storage_path'];
            final bytes = await repo.downloadReport(path);
            if (bytes != null) {
-             debugPrint('🟢 CCP3 Provider: Loaded from cache, ${bytes.length} bytes');
+             AppLogger.debug('🟢 CCP3 Provider: Loaded from cache, ${bytes.length} bytes');
              return bytes;
            }
         }
       } catch (e) {
-        debugPrint('🟡 CCP3 Provider: Cache lookup failed (non-fatal): $e');
+        AppLogger.debug('🟡 CCP3 Provider: Cache lookup failed (non-fatal): $e');
       }
     }
 
     // 2. If not found in cache, generate new
-    debugPrint('🔵 CCP3 Provider: Fetching cooling logs...');
+    AppLogger.debug('🔵 CCP3 Provider: Fetching cooling logs...');
     final logs = await repo.getCoolingLogs(date);
-    debugPrint('🔵 CCP3 Provider: getCoolingLogs returned ${logs.length} logs');
+    AppLogger.debug('🔵 CCP3 Provider: getCoolingLogs returned ${logs.length} logs');
     
     if (logs.isEmpty) {
-      debugPrint('🟡 CCP3 Provider: No logs found → returning null');
+      AppLogger.debug('🟡 CCP3 Provider: No logs found → returning null');
       return null;
     }
 
     // Log first entry for debugging
-    debugPrint('🔵 CCP3 Provider: First log data keys: ${(logs.first['data'] as Map?)?.keys.toList()}');
+    AppLogger.debug('🔵 CCP3 Provider: First log data keys: ${(logs.first['data'] as Map?)?.keys.toList()}');
 
     final userName = user?.fullName ?? 'Użytkownik';
     
     final pdfService = PdfService();
-    debugPrint('🔵 CCP3 Provider: Generating PDF...');
+    AppLogger.debug('🔵 CCP3 Provider: Generating PDF...');
     final bytes = await pdfService.generateCcp3Report(
       logs: logs,
       userName: userName,
       date: date.toIso8601String().split('T')[0],
       venueLogo: null, 
     );
-    debugPrint('🟢 CCP3 Provider: PDF generated, ${bytes.length} bytes');
+    AppLogger.debug('🟢 CCP3 Provider: PDF generated, ${bytes.length} bytes');
     
     // 3. Persist (Auto-save) — non-blocking, errors won't break display
     if (venueId != null && user != null && bytes.isNotEmpty) {
@@ -92,17 +93,17 @@ final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, dat
                userId: user.id,
                metadata: {'generated_automatically': true},
             );
-            debugPrint('🟢 CCP3 Provider: Report persisted to $uploadedPath');
+            AppLogger.debug('🟢 CCP3 Provider: Report persisted to $uploadedPath');
          }
        } catch (e) {
-         debugPrint('🟡 CCP3 Provider: Persistence failed (non-fatal): $e');
+         AppLogger.debug('🟡 CCP3 Provider: Persistence failed (non-fatal): $e');
        }
     }
 
     return bytes;
   } catch (e, stackTrace) {
-    debugPrint('🔴 CCP3 Provider: FATAL ERROR: $e');
-    debugPrint('🔴 Stack: $stackTrace');
+    AppLogger.debug('🔴 CCP3 Provider: FATAL ERROR: $e');
+    AppLogger.debug('🔴 Stack: $stackTrace');
     rethrow;
   }
 });
@@ -140,7 +141,7 @@ class Ccp3PreviewScreen extends ConsumerWidget {
       body: pdfAsync.when(
         data: (bytes) {
           if (bytes == null) {
-            debugPrint('🟡 CCP3 Screen: bytes == null → showing empty state');
+            AppLogger.debug('🟡 CCP3 Screen: bytes == null → showing empty state');
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -162,7 +163,7 @@ class Ccp3PreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          debugPrint('🟢 CCP3 Screen: Rendering PDF, ${bytes.length} bytes');
+          AppLogger.debug('🟢 CCP3 Screen: Rendering PDF, ${bytes.length} bytes');
           return Column(
             children: [
               // Debug info bar (visible during development)
@@ -206,7 +207,7 @@ class Ccp3PreviewScreen extends ConsumerWidget {
           ),
         ),
         error: (err, stack) {
-          debugPrint('🔴 CCP3 Screen: ERROR: $err\n$stack');
+          AppLogger.debug('🔴 CCP3 Screen: ERROR: $err\n$stack');
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -234,3 +235,4 @@ class Ccp3PreviewScreen extends ConsumerWidget {
     );
   }
 }
+

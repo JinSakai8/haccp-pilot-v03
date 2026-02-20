@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:haccp_pilot/core/services/storage_service.dart';
 import 'package:haccp_pilot/core/constants/design_tokens.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 
 class HaccpCameraScreen extends StatefulWidget {
   final String venueId;
@@ -55,7 +56,9 @@ class _HaccpCameraScreenState extends State<HaccpCameraScreen> {
     if (mounted) {
       setState(() => _isUploading = false);
       if (uploadedPath != null) {
-        if (kDebugMode) print("Returning path: $uploadedPath");
+        if (kDebugMode) {
+          AppLogger.debug('Waste image uploaded to path: $uploadedPath');
+        }
         Navigator.pop(context, uploadedPath);
       } else {
         setState(() => _uploadError = "Błąd wysyłania. Spróbuj ponownie.");

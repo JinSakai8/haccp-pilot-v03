@@ -2,14 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:haccp_pilot/core/router/route_names.dart';
 import 'package:haccp_pilot/core/widgets/haccp_tile.dart'; // Assume this exists
 import 'package:haccp_pilot/core/widgets/haccp_stepper.dart';
 import 'package:haccp_pilot/core/widgets/haccp_long_press_button.dart';
+import 'package:haccp_pilot/core/widgets/haccp_numpad_input.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m05_waste/models/waste_record.dart';
 import 'package:haccp_pilot/features/m05_waste/repositories/waste_repository.dart';
-import 'package:haccp_pilot/features/m05_waste/screens/haccp_camera_screen.dart';
-import '../../shared/widgets/dynamic_form/haccp_numpad_input.dart';
 
 // Assuming AuthProvider/ZoneProvider exists or we get IDs passed in.
 // For now, I'll pass userId/zoneId/venueId in constructor or assume providers.
@@ -43,7 +43,6 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
   String? _selectedCompany;
   final TextEditingController _kpoController = TextEditingController();
   String? _photoPath;
-  bool _isConverting = false;
 
   final List<String> _companies = [
     'EcoOdbiór Sp. z o.o.',
@@ -74,7 +73,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
     // I will use Navigator for simplicity within the generated file, compatible with both.
     
     final result = await context.push<String>(
-      '/waste/camera',
+      RouteNames.wasteCamera,
       // extra: venueId if needed, but HaccpCameraScreen might need refactoring to accept it via route params or provider
       // Looking at app_router, /waste/camera uses a builder that reads provider.
       // So checking HaccpCameraScreen constructor.
@@ -82,7 +81,7 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
       // So just push '/waste/camera'.
     );
 
-    if (result != null && result is String) {
+    if (result != null) {
       setState(() {
         _photoPath = result;
       });
@@ -102,8 +101,6 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
       );
       return;
     }
-
-    setState(() => _isConverting = true);
 
     try {
       final record = WasteRecord(
@@ -139,8 +136,6 @@ class _WasteRegistrationFormScreenState extends ConsumerState<WasteRegistrationF
           SnackBar(content: Text('Błąd: $e'), backgroundColor: Colors.red),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isConverting = false);
     }
   }
 

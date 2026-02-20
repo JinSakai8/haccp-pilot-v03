@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
-import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
+import 'package:haccp_pilot/core/router/route_names.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 
@@ -104,7 +104,7 @@ class _ReportTile extends StatelessWidget {
         onTap: () {
           // Navigate to preview
           if (type == 'ccp3_cooling') {
-             context.push('/reports/preview/ccp3?date=$dateStr');
+             context.push('${RouteNames.reportsPreviewCcp3}?date=$dateStr');
           } else {
              // Fallback or other viewers
              ScaffoldMessenger.of(context).showSnackBar(

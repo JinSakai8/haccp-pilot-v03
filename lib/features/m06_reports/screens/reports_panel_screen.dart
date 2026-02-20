@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:haccp_pilot/core/router/route_names.dart';
 
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 
 class ReportsPanelScreen extends ConsumerStatefulWidget {
   const ReportsPanelScreen({super.key});
@@ -33,7 +34,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'Archiwum Raportów',
-            onPressed: () => context.push('/reports/history'),
+            onPressed: () => context.push(RouteNames.reportsHistory),
           ),
         ],
       ),
@@ -299,7 +300,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
       return;
     }
 
-    debugPrint('Opening sensor selector for zone: ${zone.id}');
+    AppLogger.debug('Opening sensor selector for zone=${zone.id}');
 
     showModalBottomSheet(
       context: context,
@@ -308,7 +309,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
         return sensorsAsync.when(
           data: (sensors) {
-             debugPrint('Sensors loaded: ${sensors.length} for zone ${zone.name}');
+             AppLogger.debug('Loaded ${sensors.length} sensors for zone=${zone.name}');
              return Container(
                padding: const EdgeInsets.symmetric(vertical: 16),
                child: Column(
@@ -358,7 +359,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
             child: Center(child: CircularProgressIndicator())
           ),
           error: (e, st) {
-             debugPrint('Sensor load error: $e');
+             AppLogger.error('Sensor load failed in report selector', e);
              return SizedBox(
               height: 200, 
               child: Center(child: Text('Błąd: $e', style: const TextStyle(color: AppTheme.error)))

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/route_names.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/widgets/haccp_tile.dart';
 
@@ -19,22 +20,22 @@ class GmpProcessSelectorScreen extends StatelessWidget {
           HaccpTile(
             icon: Icons.outdoor_grill,
             label: 'Pieczenie Mięs',
-            onTap: () => context.push('/gmp/roasting'),
+            onTap: () => context.push(RouteNames.gmpRoasting),
           ),
           HaccpTile(
             icon: Icons.ac_unit,
             label: 'Chłodzenie Żywności',
-            onTap: () => context.push('/gmp/cooling'),
+            onTap: () => context.push(RouteNames.gmpCooling),
           ),
           HaccpTile(
             icon: Icons.local_shipping,
             label: 'Kontrola Dostaw',
-            onTap: () => context.push('/gmp/delivery'),
+            onTap: () => context.push(RouteNames.gmpDelivery),
           ),
           HaccpTile(
             icon: Icons.history,
             label: 'Historia Wpisów',
-            onTap: () => context.push('/gmp/history'),
+            onTap: () => context.push(RouteNames.gmpHistory),
           ),
         ],
       ),

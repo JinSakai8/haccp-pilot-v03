@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/widgets/haccp_date_picker.dart';
+import '../../../../core/widgets/haccp_numpad_input.dart';
+import '../../../../core/widgets/haccp_stepper.dart';
+import '../../../../core/widgets/haccp_text_input.dart';
+import '../../../../core/widgets/haccp_time_picker.dart';
+import '../../../../core/widgets/haccp_toggle.dart';
 import '../../models/form_definition.dart';
 import '../../providers/dynamic_form_provider.dart';
-import 'haccp_stepper.dart';
-import 'haccp_toggle.dart';
-import 'haccp_numpad_input.dart';
 import 'haccp_dropdown.dart';
-import 'haccp_date_picker.dart';
-import 'haccp_time_picker.dart';
-import 'haccp_text_input.dart';
 
 class DynamicFormRenderer extends ConsumerWidget {
   final String formId;
@@ -80,20 +80,20 @@ class DynamicFormRenderer extends ConsumerWidget {
           sourceType: config.config['type'] as String?,
         );
       case HaccpFieldType.date:
+        final parsedDate = state.value is String
+            ? DateTime.tryParse(state.value as String)
+            : (state.value as DateTime?);
         return HaccpDatePicker(
-          value: state.value is String ? DateTime.tryParse(state.value) : (state.value as DateTime?),
-          onChanged: (val) => notifier.updateField(config.id, val),
+          value: parsedDate,
+          onChanged: (val) => notifier.updateField(config.id, _formatIsoDate(val)),
         );
       case HaccpFieldType.time:
+        final parsedTime = state.value is String
+            ? _parseTimeString(state.value as String)
+            : (state.value as TimeOfDay?);
         return HaccpTimePicker(
-          value: state.value is String 
-             ? TimeOfDay(
-                 hour: int.parse((state.value as String).split(':')[0]), 
-                 minute: int.parse((state.value as String).split(':')[1])
-               ) 
-             : (state.value as TimeOfDay?),
-          // If the value is stored as "HH:mm" string
-          onChanged: (val) => notifier.updateField(config.id, val),
+          value: parsedTime,
+          onChanged: (val) => notifier.updateField(config.id, _formatTimeOfDay(val)),
         );
       case HaccpFieldType.stepper:
         return HaccpStepper(
@@ -134,6 +134,29 @@ class DynamicFormRenderer extends ConsumerWidget {
           child: Text("Widget dla ${config.type.name} wkrótce"),
         );
     }
+  }
+
+  String _formatIsoDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  TimeOfDay? _parseTimeString(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
   Widget _buildWarningSection(FormFieldConfig config, DynamicFieldState state, DynamicFormNotifier notifier) {

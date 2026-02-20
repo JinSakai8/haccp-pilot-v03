@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/router/route_names.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/widgets/empty_state_widget.dart';
 import '../../m05_waste/models/waste_record.dart';
@@ -53,7 +54,7 @@ class _WastePanelScreenState extends ConsumerState<WastePanelScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            onPressed: () => context.push('/waste/history'),
+            onPressed: () => context.push(RouteNames.wasteHistory),
             tooltip: 'Pełna historia',
           ),
         ],
@@ -67,7 +68,7 @@ class _WastePanelScreenState extends ConsumerState<WastePanelScreen> {
                   icon: Icons.recycling,
                   buttonLabel: 'Zarejestruj Odpad',
                   onButtonPressed: () async {
-                    await context.push('/waste/register');
+                    await context.push(RouteNames.wasteRegister);
                     _loadData();
                   },
                 )
@@ -98,7 +99,7 @@ class _WastePanelScreenState extends ConsumerState<WastePanelScreen> {
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          await context.push('/waste/register');
+          await context.push(RouteNames.wasteRegister);
           _loadData(); // Refresh on return
         },
         backgroundColor: const Color(0xFFD2661E),

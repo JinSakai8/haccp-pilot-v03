@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/route_names.dart';
 
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_tile.dart';
@@ -21,15 +22,15 @@ class HrDashboardScreen extends ConsumerWidget {
           children: [
             HaccpTopBar(
               title: 'HR & Personel',
-              onBackPressed: () => context.go('/hub'), // Back to Hub
+              onBackPressed: () => context.go(RouteNames.hub), // Back to Hub
               actions: [
                  IconButton(
                   icon: const Icon(Icons.list, size: 32),
-                  onPressed: () => context.push('/hr/list'),
+                  onPressed: () => context.push(RouteNames.hrList),
                 ),
                 IconButton(
                   icon: const Icon(Icons.person_add, size: 32),
-                  onPressed: () => context.push('/hr/add'),
+                  onPressed: () => context.push(RouteNames.hrAdd),
                 ),
               ],
             ),
@@ -77,7 +78,7 @@ class HrDashboardScreen extends ConsumerWidget {
                             child: HaccpTile(
                               icon: Icons.people,
                               label: 'Lista Pracowników',
-                              onTap: () => context.push('/hr/list'),
+                              onTap: () => context.push(RouteNames.hrList),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -85,7 +86,7 @@ class HrDashboardScreen extends ConsumerWidget {
                             child: HaccpTile(
                               icon: Icons.person_add,
                               label: 'Dodaj Pracownika',
-                              onTap: () => context.push('/hr/add'),
+                              onTap: () => context.push(RouteNames.hrAdd),
                             ),
                           ),
                         ],
@@ -137,7 +138,7 @@ class HrDashboardScreen extends ConsumerWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () => context.push('/hr/list'),
+            onPressed: () => context.push(RouteNames.hrList),
             style: ElevatedButton.styleFrom(
               backgroundColor: color.withOpacity(0.2),
               foregroundColor: color,

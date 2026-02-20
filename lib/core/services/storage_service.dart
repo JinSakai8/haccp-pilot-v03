@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'app_logger.dart';
 
 class StorageService {
   StorageService._();
@@ -36,7 +36,7 @@ class StorageService {
       return storagePath; 
       
     } catch (e) {
-      debugPrint('Upload Error: $e');
+      AppLogger.error('Waste photo upload failed', e);
       return null;
     }
   }

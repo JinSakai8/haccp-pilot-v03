@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/auth_io.dart';
+import 'app_logger.dart';
 
 class DriveService {
   static const _scopes = [drive.DriveApi.driveFileScope];
@@ -14,7 +15,7 @@ class DriveService {
   /// Returns the ID of the uploaded file.
   Future<String?> uploadReportBytes(Uint8List bytes, String fileName) async {
     if (kIsWeb) {
-      debugPrint('Google Drive upload not supported on web');
+      AppLogger.warning('Google Drive upload not supported on web');
       throw UnsupportedError('Google Drive upload nie jest dostępny w przeglądarce');
     }
 
@@ -46,7 +47,7 @@ class DriveService {
       client.close();
       return result.id;
     } catch (e) {
-      debugPrint('Drive Upload Error: $e');
+      AppLogger.error('Drive upload failed', e);
       rethrow;
     }
   }
@@ -73,7 +74,7 @@ class DriveService {
       client.close();
       return fileList.files ?? [];
     } catch (e) {
-      debugPrint('Drive List Error: $e');
+      AppLogger.error('Drive list failed', e);
       return [];
     }
   }

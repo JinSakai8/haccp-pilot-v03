@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/design_tokens.dart';
-import '../../../../core/widgets/haccp_num_pad.dart';
+import '../constants/design_tokens.dart';
+import 'haccp_num_pad.dart';
 
 class HaccpNumPadInput extends StatefulWidget {
   final double? value;
@@ -24,7 +24,10 @@ class HaccpNumPadInput extends StatefulWidget {
     this.textValue,
     this.onTextChanged,
     this.extraKeys = const [],
-  }) : assert(onChanged != null || onTextChanged != null, 'Must provide either onChanged (double) or onTextChanged (String)');
+  }) : assert(
+          onChanged != null || onTextChanged != null,
+          'Must provide either onChanged (double) or onTextChanged (String)',
+        );
 
   @override
   State<HaccpNumPadInput> createState() => _HaccpNumPadInputState();
@@ -53,7 +56,7 @@ class _HaccpNumPadInputState extends State<HaccpNumPadInput> {
 
   void _updateText() {
     if (_isStringMode) {
-       _controller.text = widget.textValue ?? '';
+      _controller.text = widget.textValue ?? '';
     } else {
       if (widget.value == null) {
         _controller.text = '';
@@ -107,9 +110,11 @@ class _HaccpNumPadInputState extends State<HaccpNumPadInput> {
           decoration: InputDecoration(
             labelText: widget.label,
             suffixText: widget.suffix,
-            suffixIcon: const Icon(Icons.dialpad, color: HaccpDesignTokens.primary),
+            suffixIcon:
+                const Icon(Icons.dialpad, color: HaccpDesignTokens.primary),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
+              borderRadius:
+                  BorderRadius.circular(HaccpDesignTokens.cardRadius),
             ),
           ),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -153,12 +158,14 @@ class _NumPadSheetState extends State<_NumPadSheet> {
 
   void _onDigit(String digit) {
     if (_currentValue.length >= widget.maxLength) return;
-    
-    // Decimal check only for numeric mode
+
     if (!widget.isStringMode) {
-       if ((digit == '.' || digit == ',') && (_currentValue.contains('.') || _currentValue.contains(','))) return;
+      if ((digit == '.' || digit == ',') &&
+          (_currentValue.contains('.') || _currentValue.contains(','))) {
+        return;
+      }
     }
-    
+
     setState(() {
       _currentValue += digit;
     });
@@ -189,8 +196,17 @@ class _NumPadSheetState extends State<_NumPadSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(widget.label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                Text(
+                  widget.label,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -205,13 +221,17 @@ class _NumPadSheetState extends State<_NumPadSheet> {
               alignment: Alignment.centerRight,
               child: Text(
                 _currentValue.isEmpty ? ' ' : _currentValue,
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             HaccpNumPad(
-              onDigitPressed: _onDigit, 
-              onClear: _onClear, 
+              onDigitPressed: _onDigit,
+              onClear: _onClear,
               onBackspace: _onBackspace,
               extraKeys: widget.extraKeys,
             ),
@@ -221,8 +241,13 @@ class _NumPadSheetState extends State<_NumPadSheet> {
               height: 60,
               child: ElevatedButton(
                 onPressed: () => widget.onConfirm(_currentValue),
-                style: ElevatedButton.styleFrom(backgroundColor: HaccpDesignTokens.primary),
-                child: const Text('ZATWIERDŹ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HaccpDesignTokens.primary,
+                ),
+                child: const Text(
+                  'ZATWIERDZ',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

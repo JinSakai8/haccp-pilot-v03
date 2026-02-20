@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/env_config.dart';
+import 'app_logger.dart';
 
 class SupabaseService {
   static Future<void> initialize() async {
@@ -15,7 +16,7 @@ class SupabaseService {
       try {
         await Supabase.instance.client.auth.signInAnonymously();
       } catch (e) {
-        print('Anonymous Auth Error: $e'); // Fail gracefully, might work if public
+        AppLogger.error('Anonymous auth failed during Supabase initialization', e);
       }
     }
   }

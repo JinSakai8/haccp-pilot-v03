@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/router/route_names.dart';
 
 /// Ekran 1.3 — Wybór Strefy
 /// Stitch ID: b208b776aee94143a96231a3095c553c
@@ -49,7 +50,7 @@ class ZoneSelectionScreen extends ConsumerWidget {
                     onPressed: () {
                       ref.read(currentUserProvider.notifier).clear();
                       ref.read(pinLoginProvider.notifier).reset();
-                      context.go('/login');
+                      context.go(RouteNames.login);
                     },
                     icon: const Icon(Icons.arrow_back, size: 28),
                     constraints: const BoxConstraints(
@@ -100,7 +101,7 @@ class ZoneSelectionScreen extends ConsumerWidget {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       ref.read(currentZoneProvider.notifier).set(
                           zones.first);
-                      context.go('/hub');
+                      context.go(RouteNames.hub);
                     });
                     return const Center(
                       child: CircularProgressIndicator(
@@ -126,7 +127,7 @@ class ZoneSelectionScreen extends ConsumerWidget {
                         icon: _iconForZone(zone.name),
                         onTap: () {
                           ref.read(currentZoneProvider.notifier).set(zone);
-                          context.go('/hub');
+                          context.go(RouteNames.hub);
                         },
                       );
                     },

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 
 class VenueRepository {
@@ -31,9 +31,9 @@ class VenueRepository {
       'name': name,
       'nip': nip,
       'address': address,
-      if (logoUrl != null) 'logo_url': logoUrl,
-      if (tempInterval != null) 'temp_interval': tempInterval,
-      if (tempThreshold != null) 'temp_threshold': tempThreshold,
+      ...?logoUrl != null ? {'logo_url': logoUrl} : null,
+      ...?tempInterval != null ? {'temp_interval': tempInterval} : null,
+      ...?tempThreshold != null ? {'temp_threshold': tempThreshold} : null,
     };
 
     await _client.from('venues').update(updates).eq('id', venueId);
@@ -53,7 +53,7 @@ class VenueRepository {
       final publicUrl = _client.storage.from(_brandingBucket).getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
-      debugPrint('Logo Upload Error: $e');
+      AppLogger.error('Logo upload failed', e);
       return null;
     }
   }

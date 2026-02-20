@@ -62,21 +62,21 @@ class DashboardHubScreen extends ConsumerWidget {
                         icon: Icons.cleaning_services,
                         label: 'Higiena GHP',
                         badgeText: badges['ghp'],
-                        onTap: () => context.push('/ghp'),
+                        onTap: () => context.push(RouteNames.ghp),
                       ),
                       // 4. Odpady BDO
                       HaccpTile(
                         icon: Icons.recycling,
                         label: 'Odpady BDO',
                         badgeText: badges['waste'],
-                        onTap: () => context.push('/waste'),
+                        onTap: () => context.push(RouteNames.waste),
                       ),
                        // 5. Raporty
                       HaccpTile(
                         icon: Icons.bar_chart,
                         label: 'Raporty',
                         badgeText: badges['reports'],
-                        onTap: () => context.push('/reports'),
+                        onTap: () => context.push(RouteNames.reports),
                       ),
                        // 6. HR (Manager only)
                       HaccpTile(
@@ -84,14 +84,14 @@ class DashboardHubScreen extends ConsumerWidget {
                         label: 'HR & Personel',
                         badgeText: badges['hr'],
                         isVisible: isManager,
-                        onTap: () => context.push('/hr'),
+                        onTap: () => context.push(RouteNames.hr),
                       ),
                        // 7. Ustawienia (Manager only)
                       HaccpTile(
                         icon: Icons.settings,
                         label: 'Ustawienia',
                         isVisible: isManager,
-                        onTap: () => context.push('/settings'),
+                        onTap: () => context.push(RouteNames.settings),
                       ),
                     ],
                   );

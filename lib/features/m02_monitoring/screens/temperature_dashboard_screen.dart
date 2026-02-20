@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/core/router/route_names.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/sensor.dart';
@@ -30,7 +31,7 @@ class TemperatureDashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_active, color: Colors.orange),
-            onPressed: () => context.push('/monitoring/alarms'),
+            onPressed: () => context.push(RouteNames.monitoringAlarms),
           ),
         ],
       ),
@@ -54,7 +55,8 @@ class TemperatureDashboardScreen extends ConsumerWidget {
                       .firstOrNull; // Requires Dart 3
 
                   return InkWell(
-                    onTap: () => context.push('/monitoring/chart/${sensor.id}'),
+                    onTap: () =>
+                        context.push(RouteNames.monitoringChart(sensor.id)),
                     child: _SensorCard(sensor: sensor, latestLog: latestLog),
                   );
                 },

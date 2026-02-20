@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/m01_auth/screens/splash_screen.dart';
 import '../../features/m01_auth/screens/pin_pad_screen.dart';
@@ -40,24 +39,27 @@ part 'app_router.g.dart';
 
 @riverpod
 GoRouter appRouter(Ref ref) {
+  final employee = ref.watch(currentUserProvider);
+
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: RouteNames.splash,
     redirect: (context, state) {
-      final employee = ref.read(currentUserProvider);
       final isLoggedIn = employee != null;
-      final isAuthRoute = state.matchedLocation == '/' || state.matchedLocation == '/login';
+      final isAuthRoute = state.matchedLocation == RouteNames.splash ||
+          state.matchedLocation == RouteNames.login;
 
       // Guard 1: Not logged in -> force login
-      if (!isLoggedIn && !isAuthRoute) return '/login';
+      if (!isLoggedIn && !isAuthRoute) return RouteNames.login;
 
       // Guard 2: Logged in on login page -> hub
-      if (isLoggedIn && isAuthRoute) return '/hub';
+      if (isLoggedIn && isAuthRoute) return RouteNames.hub;
 
-      // Guard 3: Role-based (M07 HR)
-      final isHrRoute = state.matchedLocation.startsWith('/hr');
-      if (isHrRoute) {
+      // Guard 3: Role-based (M07 HR, M08 Settings)
+      final isManagerRoute = state.matchedLocation.startsWith(RouteNames.hr) ||
+          state.matchedLocation.startsWith(RouteNames.settings);
+      if (isManagerRoute) {
         if (employee == null || !employee.isManager) {
-          return '/hub'; // Silent redirect if not authorized
+          return RouteNames.hub; // Silent redirect if not authorized
         }
       }
 
@@ -65,33 +67,33 @@ GoRouter appRouter(Ref ref) {
     },
     routes: [
       GoRoute(
-        path: '/',
+        path: RouteNames.splash,
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/login',
+        path: RouteNames.login,
         builder: (context, state) => const PinPadScreen(),
       ),
       GoRoute(
-        path: '/zone-select',
+        path: RouteNames.zoneSelection,
         builder: (context, state) => const ZoneSelectionScreen(),
       ),
       GoRoute(
-        path: '/hub',
+        path: RouteNames.hub,
         builder: (context, state) => const DashboardHubScreen(),
       ),
       
       // M02 Monitoring
       GoRoute(
-        path: '/monitoring',
+        path: RouteNames.monitoring,
         builder: (context, state) => const TemperatureDashboardScreen(),
       ),
       GoRoute(
-        path: '/monitoring/alarms',
+        path: RouteNames.monitoringAlarms,
         builder: (context, state) => const AlarmsPanelScreen(),
       ),
       GoRoute(
-        path: '/monitoring/chart/:deviceId',
+        path: '${RouteNames.monitoringChartBase}/:deviceId',
         builder: (context, state) {
            final deviceId = state.pathParameters['deviceId'] ?? 'unknown';
            return SensorChartScreen(deviceId: deviceId);
@@ -108,113 +110,113 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) => const MeatRoastingFormScreen(),
       ),
       GoRoute(
-        path: '/gmp/cooling',
+        path: RouteNames.gmpCooling,
         builder: (context, state) => const FoodCoolingFormScreen(),
       ),
       GoRoute(
-        path: '/gmp/delivery',
+        path: RouteNames.gmpDelivery,
         builder: (context, state) => const DeliveryControlFormScreen(),
       ),
       GoRoute(
-        path: '/gmp/history',
+        path: RouteNames.gmpHistory,
         builder: (context, state) => const GmpHistoryScreen(),
       ),
 
       // M05 Waste
       GoRoute(
-        path: '/waste',
+        path: RouteNames.waste,
         builder: (context, state) => const WastePanelScreen(),
       ),
       GoRoute(
-        path: '/waste/register',
+        path: RouteNames.wasteRegister,
         builder: (context, state) => const WasteRegistrationFormScreen(),
       ),
       GoRoute(
-        path: '/waste/camera',
+        path: RouteNames.wasteCamera,
         builder: (context, state) {
-           final venueId = ref.read(currentUserProvider)?.venues.firstOrNull ?? 'default'; 
+           final venueId = employee?.venues.firstOrNull ?? 'default'; 
            return HaccpCameraScreen(venueId: venueId);
         },
       ),
       GoRoute(
-        path: '/waste/history',
+        path: RouteNames.wasteHistory,
         builder: (context, state) => const WasteHistoryScreen(),
       ),
 
       // M04 GHP
       GoRoute(
-        path: '/ghp',
+        path: RouteNames.ghp,
         builder: (context, state) => const GhpCategorySelectorScreen(),
       ),
       GoRoute(
-        path: '/ghp/checklist',
+        path: RouteNames.ghpChecklist,
         builder: (context, state) {
           final categoryId = state.extra as String? ?? 'personnel'; // Default fallback
           return GhpChecklistScreen(categoryId: categoryId);
         },
       ),
       GoRoute(
-        path: '/ghp/history',
+        path: RouteNames.ghpHistory,
         builder: (context, state) => const GhpHistoryScreen(),
       ),
       GoRoute(
-        path: '/ghp/chemicals',
+        path: RouteNames.ghpChemicals,
         builder: (context, state) => const GhpChemicalsScreen(),
       ),
 
       // M08 Settings
       GoRoute(
-        path: '/settings',
+        path: RouteNames.settings,
         builder: (context, state) => const GlobalSettingsScreen(),
       ),
       GoRoute(
-        path: '/settings/products',
+        path: RouteNames.settingsProducts,
         builder: (context, state) => const ManageProductsScreen(),
       ),
 
       // M06 Reports
       GoRoute(
-        path: '/reports',
+        path: RouteNames.reports,
         builder: (context, state) => const ReportsPanelScreen(),
       ),
       GoRoute(
-        path: '/reports/preview/local',
+        path: RouteNames.reportsPreviewLocal,
         builder: (context, state) {
           final path = state.extra as String;
           return PdfPreviewScreen(filePath: path);
         },
       ),
       GoRoute(
-        path: '/reports/preview/ccp3',
+        path: RouteNames.reportsPreviewCcp3,
         builder: (context, state) {
           final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String().split('T')[0];
           return Ccp3PreviewScreen(date: DateTime.tryParse(dateStr) ?? DateTime.now());
         },
       ),
       GoRoute(
-        path: '/reports/history',
+        path: RouteNames.reportsHistory,
         builder: (context, state) => const SavedReportsScreen(),
       ),
       GoRoute(
-        path: '/reports/drive',
+        path: RouteNames.reportsDrive,
         builder: (context, state) => const DriveStatusScreen(),
       ),
 
       // M07 HR
       GoRoute(
-        path: '/hr',
+        path: RouteNames.hr,
         builder: (context, state) => const HrDashboardScreen(),
       ),
       GoRoute(
-        path: '/hr/list',
+        path: RouteNames.hrList,
         builder: (context, state) => const EmployeeListScreen(),
       ),
       GoRoute(
-        path: '/hr/add',
+        path: RouteNames.hrAdd,
         builder: (context, state) => const AddEmployeeScreen(),
       ),
       GoRoute(
-        path: '/hr/employee/:id',
+        path: '${RouteNames.hrEmployeeBase}/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return EmployeeProfileScreen(employeeId: id);

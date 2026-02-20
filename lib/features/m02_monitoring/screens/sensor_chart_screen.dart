@@ -233,8 +233,8 @@ class _SensorChartScreenState extends ConsumerState<SensorChartScreen> {
                child: ElevatedButton(
                  onPressed: () async {
                    final comment = _commentController.text;
-                   // Use selected label or default
-                   const label = 'Adnotacja'; // TODO: State for selected chip
+                   // Fallback label until chip selection state is introduced.
+                   const label = 'Adnotacja';
                    
                    await ref.read(annotationActionProvider.notifier)
                        .add(widget.deviceId, label, comment);

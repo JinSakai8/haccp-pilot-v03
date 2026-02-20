@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 import '../models/employee.dart';
 import '../models/zone.dart';
 import '../services/supabase_service.dart';
+import '../services/app_logger.dart';
 
 class AuthRepository {
   final _client = SupabaseService.client;
@@ -34,7 +35,7 @@ class AuthRepository {
     } catch (e) {
       // Handle RPC errors (e.g. function not found) or network issues
       // In production, we might want to log this.
-      print('Login Error: $e');
+      AppLogger.error('AuthRepository.loginWithPin failed', e);
       return null;
     }
   }

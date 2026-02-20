@@ -1,15 +1,15 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:haccp_pilot/features/shared/widgets/dynamic_form/haccp_numpad_input.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../../core/widgets/haccp_numpad_input.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_long_press_button.dart';
 import '../../../../core/widgets/haccp_stepper.dart';
-import '../../shared/widgets/dynamic_form/haccp_toggle.dart';
+import '../../../../core/widgets/haccp_toggle.dart';
 import '../../../../core/constants/design_tokens.dart';
 import '../providers/m08_providers.dart';
 import '../../../../core/providers/auth_provider.dart';
@@ -149,7 +149,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
           children: [
             HaccpTopBar(
               title: 'Ustawienia Lokalu',
-              onBackPressed: () => context.go('/hub'),
+              onBackPressed: () => context.go(RouteNames.hub),
             ),
             
             Expanded(
@@ -237,7 +237,7 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
                           subtitle: const Text('Edytuj listę potraw dla chłodzenia i obróbki', style: TextStyle(color: Colors.white70)),
                           leading: const Icon(Icons.restaurant_menu, color: HaccpDesignTokens.primary),
                           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-                          onTap: () => context.push('/settings/products'),
+                          onTap: () => context.push(RouteNames.settingsProducts),
                           tileColor: Colors.white10, 
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),

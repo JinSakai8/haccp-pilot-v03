@@ -2,10 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
 import 'package:haccp_pilot/core/services/file_opener.dart'; // Conditional import helper
+import 'package:haccp_pilot/core/services/supabase_service.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
 
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
@@ -36,7 +37,7 @@ class PdfService {
             try {
               // On web, we can only download from Supabase (no local files)
               try {
-                final Uint8List bytes = await Supabase.instance.client.storage
+                final Uint8List bytes = await SupabaseService.storage
                     .from('waste-docs')
                     .download(path);
                 
@@ -44,10 +45,10 @@ class PdfService {
                   images[field.id] = bytes;
                 }
               } catch (storageError) {
-                debugPrint('Supabase Storage Download Error for $path: $storageError');
+                AppLogger.debug('Supabase Storage Download Error for $path: $storageError');
               }
             } catch (e) {
-              debugPrint('Error loading image for PDF: $e');
+              AppLogger.debug('Error loading image for PDF: $e');
             }
         }
       }
@@ -247,7 +248,7 @@ class PdfService {
       openFileFromBytes(bytes, fileName);
     } else {
       // Mobile implementation would go here (e.g. open_file package)
-      debugPrint('Opening $fileName on mobile is not yet implemented.');
+      AppLogger.debug('Opening $fileName on mobile is not yet implemented.');
     }
   }
 
@@ -277,7 +278,7 @@ class PdfService {
   }
 
   static Future<Uint8List> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
-    debugPrint('🔵 _generateCcp3PdfIsolate: Start');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Start');
     final document = PdfDocument();
     
     // Set margins to match a standard printable sheet (approx 1 cm/0.5 inch)
@@ -298,11 +299,11 @@ class PdfService {
     // Safety check for page width
     double pageWidth = page.getClientSize().width;
     if (pageWidth <= 0) {
-      debugPrint('⚠️ Page width is <= 0 ($pageWidth), defaulting to 500');
+      AppLogger.debug('⚠️ Page width is <= 0 ($pageWidth), defaulting to 500');
       pageWidth = 500;
     }
     
-    debugPrint('🔵 _generateCcp3PdfIsolate: Page Width = $pageWidth');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Page Width = $pageWidth');
     
     topGrid.columns[0].width = pageWidth * 0.35;
     topGrid.columns[1].width = pageWidth * 0.35;
@@ -328,7 +329,7 @@ class PdfService {
     // Set height for consistency
     topRow.height = 50;
 
-    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing header...');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Drawing header...');
     final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
     var currentY = topLayout!.bounds.bottom;
 
@@ -363,7 +364,7 @@ class PdfService {
     currentY = limitLayout!.bounds.bottom;
 
     // --- Data Grid ---
-    debugPrint('🔵 _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs');
     final grid = PdfGrid();
     grid.columns.add(count: 7);
     
@@ -474,7 +475,7 @@ class PdfService {
       }
     }
 
-    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing data grid...');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Drawing data grid...');
     grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
 
     // Footer Signature Line
@@ -482,10 +483,10 @@ class PdfService {
     graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
     graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
     
-    debugPrint('🔵 _generateCcp3PdfIsolate: Saving document...');
+    AppLogger.debug('🔵 _generateCcp3PdfIsolate: Saving document...');
     final List<int> bytes = await document.save();
     document.dispose();
-    debugPrint('🟢 _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.');
+    AppLogger.debug('🟢 _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.');
     return Uint8List.fromList(bytes);
   }
 }
@@ -549,3 +550,4 @@ class _PdfTableParams {
     required this.boldFontBytes,
   });
 }
+

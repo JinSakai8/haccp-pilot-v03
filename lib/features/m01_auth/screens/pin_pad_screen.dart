@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/router/route_names.dart';
 import '../../../core/widgets/haccp_num_pad.dart';
 
 /// Ekran 1.2 — PIN Pad
@@ -58,7 +59,7 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
     if (!mounted) return;
 
     if (employee != null) {
-      context.go('/zone-select');
+      context.go(RouteNames.zoneSelection);
     } else {
       // Reset PIN field on error
       setState(() => _pin = '');

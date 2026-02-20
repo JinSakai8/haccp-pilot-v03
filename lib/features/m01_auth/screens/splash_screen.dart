@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/design_tokens.dart';
+import '../../../core/router/route_names.dart';
 
 /// Ekran 1.1 — Splash / Branding
 /// Stitch ID: bb89b45a89314b9a8899bcbc5e4354a3
@@ -34,7 +35,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Auto-navigate after 2 seconds (spec: auto-transition, no user interaction)
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) context.go('/login');
+      if (mounted) context.go(RouteNames.login);
     });
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/haccp_tile.dart';
 
@@ -19,31 +20,31 @@ class GhpCategorySelectorScreen extends StatelessWidget {
           HaccpTile(
             icon: Icons.person_outline,
             label: 'Personel',
-            onTap: () => context.push('/ghp/checklist', extra: 'personnel'),
+            onTap: () => context.push(RouteNames.ghpChecklist, extra: 'personnel'),
             color: Colors.blue,
           ),
           HaccpTile(
             icon: Icons.cleaning_services,
             label: 'Pomieszczenia',
-            onTap: () => context.push('/ghp/checklist', extra: 'rooms'),
+            onTap: () => context.push(RouteNames.ghpChecklist, extra: 'rooms'),
             color: Colors.green,
           ),
           HaccpTile(
             icon: Icons.build,
             label: 'Konserwacja',
-            onTap: () => context.push('/ghp/checklist', extra: 'maintenance'),
+            onTap: () => context.push(RouteNames.ghpChecklist, extra: 'maintenance'),
             color: Colors.orange,
           ),
           HaccpTile(
             icon: Icons.science,
             label: 'Środki Czystości',
-            onTap: () => context.push('/ghp/chemicals'), // Use dedicated screen
+            onTap: () => context.push(RouteNames.ghpChemicals), // Use dedicated screen
             color: Colors.purple,
           ),
            HaccpTile(
             icon: Icons.history,
             label: 'Historia',
-            onTap: () => context.push('/ghp/history'),
+            onTap: () => context.push(RouteNames.ghpHistory),
             color: Colors.grey,
           ),
         ],

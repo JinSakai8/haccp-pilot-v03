@@ -1,177 +1,155 @@
-# Dokumentacja Bazy Danych (Supabase)
+# Supabase Contract (Sprint 6 Refresh)
 
-Dokument opisuje aktualny stan bazy danych projektu HACCP Pilot, relacje między tabelami oraz powiązania z modułami aplikacji. Stan na: **Luty 2026**.
-
-> **Źródła:**
->
-> - [Code_description.MD](Code_description.MD) (Opis architektury)
-> - Pliki migracyjne SQL (`*_create_*.sql`, `*_update_*.sql`)
+Data aktualizacji: 2026-02-20  
+Status: Zgodne ze stanem kodu aplikacji
 
 ---
 
-## 1. Schemat Relacyjny (ERD)
+## 1. Punkt dostepu do Supabase
 
-```mermaid
-erDiagram
-    VENUES ||--o{ EMPLOYEES : "zatrudnia"
-    VENUES ||--o{ ZONES : "posiada"
-    VENUES ||--o{ PRODUCTS : "menu lokalne"
-    VENUES ||--o{ WASTE_RECORDS : "generuje"
-    VENUES ||--o{ GENERATED_REPORTS : "archiwizuje"
-    
-    EMPLOYEES ||--o{ EMPLOYEE_ZONES : "przypisany"
-    ZONES ||--o{ EMPLOYEE_ZONES : "dostępna dla"
-    
-    ZONES ||--o{ SENSORS : "monitoruje"
-    SENSORS ||--o{ TEMPERATURE_LOGS : "mierzy"
-    
-    products ||--o{ HACCP_LOGS : "używany w (JSONB)"
-    
-    VENUES {
-        uuid id PK
-        string name
-        string nip
-        string address
-        string logo_url
-        int temp_interval
-        float temp_threshold
-    }
+Jedyny punkt dostepu do klienta:
 
-    EMPLOYEES {
-        uuid id PK
-        uuid venue_id FK
-        string full_name
-        string pin_hash
-        string role "owner/manager/cook"
-        date sanepid_expiry
-    }
+- `lib/core/services/supabase_service.dart`
 
-    products {
-        uuid id PK
-        uuid venue_id FK "nullable (null=global)"
-        string name
-        string type "cooling/roasting/general"
-        timestamp created_at
-    }
+Udostepniane interfejsy:
 
-    HACCP_LOGS {
-        uuid id PK
-        uuid venue_id FK
-        string form_id
-        string category "gmp/ghp"
-        jsonb data
-        uuid created_by
-    }
+- `SupabaseService.client`
+- `SupabaseService.storage`
+- `SupabaseService.auth`
+- `SupabaseService.realtime`
 
-    GENERATED_REPORTS {
-        uuid id PK
-        uuid venue_id FK
-        string report_type
-        date generation_date
-        string storage_path
-        jsonb metadata
-    }
-```
+Podczas inicjalizacji aplikacja probuje wykonac `signInAnonymously()` jesli nie ma sesji.
 
 ---
 
-## 2. Szczegółowy Opis Tabel
+## 2. Tabele uzywane w kodzie
 
-### 2.1 Konfiguracja i Struktura (`venues`, `zones`, `employees`)
+Ponizej lista tabel i widokow wykorzystywanych przez repozytoria/provider-y.
 
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`venues`** | `id` | UUID (PK) | Unikalny identyfikator lokalu. |
-| | `name` | TEXT | Nazwa lokalu (np. "Restauracja U Jana"). |
-| | `nip` | TEXT | Numer NIP. |
-| | `logo_url` | TEXT | URL do logo w Storage (`branding`). |
-| | `temp_interval` | INT | Częstotliwość pomiarów IoT (minuty). |
-| **`employees`** | `id` | UUID (PK) | ID pracownika. |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem. |
-| | `pin_hash` | TEXT | Hash SHA-256 kodu PIN (4 cyfry). |
-| | `role` | TEXT | Rola: `owner`, `manager` lub `cook`. |
-| **`zones`** | `id` | UUID (PK) | ID strefy (np. Kuchnia, Magazyn). |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem. |
+### `employees`
 
-### 2.2 Produkty i Procesy (`products`, `haccp_logs`)
+- Uzycie:
+  - `hr_repository.dart` (`updatePin`)
+  - `dashboard_badges_provider.dart` (liczniki HR)
+- Przykladowe pola w modelach: `id`, `full_name`, `role`, `is_active`, `sanepid_expiry`.
 
-| Tabela | Kolumna | Typ | Opis |
-| :--- | :--- | :--- | :--- |
-| **`products`** | `id` | UUID (PK) | ID produktu. |
-| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny (widoczny wszędzie). Jeśli podane -> Produkt Lokalny (tylko dla tego `venue`). |
-| | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (`UNIQUE NULLS NOT DISTINCT (name, venue_id)`). |
-| | `type` | TEXT | Typ: `cooling`, `roasting`, `general`. |
-| **`haccp_logs`** | `id` | UUID (PK) | ID wpisu loga. |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem (kluczowe do filtracji danych i RLS). |
-| | `zone_id` | UUID (FK) | Powiązanie ze strefą (np. Kuchnia). |
-| | `category` | TEXT | `gmp` (formularze) lub `ghp` (checklisty). |
-| | `form_id` | TEXT | ID formularza, np. `food_cooling`. |
-| | `data` | JSONB | Pełne dane wpisu (dynamiczna struktura formularza). |
-| | `user_id` | UUID (FK) | ID pracownika (`employees`), który wykonał czynność. |
-| | `created_by` | UUID (FK) | ID użytkownika Supabase Auth (techniczne). |
+### `public_employees` (widok)
 
-### 2.3 Monitoring IoT (`sensors`, `temperature_logs`)
+- Uzycie:
+  - `hr_repository.dart` (`getEmployees`)
+- Cel: odczyt listy pracownikow dla panelu HR.
 
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`sensors`** | `id` | UUID (PK) | ID czujnika. |
-| | `mac_address` | TEXT | Adres fizyczny urządzenia BLE. |
-| | `zone_id` | UUID (FK) | Strefa, w której znajduje się czujnik. |
-| **`temperature_logs`** | `temperature` | FLOAT | Odczyt temperatury. |
-| | `recorded_at` | TIMESTAMPTZ | Czas pomiaru. |
+### `employee_zones`
 
-### 2.4 Raporty i Archiwizacja (`generated_reports`)
+- Uzycie:
+  - `auth_repository.dart` (`getZonesForEmployee`)
+- Relacja pracownik <-> strefy.
 
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`generated_reports`** | `storage_path` | TEXT | Ścieżka do pliku PDF w buckecie `reports`. |
-| | `report_type` | TEXT | Typ raportu, np. `ccp3_cooling`. |
-| | `generation_date` | DATE | Data, której dotyczy raport. |
+### `zones`
 
----
+- Uzycie:
+  - `hr_repository.dart` (`getZones`)
+- Metadane stref.
 
-## 3. Relacje i Powiązania Modułów
+### `venues`
 
-Tabela przedstawia, które moduły (M01-M08) korzystają z których tabel (CRUD).
+- Uzycie:
+  - `venue_repository.dart` (`getSettings`, `updateSettings`)
+  - `reports_repository.dart` (`getVenueLogo`)
+- Ustawienia lokalu i branding.
 
-| Moduł | Główna Tabela | Tabele Pomocnicze | Uprawnienia (Zazwyczaj) |
-|:---|:---|:---|:---|
-| **M01 Auth** | `employees` | `zones`, `employee_zones` | Read (RPC `login_with_pin`) |
-| **M02 IoT** | `temperature_logs` | `sensors`, `zones` | Read (Realtime Subscription) |
-| **M03 GMP** | `haccp_logs` | `products` | Insert (Log), Read (History, List Products) |
-| **M04 GHP** | `haccp_logs` | - | Insert (Log), Read (History) |
-| **M05 Waste** | `waste_records` | - | Insert, Read |
-| **M06 Reports** | `generated_reports` | `haccp_logs` (source), `temperature_logs` (source) | Read, Insert (PDF generation) |
-| **M07 HR** | `employees` | `employee_zones` | CRUD (Manager Only) |
-| **M08 Settings** | `venues` | `products`, `sensors` | Update (Venue), CRUD (Products) |
+### `products`
 
----
+- Uzycie:
+  - `products_repository.dart` (`getProducts`, `addProduct`, `updateProduct`, `deleteProduct`)
+- Logika: wspiera produkty globalne (`venue_id is null`) i lokalne (`venue_id = ...`).
 
-1. **Polityki Bezpieczeństwa (RLS)**
+### `haccp_logs`
 
-Bezpieczeństwo opiera się na Row Level Security. Aplikacja nie korzysta ze standardowego logowania Supabase Auth (email/pass), lecz z własnego mechanizmu opartego na PIN.
+- Uzycie:
+  - `gmp_repository.dart` (`category = gmp`)
+  - `ghp_repository.dart` (`category = ghp`)
+  - `reports_repository.dart` (raporty GMP/CCP3)
+  - `dashboard_badges_provider.dart` (liczniki)
+- Typowe pola zapisu: `category`, `form_id`, `data`, `user_id`, `zone_id`, `venue_id`, `created_at`.
 
-1. **Uwierzytelnianie:**
-    - Użytkownik podaje PIN (4 cyfry).
-    - Aplikacja woła funkcję RPC `login_with_pin(venue_nip, pin)`.
-    - Funkcja zwraca token JWT (z `role: authenticated`) oraz dane pracownika.
-    - **Ważne**: Tabela `employees` jest chroniona (SELECT tylko dla `authenticated`).
+### `waste_records`
 
-2. **Izolacja Danych (Multi-tenancy):**
-    - Większość tabel (`products`, `haccp_logs`, `generated_reports`) posiada kolumnę `venue_id`.
-    - Docelowa polityka: `USING (venue_id = (select venue_id from employees where id = auth.uid()))`.
-    - **Faza Pilot (Aktualnie)**:
-        - `haccp_logs`: `USING (true)` / `CHECK (true)` (Uproszczone dla testów, filtracja w aplikacji).
-        - `products`: `USING (true)` (Odczyt globalny).
+- Uzycie:
+  - `waste_repository.dart`
+  - `reports_repository.dart`
+  - `dashboard_badges_provider.dart`
+- Typowe pola zapisu: `venue_id`, `zone_id`, `user_id`, `waste_type`, `waste_code`, `mass_kg`, `recipient_company`, `kpo_number`, `photo_url`.
 
-3. **Role:**
-    - Kolumna `role` w `employees` (`owner`, `manager`, `cook`) steruje dostępem do ekranów w aplikacji (Guardy).
+### `sensors`
+
+- Uzycie:
+  - `measurements_repository.dart` (`getSensors`)
+- Filtrowanie m.in. po `zone_id`, `is_active`.
+
+### `temperature_logs`
+
+- Uzycie:
+  - `measurements_repository.dart` (stream, historia, alerty, acknowledge)
+  - `reports_repository.dart` (agregacje raportowe)
+- Typowe pola: `sensor_id`, `temperature_celsius`, `recorded_at`, `is_alert`, `is_acknowledged`, `acknowledged_by`, `acknowledged_at`.
+
+### `annotations`
+
+- Uzycie:
+  - `measurements_repository.dart` (`insertAnnotation`)
+- Adnotacje do wykresow czujnikow.
+
+### `generated_reports`
+
+- Uzycie:
+  - `reports_repository.dart` (`saveReportMetadata`, `getSavedReport`, `getGeneratedReports`)
+- Typowe pola: `venue_id`, `report_type`, `generation_date`, `created_by`, `storage_path`, `metadata`.
 
 ---
 
-## 5. Uwagi do Plików Źródłowych
+## 3. Funkcje RPC wykorzystywane przez aplikacje
 
-Analiza plików źródłowych wykazała zgodność, z małymi wyjątkami:
+- `login_with_pin(pin_input)` - logowanie PIN.
+- `check_pin_availability(pin_input)` - walidacja unikalnosci PIN.
+- `create_employee(name_input, pin_hash_input, role_input, sanepid_input, zone_ids_input, is_active_input)` - tworzenie pracownika.
+- `update_employee_sanepid(employee_id, new_expiry)` - aktualizacja badan.
+- `toggle_employee_active(employee_id, new_status)` - aktywacja/dezaktywacja.
 
-- **`Code_description.MD`**: Jest najbardziej aktualny (Luty 2026).
-- **`00_Architecture_Master_Plan.md`**: Opisuje plan z 15.02.2026. Struktura jest poprawna, ale szczegóły tabeli `products` (kolumna `venue_id` do multi-tenancy) zostały doprecyzowane w sprincie 5 (SQL `32_update_products_table.sql`). Dokumentacja `supabase.md` uwzględnia ten nowszy stan.
+---
+
+## 4. Supabase Storage (buckety)
+
+### `waste-docs`
+
+- Zdjecia dokumentacji odpadow.
+- Uzycie: `storage_service.dart`, `pdf_service.dart` (odczyt obrazow).
+
+### `reports`
+
+- Wygenerowane raporty PDF.
+- Uzycie: `reports_repository.dart` (upload/download).
+
+### `branding`
+
+- Loga lokali.
+- Uzycie: `venue_repository.dart` (upload logo), `reports_repository.dart` (pobranie logo do PDF).
+
+---
+
+## 5. RLS i dostep
+
+Kod zaklada:
+
+1. Dostep anonimowy po inicjalizacji (anon session), zgodnie z politykami projektu.
+2. Ograniczenia danych per lokal realizowane przez RLS oraz filtracje po `venue_id`/`zone_id`.
+3. Operacje uprzywilejowane (HR, logowanie PIN) sa przeniesione do RPC.
+
+---
+
+## 6. Ryzyka kontraktowe do monitorowania
+
+1. Widok `public_employees` musi byc utrzymany zgodnie z modelem `Employee`.
+2. Funkcje RPC musza utrzymywac aktualna sygnature zgodna z repozytoriami.
+3. Tabela `temperature_logs` musi zawierac `temperature_celsius` (mapowanie w modelu).
+4. Tabela `annotations` musi byc dostepna dla insert z aplikacji.

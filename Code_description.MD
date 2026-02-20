@@ -1,169 +1,164 @@
-# Code Description: HACCP Pilot v04.0 (Live)
+# Code Description: HACCP Pilot (Sprint 6 Refresh)
 
-Dokumentacja techniczna projektu HACCP Pilot. Opisuje architekturę, strukturę bazy danych oraz logikę poszczególnych modułów. Służy jako "mapa" dla deweloperów.
-
----
-
-## 1. Filozofia Projektu
-
-- **Glove-Friendly UX:** Wszystkie elementy interaktywne muszą mieć min. **60x60dp**. Unikamy klawiatury systemowej (korzystamy z `HaccpNumPad` lub gotowych opcji).
-- **Dark Mode Only:** Aplikacja działa tylko w trybie ciemnym (kuchennym).
-- **Offline-First:** Dane są zbierane lokalnie, a synchronizacja następuje przy dostępności sieci.
-- **Bezpieczeństwo:** Rygorystyczne zasady RLS i brak przechowywania wrażliwych danych (hash PIN) na kliencie w sposób jawny.
-
-## 2. Struktura Folderów (`lib/`)
-
-Projekt podzielony jest na **Features** (funkcjonalności) i **Core** (wspólne utilities).
-
-```
-lib/
-├── core/                  # Fundamenty aplikacji
-│   ├── config/            # Env, stałe konfiguracyjne
-│   ├── constants/         # Design Tokens (kolory, wymiary)
-│   ├── router/            # GoRouter (nawigacja)
-│   ├── services/          # Serwisy (PDF, Drive, Storage)
-│   ├── theme/             # Motyw Fluttera (Dark Theme)
-│   └── widgets/           # Globalne widgety (TopBar, Tile)
-│
-├── features/              # Moduły biznesowe (M01, M02, ...)
-│   ├── m01_auth/          # Logowanie (PIN Pad)
-│   ├── m02_monitoring/    # IoT (Dashboard temperatur)
-│   ├── m03_gmp/           # Procesy produkcyjne (Formularze)
-│   ├── m04_ghp/           # Higiena (Checklisty)
-│   ├── m05_waste/         # Odpady (Kamera)
-│   ├── m06_reports/       # Raportowanie (Generowanie PDF, Archiwum)
-│   ├── m07_hr/            # Kadry (Pracownicy, Sanepid)
-│   ├── m08_settings/      # Ustawienia (Lokal, Produkty)
-│   └── shared/            # Moduł Wspólny (Silnik Formularzy, Repozytoria Produktów)
-```
-
-## 3. Architektura Systemu
-
-Stosujemy architekturę **Layered Architecture** z **Riverpod** do zarządzania stanem.
-
-1. **Repository (`repositories/`)**:
-    - Jedyny punkt styku z Supabase.
-    - Odpowiada za CRUD i logikę biznesową danych.
-    - *Zasada:* Jedno repozytorium na domenę (np. `ProductsRepository`, `GmpRepository`).
-
-2. **Provider (`providers/`)**:
-    - Zarządza stanem aplikacji (`AsyncNotifier`, `FutureProvider`).
-    - Pośredniczy między UI a Repozytorium.
-    - Obsługuje cache'owanie i odświeżanie danych.
-
-3. **Screen/Widget**:
-    - Warstwa prezentacji.
-    - Nasłuchuje zmian w Providerach (`ref.watch`).
-    - Nie wykonuje bezpośrednich zapytań do bazy.
+Data aktualizacji: 2026-02-20  
+Status: Zgodne ze stanem kodu po Sprintach 1-5
 
 ---
 
-## 4. Baza Danych (Supabase)
+## 0. Srodowisko lokalne
 
-System opiera się na relacyjnej bazie PostgreSQL. Poniżej aktualny schemat tabel.
-
-### 4.1 Główne Tabele
-
-| Tabela | Opis | Kluczowe Kolumny |
-|:---|:---|:---|
-| **`venues`** | Lokale gastronomiczne | `id`, `name`, `address`, `nip`, `logo_url` |
-| **`employees`** | Pracownicy | `id`, `venue_id`, `full_name`, `pin_hash`, `role` (owner/manager/cook), `sanepid_expiry` |
-| **`zones`** | Strefy w lokalu (np. Kuchnia) | `id`, `venue_id`, `name` |
-| **`employee_zones`** | Przypisanie pracownika do strefy | `employee_id`, `zone_id` |
-| **`products`** | Produkty/Potrawy (Menu) | `id`, `venue_id` (nullable), `name`, `type` (cooling/roasting), `created_at` |
-| **`haccp_logs`** | Logi procesów (GMP/GHP) | `id`, `venue_id`, `form_id`, `data` (JSONB), `created_by`, `created_at` |
-| **`temperature_logs`** | Pomiary IoT | `id`, `sensor_id`, `temperature`, `timestamp` |
-| **`sensors`** | Urządzenia IoT | `id`, `zone_id`, `name`, `mac_address` |
-| **`waste_records`** | Rejestr odpadów | `id`, `venue_id`, `waste_type`, `mass_kg`, `photo_url` |
-| **`generated_reports`** | Archiwum PDF | `id`, `venue_id`, `report_type`, `generation_date`, `storage_path` |
-
-### 4.2 Kluczowe Relacje i Bezpieczeństwo (RLS)
-
-- **Multi-tenancy:** Większość tabel posiada kolumnę `venue_id`. RLS zapewnia, że pracownik widzi dane tylko ze swojego lokalu.
-- **Produkty:** Tabela `products` obsługuje produkty globalne (`venue_id` IS NULL) dostępne dla wszystkich oraz lokalne (`venue_id` = X) widoczne tylko w danym lokalu.
-- **Logowanie:** Wykorzystuje mechanizm **RPC** (`login_with_pin`) do bezpiecznej weryfikacji hasha PIN po stronie serwera, omijając ograniczenia RLS dla użytkownika anonimowego.
+- Lokalna sciezka Flutter SDK: `C:\scr\flutter\bin`
+- Preferowane komendy:
+  - `C:\scr\flutter\bin\flutter.bat analyze`
+  - `C:\scr\flutter\bin\flutter.bat test`
 
 ---
 
-## 5. Opis Modułów
+## 1. Architektura aplikacji
 
-### M01: Autoryzacja
+Projekt ma uklad Feature-First z centralnym rdzeniem `core`.
 
-- **Ekran:** `PinPadScreen`.
-- **Logika:** Weryfikacja PIN -> Pobranie Profilu Pracownika -> Pobranie Stref.
-- **Bezpieczeństwo:** Blokada czasowa po 5 nieudanych próbach (Brute-force protection).
+- `core`: routing, serwisy, modele globalne, motyw, wspolne widgety.
+- `features`: moduly domenowe `m01`-`m08` + `dashboard` + `shared`.
 
-### M02: Monitoring IoT
+Docelowy przeplyw warstw:
 
-- **Cel:** Podgląd temperatur w czasie rzeczywistym.
-- **Logika:** Subskrypcja `Supabase Realtime` na tabelę `temperature_logs`.
-- **Alerty:** Lokalne wykrywanie przekroczeń progów (zdefiniowanych w ustawieniach). Kafelki zmieniają kolor (Zielony/Pomarańczowy/Czerwony).
+`Screen -> Provider -> Repository -> SupabaseService -> Supabase`
 
-### M03: Procesy GMP (Formularze Dynamiczne)
+Zasady architektoniczne:
 
-- **Cel:** Rejestracja procesów (Chłodzenie, Obróbka, Dostawy).
-- **Silnik:** `DynamicFormRenderer` generuje UI na podstawie definicji JSON (`FormDefinition`).
-- **Produkty:** Pola typu "produkt" pobierają listę z `ProductsRepository` (tabela `products`), uwzględniając menu lokalu.
-- **Zapis:** Dane trafiają do `haccp_logs` jako JSONB.
-- **Integracja:** Historia GMP (`GmpHistoryScreen`) umożliwia podgląd wygenerowanego raportu PDF (`PdfPreviewScreen`).
-
-### M04: Higiena GHP
-
-- **Cel:** Listy kontrolne (Sprzątanie, Higiena osobista).
-- **UI:** Interfejs oparty na dużych przyciskach TAK/NIE (`HaccpToggle`).
-- **Logika:** Zapis do `haccp_logs` z `category='ghp'`.
-
-### M05: Odpady (Waste)
-
-- **Cel:** Rejestracja utylizacji żywności.
-- **Kamera:** Własna implementacja `HaccpCameraScreen` (duży spust migawki, brak UI systemowego).
-- **Storage:** Zdjęcia są kompresowane i wysyłane do bucketu `waste-docs`. URL zapisywany w bazie.
-
-### M06: Raportowanie (Reports)
-
-- **Generowanie:**
-  - **CCP-3 (Chłodzenie):** Pobiera logi z `haccp_logs` (agregacja dzienna), generuje PDF (pixel-perfect z oryginałem). Obsługuje limity (20°C/2h, 30°C krytyczne) i kolorowanie niezgodności.
-  - **Temperatury:** Agregacja pomiarów (Min/Max/Avg) -> HTML -> PDF.
-- **Persistence (Trwałość):**
-  - Każdy wygenerowany raport jest automatycznie:
-        1. Wysyłany do Supabase Storage (`reports/`).
-        2. Rejestrowany w tabeli `generated_reports` (metadata).
-- **Historia:** Ekran "Archiwum" (`SavedReportsScreen`) pozwala przeglądać i pobierać wcześniejsze raporty.
-- **Podgląd:**
-  - `Ccp3PreviewScreen` wyświetla PDF z pamięci (`SfPdfViewer.memory`).
-  - Posiada fallback do pobierania pliku (`file_opener_web`) w razie problemów z renderowaniem w przeglądarce.
-
-### M07: Kadry (HR)
-
-- **Dostęp:** Tylko dla `manager` / `owner`.
-- **Funkcje:** Zarządzanie pracownikami, przypisywanie stref, monitoring dat ważności badań Sanepid.
-
-### M08: Ustawienia (Settings)
-
-- **Konfiguracja Lokalu:** Nazwa, Adres, NIP, Logo (upload).
-- **Zarządzanie Produktami:** CRUD dla tabeli `products`. Umożliwia dodawanie własnych pozycji do list wyboru w formularzach GMP.
-- **Konfiguracja IoT:** Interwały pomiarowe, progi alarmowe.
+1. Jeden punkt dostepu do klienta Supabase: `lib/core/services/supabase_service.dart`.
+2. Brak bezposrednich zapytan DB/Storage w UI.
+3. Logika danych tylko w `repositories/` i serwisach.
+4. Routing oparty o stale z `lib/core/router/route_names.dart`.
 
 ---
 
-## 6. Serwisy Zewnętrzne i Integracje
+## 2. Struktura kodu (skrot)
 
-1. **PDF Service (`PdfService`)**:
-    - Generuje dokumenty PDF (Syncfusion).
-    - Obsługuje tabele, nagłówki z logo lokalu, łączenie komórek.
+Kluczowe katalogi:
 
-2. **Supabase Storage**:
-    - Buckety: `waste-docs` (zdjęcia odpadów), `reports` (archiwalne PDF), `branding` (logo lokali).
-
-3. **Google Drive Integration**:
-    - Opcjonalny eksport raportów na dysk Google (Service Account).
+- `lib/core/config`
+- `lib/core/constants`
+- `lib/core/models`
+- `lib/core/providers`
+- `lib/core/repositories`
+- `lib/core/router`
+- `lib/core/services`
+- `lib/core/theme`
+- `lib/core/widgets`
+- `lib/features/dashboard`
+- `lib/features/m01_auth` ... `lib/features/m08_settings`
+- `lib/features/shared` (definicje formularzy, renderer, repo produktow)
 
 ---
 
-## 7. Wdrażanie (Build & Deploy)
+## 3. Routing i autoryzacja
 
-Aplikacja jest budowana jako **Flutter Web** (PWA).
+Pliki:
 
-- **Komenda:** `flutter build web --release --no-tree-shake-icons`.
-- **Hosting:** Vercel (automatyczny deploy z GitHub).
-- **Konfiguracja:** Zmienne środowiskowe (Supabase URL/Key) są wstrzykiwane podczas builda (`--dart-define`).
+- `lib/core/router/route_names.dart`
+- `lib/core/router/app_router.dart`
+
+Guardy:
+
+1. Niezalogowany uzytkownik jest przekierowany na `RouteNames.login`.
+2. Zalogowany na trasach auth (`/`, `/login`) jest przekierowany na `RouteNames.hub`.
+3. Trasy `RouteNames.hr*` i `RouteNames.settings*` sa ograniczone do `employee.isManager`.
+
+---
+
+## 4. Moduly i odpowiedzialnosci
+
+### M01 Auth
+
+- Ekrany: `splash_screen.dart`, `pin_pad_screen.dart`, `zone_selection_screen.dart`
+- Repo: `lib/core/repositories/auth_repository.dart`
+- Logowanie: RPC `login_with_pin` + pobranie stref z `employee_zones`.
+
+### Dashboard
+
+- Ekran: `dashboard_hub_screen.dart`
+- Badge provider: `dashboard_badges_provider.dart` (agregacje z tabel domenowych).
+
+### M02 Monitoring
+
+- Repo: `measurements_repository.dart`
+- Tabele: `sensors`, `temperature_logs`, `annotations`
+- Funkcje: lista sensorow, realtime stream pomiarow, historia, alerty, adnotacje.
+
+### M03 GMP
+
+- Repo: `gmp_repository.dart`
+- Tabela: `haccp_logs` (`category = gmp`)
+- Formy: pieczenie, chlodzenie, kontrola dostaw + historia.
+
+### M04 GHP
+
+- Repo: `ghp_repository.dart`
+- Tabela: `haccp_logs` (`category = ghp`)
+- Checklisty + historia.
+
+### M05 Waste
+
+- Repo: `waste_repository.dart`
+- Tabela: `waste_records`
+- Kamera: `haccp_camera_screen.dart`
+- Upload plikow: `storage_service.dart` do bucketu `waste-docs`.
+
+### M06 Reports
+
+- Repo: `reports_repository.dart`
+- Tabele: `haccp_logs`, `temperature_logs`, `waste_records`, `generated_reports`, `venues`
+- Storage: `reports`, `branding`
+- Serwisy: `pdf_service.dart`, `html_report_generator.dart`, `temperature_aggregator_service.dart`.
+
+### M07 HR
+
+- Repo: `hr_repository.dart`
+- Widok/tabele: `public_employees`, `employees`, `zones`
+- RPC: `check_pin_availability`, `create_employee`, `update_employee_sanepid`, `toggle_employee_active`.
+
+### M08 Settings
+
+- Repo: `venue_repository.dart` + `products_repository.dart`
+- Tabele: `venues`, `products`
+- Bucket: `branding` (logo lokalu).
+
+---
+
+## 5. Serwisy core
+
+- `supabase_service.dart`: inicjalizacja klienta + anon session fallback.
+- `storage_service.dart`: upload do Supabase Storage.
+- `pdf_service.dart`: generowanie dokumentow PDF.
+- `drive_service.dart`: warstwa integracji Google Drive.
+- `app_logger.dart`: ustandaryzowane logowanie (`debug`, `warning`, `error`).
+- `connectivity_service.dart`: status polaczenia.
+
+---
+
+## 6. UI i komponenty wspolne
+
+- Canonical widgety sa w `lib/core/widgets`.
+- Dynamic forms korzystaja z `lib/features/shared/widgets/dynamic_form/dynamic_form_renderer.dart`.
+- Po Sprint 2 usunieto duplikaty widgetow z `features/shared/widgets/dynamic_form`.
+
+---
+
+## 7. Jakosc i status
+
+- Sprint 1: hardening data layer - completed.
+- Sprint 2: konsolidacja widgetow - completed.
+- Sprint 3: routing i lifecycle alignment - completed.
+- Sprint 4: naprawa testow - completed.
+- Sprint 5: production hardening (logging/cleanup) - completed.
+- Sprint 6: dokumentacja - completed.
+
+---
+
+## 8. Powiazane dokumenty
+
+- `directives/00_Architecture_Master_Plan.md`
+- `supabase.md`
+- `UI_description.md`

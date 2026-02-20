@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/core/services/app_logger.dart';
+import 'package:haccp_pilot/core/services/supabase_service.dart';
 
 // Model
 class Product {
@@ -23,9 +25,7 @@ class Product {
 
 // Repository
 class ProductsRepository {
-  final SupabaseClient _client;
-
-  ProductsRepository(this._client);
+  final SupabaseClient _client = SupabaseService.client;
 
   /// Fetches global products (venue_id is null) AND products for the specific venue.
   Future<List<Product>> getProducts(String type, {String? venueId}) async {
@@ -61,8 +61,7 @@ class ProductsRepository {
       return products;
 
     } catch (e) {
-      // ignore: avoid_print
-      print('Error fetching products: $e');
+      AppLogger.error('ProductsRepository.getProducts failed', e);
       // Fallback on error too
       return [
            Product(id: 'error-1', name: 'Pierogi (Tryb Awaryjny)', type: 'cooling'),
@@ -92,7 +91,7 @@ class ProductsRepository {
 
 // Providers
 final productsRepositoryProvider = Provider<ProductsRepository>((ref) {
-  return ProductsRepository(Supabase.instance.client);
+  return ProductsRepository();
 });
 
 final productsProvider = FutureProvider.family<List<Product>, String>((ref, type) async {

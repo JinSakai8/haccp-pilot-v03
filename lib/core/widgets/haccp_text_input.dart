@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/design_tokens.dart';
+import '../constants/design_tokens.dart';
 
 class HaccpTextInput extends StatefulWidget {
   final String? value;
@@ -63,7 +63,7 @@ class _HaccpTextInputState extends State<HaccpTextInput> {
         Container(
           decoration: BoxDecoration(
             color: HaccpDesignTokens.surface,
-            borderRadius: BorderRadius.circular(HaccpDesignTokens.inputRadius), // Using the newly added token
+            borderRadius: BorderRadius.circular(HaccpDesignTokens.inputRadius),
             border: Border.all(
               color: HaccpDesignTokens.border,
             ),
@@ -77,7 +77,7 @@ class _HaccpTextInputState extends State<HaccpTextInput> {
               fontSize: 16,
             ),
             decoration: InputDecoration(
-              hintText: widget.hintText ?? 'Wpisz treść...',
+              hintText: widget.hintText ?? 'Wpisz tresc...',
               hintStyle: const TextStyle(color: Colors.white30),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),

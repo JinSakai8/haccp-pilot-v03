@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/design_tokens.dart';
+import '../constants/design_tokens.dart';
 
 class HaccpToggle extends StatelessWidget {
   final bool? value;

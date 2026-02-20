@@ -27,13 +27,13 @@ class HaccpTimePicker extends StatelessWidget {
         const SizedBox(height: 8),
         InkWell(
           onTap: () => _pickTime(context),
-          borderRadius: BorderRadius.circular(HaccpDesignTokens.radiusMedium),
+          borderRadius: BorderRadius.circular(HaccpDesignTokens.inputRadius),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white10,
-              borderRadius: BorderRadius.circular(HaccpDesignTokens.radiusMedium),
+              borderRadius: BorderRadius.circular(HaccpDesignTokens.inputRadius),
               border: Border.all(color: Colors.white24),
             ),
             child: Row(
