@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
@@ -19,6 +20,9 @@ class PdfService {
     required String date,
     Uint8List? logoBytes,
   }) async {
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+    
     final images = <String, Uint8List>{};
     
     if (logoBytes != null) {
@@ -56,6 +60,8 @@ class PdfService {
       userName: userName,
       date: date,
       images: images,
+      fontBytes: fontData.buffer.asUint8List(),
+      boldFontBytes: boldFontData.buffer.asUint8List(),
     );
 
     // compute doesn't work on web, so run directly
@@ -70,8 +76,9 @@ class PdfService {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
-    final font = PdfStandardFont(PdfFontFamily.helvetica, 12);
-    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
+    
+    final font = PdfTrueTypeFont(params.fontBytes, 12);
+    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 14);
 
     graphics.drawString(
       params.title.toUpperCase(),
@@ -169,12 +176,17 @@ class PdfService {
     required String userName,
     required String dateRange,
   }) async {
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+
     final params = _PdfTableParams(
       title: title,
       columns: columns,
       rows: rows,
       userName: userName,
       dateRange: dateRange,
+      fontBytes: fontData.buffer.asUint8List(),
+      boldFontBytes: boldFontData.buffer.asUint8List(),
     );
 
     if (kIsWeb) {
@@ -187,8 +199,8 @@ class PdfService {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
-    final font = PdfStandardFont(PdfFontFamily.helvetica, 10);
-    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
+    final font = PdfTrueTypeFont(params.fontBytes, 10);
+    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 14);
 
     graphics.drawString(
       params.title.toUpperCase(),
@@ -246,11 +258,16 @@ class PdfService {
     required String date,
     Uint8List? venueLogo,
   }) async {
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+
     final params = _Ccp3ReportParams(
       logs: logs,
       userName: userName,
       date: date,
       venueLogo: venueLogo,
+      fontBytes: fontData.buffer.asUint8List(),
+      boldFontBytes: boldFontData.buffer.asUint8List(),
     );
 
     if (kIsWeb) {
@@ -269,11 +286,10 @@ class PdfService {
     final page = document.pages.add();
     final graphics = page.graphics;
     
-    // Fonts - Start with standard, but have fallbacks in mind if needed
-    // Helvetica is standard PDF font, usually safe.
-    final font = PdfStandardFont(PdfFontFamily.helvetica, 9);
-    final boldFont = PdfStandardFont(PdfFontFamily.helvetica, 10, style: PdfFontStyle.bold);
-    final titleFont = PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
+    // Fonts
+    final font = PdfTrueTypeFont(params.fontBytes, 9);
+    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 10);
+    final titleFont = PdfTrueTypeFont(params.boldFontBytes, 14);
 
     // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
@@ -479,12 +495,16 @@ class _Ccp3ReportParams {
   final String userName;
   final String date;
   final Uint8List? venueLogo;
+  final Uint8List fontBytes;
+  final Uint8List boldFontBytes;
 
   _Ccp3ReportParams({
     required this.logs,
     required this.userName,
     required this.date,
     this.venueLogo,
+    required this.fontBytes,
+    required this.boldFontBytes,
   });
 }
 
@@ -495,6 +515,8 @@ class _PdfGenerationParams {
   final String userName;
   final String date;
   final Map<String, Uint8List> images;
+  final Uint8List fontBytes;
+  final Uint8List boldFontBytes;
 
   _PdfGenerationParams({
     required this.title,
@@ -503,6 +525,8 @@ class _PdfGenerationParams {
     required this.userName,
     required this.date,
     required this.images,
+    required this.fontBytes,
+    required this.boldFontBytes,
   });
 }
 
@@ -512,6 +536,8 @@ class _PdfTableParams {
   final List<List<String>> rows;
   final String userName;
   final String dateRange;
+  final Uint8List fontBytes;
+  final Uint8List boldFontBytes;
 
   _PdfTableParams({
     required this.title,
@@ -519,5 +545,7 @@ class _PdfTableParams {
     required this.rows,
     required this.userName,
     required this.dateRange,
+    required this.fontBytes,
+    required this.boldFontBytes,
   });
 }
