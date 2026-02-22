@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:haccp_pilot/core/services/pdf_service.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -88,5 +89,63 @@ void main() {
       expect(bytes, isNotEmpty);
       expect(String.fromCharCodes(bytes.sublist(0, 4)), '%PDF');
     }, skip: 'Skipped in test runner due Syncfusion standard-font Unicode limitation.');
+
+    test('generateCcp1TemperatureReport returns valid PDF bytes', () async {
+      final rows = <List<String>>[
+        ['01.02.2026', '08:00', '2.0\u00B0C', 'TAK', '', ''],
+        ['01.02.2026', '08:15', '4.1\u00B0C', 'NIE', '', ''],
+      ];
+
+      final bytes = await pdfService.generateCcp1TemperatureReport(
+        sensorName: 'Chlodnia Mies',
+        userName: 'Tester',
+        monthLabel: '2026-02',
+        rows: rows,
+      );
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes.sublist(0, 4)), '%PDF');
+
+      final doc = PdfDocument(inputBytes: bytes);
+      final text = PdfTextExtractor(doc).extractText();
+      doc.dispose();
+
+      expect(text, contains('Arkusz monitorowania'));
+      expect(text, contains('CCP-1'));
+      expect(text, contains('Chlodnia Mies'));
+      expect(text, contains('NIE'));
+      expect(text, contains('Sprawdzil/zatwierdzil'));
+    });
+
+    test('generateCcp1TemperatureReport handles multipage dataset', () async {
+      final rows = List<List<String>>.generate(320, (i) {
+        final day = ((i % 28) + 1).toString().padLeft(2, '0');
+        final minute = ((i * 5) % 60).toString().padLeft(2, '0');
+        final temp = (i % 2 == 0) ? '3.0\u00B0C' : '4.5\u00B0C';
+        final compliance = (i % 2 == 0) ? 'TAK' : 'NIE';
+        return ['$day.02.2026', '08:$minute', temp, compliance, '', ''];
+      });
+
+      final bytes = await pdfService.generateCcp1TemperatureReport(
+        sensorName: 'Sensor Multi',
+        userName: 'Tester',
+        monthLabel: '2026-02',
+        rows: rows,
+      );
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes.sublist(0, 4)), '%PDF');
+
+      final doc = PdfDocument(inputBytes: bytes);
+      final pageCount = doc.pages.count;
+      final text = PdfTextExtractor(doc).extractText();
+      doc.dispose();
+
+      expect(pageCount, greaterThan(1));
+      expect(text, contains('Data'));
+      expect(text, contains('Zgodnosc z'));
+      expect(text, contains('ustaleniami'));
+      expect(text, contains('Sprawdzil/zatwierdzil'));
+    });
   });
 }

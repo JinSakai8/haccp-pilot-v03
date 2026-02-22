@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
@@ -32,7 +31,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            tooltip: 'Archiwum Raportów',
+            tooltip: 'Archiwum Raportow',
             onPressed: () => context.push('/reports/history'),
           ),
         ],
@@ -42,7 +41,6 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 1. Selector Row
             Row(
               children: [
                 Expanded(
@@ -55,8 +53,9 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildSelector(
-                    label: 'Miesiąc',
-                    value: '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}',
+                    label: 'Miesiac',
+                    value:
+                        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}',
                     onTap: _showMonthSelector,
                   ),
                 ),
@@ -64,16 +63,14 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
             ),
             const SizedBox(height: 16),
             if (_selectedReportType == 'temperature') ...[
-               _buildSelector(
-                 label: 'Urządzenie (Opcjonalnie)',
-                 value: _selectedSensorName ?? 'Wszystkie w strefie',
-                 onTap: _showSensorSelector,
-               ),
-               const SizedBox(height: 16),
+              _buildSelector(
+                label: 'Urzadzenie',
+                value: _selectedSensorName ?? 'Wybierz urzadzenie',
+                onTap: _showSensorSelector,
+              ),
+              const SizedBox(height: 16),
             ],
             const SizedBox(height: 16),
-
-            // 2. Action Buttons
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -82,36 +79,55 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   backgroundColor: AppTheme.primary,
                   foregroundColor: AppTheme.onPrimary,
                 ),
-                onPressed: reportsState.isLoading ? null : () {
-                  ref.read(reportsProvider.notifier).generateReport(
-                    reportType: _selectedReportType,
-                    month: _selectedDate,
-                    sensorId: _selectedSensorId,
-                  );
-                },
-                icon: reportsState.isLoading 
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
-                  : const Icon(Icons.picture_as_pdf),
-                label: Text(reportsState.isLoading ? 'GENEROWANIE...' : 'GENERUJ RAPORT (PDF)'),
+                onPressed: reportsState.isLoading
+                    ? null
+                    : () {
+                        if (_selectedReportType == 'temperature' &&
+                            (_selectedSensorId == null ||
+                                _selectedSensorId!.isEmpty)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Wybierz urzadzenie przed generowaniem raportu CCP-1.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        ref.read(reportsProvider.notifier).generateReport(
+                              reportType: _selectedReportType,
+                              month: _selectedDate,
+                              sensorId: _selectedSensorId,
+                            );
+                      },
+                icon: reportsState.isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : const Icon(Icons.picture_as_pdf),
+                label: Text(
+                  reportsState.isLoading
+                      ? 'GENEROWANIE...'
+                      : 'GENERUJ RAPORT (PDF)',
+                ),
               ),
             ),
-
             const SizedBox(height: 32),
-
-            // 3. Preview & Upload Section
             if (reportsState.hasValue && reportsState.value != null) ...[
               _buildReportPreview(reportsState.value!),
             ],
-            
             if (reportsState.hasError)
-               Container(
-                 padding: const EdgeInsets.all(16),
-                 color: AppTheme.error.withValues(alpha: 0.1),
-                 child: Text(
-                   'Błąd: ${reportsState.error}',
-                   style: const TextStyle(color: AppTheme.error),
-                 ),
-               ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppTheme.error.withValues(alpha: 0.1),
+                child: Text(
+                  'Blad: ${reportsState.error}',
+                  style: const TextStyle(color: AppTheme.error),
+                ),
+              ),
           ],
         ),
       ),
@@ -119,8 +135,6 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
   }
 
   Widget _buildReportPreview(ReportData reportData) {
-    final isHtml = reportData.fileName.toLowerCase().endsWith('.html');
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -140,12 +154,17 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Raport wygenerowany pomyślnie!',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.onSurface),
+                      'Raport wygenerowany pomyslnie!',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: AppTheme.onSurface),
                     ),
                     Text(
                       reportData.fileName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.onSurfaceVariant),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -155,36 +174,17 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
           const SizedBox(height: 24),
           Row(
             children: [
-              if (isHtml) ...[
-                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Save/Open HTML (Cross-platform way using PdfService/Drive or just local open)
-                      // For now, on web we might want to just download/open blob.
-                      // Since we are inside the app, maybe just Drive upload is safer for Kiosk?
-                      // But requirement says "Open in browser to print".
-                       ref.read(pdfServiceProvider).openFile(
-                        reportData.bytes, 
-                        reportData.fileName
-                      );
-                    },
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('OTWÓRZ (DRUKUJ)'),
-                  ),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ref
+                        .read(pdfServiceProvider)
+                        .openFile(reportData.bytes, reportData.fileName);
+                  },
+                  icon: const Icon(Icons.download),
+                  label: const Text('POBIERZ PDF'),
                 ),
-              ] else ...[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Podgląd PDF niedostępny w przeglądarce')),
-                      );
-                    },
-                    icon: const Icon(Icons.visibility),
-                    label: const Text('PODGLĄD'),
-                  ),
-                ),
-              ],
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton.icon(
@@ -196,12 +196,14 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     await ref.read(reportsProvider.notifier).uploadCurrentReport();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Raport wysłany na Google Drive!')),
+                        const SnackBar(
+                          content: Text('Raport wyslany na Google Drive!'),
+                        ),
                       );
                     }
                   },
                   icon: const Icon(Icons.cloud_upload),
-                  label: const Text('WYŚLIJ NA DRIVE'),
+                  label: const Text('WYSLIJ NA DRIVE'),
                 ),
               ),
             ],
@@ -211,7 +213,11 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     );
   }
 
-  Widget _buildSelector({required String label, required String value, required VoidCallback onTap}) {
+  Widget _buildSelector({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -225,11 +231,24 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(color: AppTheme.onSurfaceVariant, fontSize: 12)),
+            Text(
+              label,
+              style:
+                  const TextStyle(color: AppTheme.onSurfaceVariant, fontSize: 12),
+            ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Expanded(child: Text(value, style: const TextStyle(color: AppTheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold))),
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: AppTheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 const Icon(Icons.arrow_drop_down, color: AppTheme.onSurface),
               ],
             ),
@@ -241,11 +260,16 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
 
   String _getReportLabel(String type) {
     switch (type) {
-      case 'waste': return 'Ewidencja Odpadów';
-      case 'gmp': return 'Logs GMP';
-      case 'ghp': return 'Checklisty GHP';
-      case 'temperature': return 'Rejestr Temperatur';
-      default: return type;
+      case 'waste':
+        return 'Ewidencja Odpadow';
+      case 'gmp':
+        return 'Logs GMP';
+      case 'ghp':
+        return 'Checklisty GHP';
+      case 'temperature':
+        return 'Rejestr Temperatur';
+      default:
+        return type;
     }
   }
 
@@ -267,9 +291,18 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
 
   ListTile _buildOption(String type) {
     return ListTile(
-      title: Text(_getReportLabel(type), style: const TextStyle(color: AppTheme.onSurface)),
+      title: Text(
+        _getReportLabel(type),
+        style: const TextStyle(color: AppTheme.onSurface),
+      ),
       onTap: () {
-        setState(() => _selectedReportType = type);
+        setState(() {
+          _selectedReportType = type;
+          if (type != 'temperature') {
+            _selectedSensorId = null;
+            _selectedSensorName = null;
+          }
+        });
         Navigator.pop(context);
       },
     );
@@ -279,7 +312,9 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => _MonthYearPicker(
         initialDate: _selectedDate,
         onDateSelected: (date) {
@@ -294,12 +329,12 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     final zone = ref.read(currentZoneProvider);
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wybierz strefę w menu głównym (na górze)')),
+        const SnackBar(
+          content: Text('Wybierz strefe w menu glownym (na gorze)'),
+        ),
       );
       return;
     }
-
-    debugPrint('Opening sensor selector for zone: ${zone.id}');
 
     showModalBottomSheet(
       context: context,
@@ -308,62 +343,83 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
         return sensorsAsync.when(
           data: (sensors) {
-             debugPrint('Sensors loaded: ${sensors.length} for zone ${zone.name}');
-             return Container(
-               padding: const EdgeInsets.symmetric(vertical: 16),
-               child: Column(
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text('Wybierz urządzenie (${sensors.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant)),
+                    child: Text(
+                      'Wybierz urzadzenie (${sensors.length})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                   const Divider(),
-                  ListTile(
-                    title: const Text('Wszystkie w strefie', style: TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
-                    leading: const Icon(Icons.apps, color: AppTheme.primary),
-                    trailing: _selectedSensorId == null ? const Icon(Icons.check, color: AppTheme.success) : null,
-                    onTap: () {
-                      setState(() {
-                        _selectedSensorId = null;
-                        _selectedSensorName = null;
-                      });
-                      Navigator.pop(context);
-                    },
+                  const ListTile(
+                    title: Text(
+                      'Wymagany wybor 1 urzadzenia',
+                      style: TextStyle(
+                        color: AppTheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    leading: Icon(Icons.info_outline, color: AppTheme.primary),
                   ),
                   if (sensors.isEmpty)
-                     ListTile(
-                       title: Text('Brak czujników w strefie "${zone.name}"', style: const TextStyle(color: AppTheme.error)),
-                       subtitle: const Text('Upewnij się, że sensory są przypisane do tej strefy i aktywne.', style: TextStyle(color: Colors.grey)),
-                     ),
-                  ...sensors.map((s) => ListTile(
-                    title: Text(s.name, style: const TextStyle(color: AppTheme.onSurface)),
-                    leading: const Icon(Icons.thermostat, color: AppTheme.onSurfaceVariant),
-                    trailing: _selectedSensorId == s.id ? const Icon(Icons.check, color: AppTheme.success) : null,
-                    onTap: () {
-                      setState(() {
-                        _selectedSensorId = s.id;
-                        _selectedSensorName = s.name;
-                      });
-                      Navigator.pop(context);
-                    },
-                  )),
+                    ListTile(
+                      title: Text(
+                        'Brak czujnikow w strefie "${zone.name}"',
+                        style: const TextStyle(color: AppTheme.error),
+                      ),
+                      subtitle: const Text(
+                        'Upewnij sie, ze sensory sa przypisane do tej strefy i aktywne.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ...sensors.map(
+                    (s) => ListTile(
+                      title: Text(
+                        s.name,
+                        style: const TextStyle(color: AppTheme.onSurface),
+                      ),
+                      leading: const Icon(
+                        Icons.thermostat,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                      trailing: _selectedSensorId == s.id
+                          ? const Icon(Icons.check, color: AppTheme.success)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedSensorId = s.id;
+                          _selectedSensorName = s.name;
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 16),
                 ],
               ),
-             );
+            );
           },
           loading: () => const SizedBox(
-            height: 200, 
-            child: Center(child: CircularProgressIndicator())
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
           ),
-          error: (e, st) {
-             debugPrint('Sensor load error: $e');
-             return SizedBox(
-              height: 200, 
-              child: Center(child: Text('Błąd: $e', style: const TextStyle(color: AppTheme.error)))
-             );
-          },
+          error: (e, st) => SizedBox(
+            height: 200,
+            child: Center(
+              child: Text(
+                'Blad: $e',
+                style: const TextStyle(color: AppTheme.error),
+              ),
+            ),
+          ),
         );
       },
     );
@@ -394,61 +450,111 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: const BoxDecoration(
-        color: AppTheme.surface, // Force dark background
+        color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Wybierz miesiąc', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
+          const Text(
+            'Wybierz miesiac',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 16),
-          // Year Selector
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(onPressed: () => setState(() => _year--), icon: const Icon(Icons.chevron_left, color: AppTheme.onSurface)),
-              Text('$_year', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
               IconButton(
-                onPressed: _year >= DateTime.now().year ? null : () => setState(() => _year++), 
-                icon: Icon(Icons.chevron_right, color: _year >= DateTime.now().year ? Colors.grey : AppTheme.onSurface)
+                onPressed: () => setState(() => _year--),
+                icon: const Icon(Icons.chevron_left, color: AppTheme.onSurface),
+              ),
+              Text(
+                '$_year',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.onSurface,
+                ),
+              ),
+              IconButton(
+                onPressed: _year >= DateTime.now().year
+                    ? null
+                    : () => setState(() => _year++),
+                icon: Icon(
+                  Icons.chevron_right,
+                  color: _year >= DateTime.now().year
+                      ? Colors.grey
+                      : AppTheme.onSurface,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          // Month Grid
           GridView.builder(
             shrinkWrap: true,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 2.0),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2.0,
+            ),
             itemCount: 12,
             itemBuilder: (context, index) {
               final month = index + 1;
-              final isCurrent = _year == DateTime.now().year && month == DateTime.now().month;
-              final isSelected = _year == widget.initialDate.year && month == widget.initialDate.month;
-              final isFuture = _year == DateTime.now().year && month > DateTime.now().month;
+              final isCurrent =
+                  _year == DateTime.now().year && month == DateTime.now().month;
+              final isSelected =
+                  _year == widget.initialDate.year && month == widget.initialDate.month;
+              final isFuture =
+                  _year == DateTime.now().year && month > DateTime.now().month;
 
-              // Polish month names hardcoded to avoid intl dependency issues in this widget
               const months = [
-                'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-                'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+                'Styczen',
+                'Luty',
+                'Marzec',
+                'Kwiecien',
+                'Maj',
+                'Czerwiec',
+                'Lipiec',
+                'Sierpien',
+                'Wrzesien',
+                'Pazdziernik',
+                'Listopad',
+                'Grudzien',
               ];
 
               return InkWell(
-                onTap: isFuture ? null : () {
-                  widget.onDateSelected(DateTime(_year, month));
-                },
+                onTap: isFuture
+                    ? null
+                    : () {
+                        widget.onDateSelected(DateTime(_year, month));
+                      },
                 child: Container(
                   alignment: Alignment.center,
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primary : (isFuture ? Colors.transparent : AppTheme.surface.withValues(alpha: 0.5)),
+                    color: isSelected
+                        ? AppTheme.primary
+                        : (isFuture
+                            ? Colors.transparent
+                            : AppTheme.surface.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(8),
-                    border: isCurrent ? Border.all(color: AppTheme.primary) : Border.all(color: AppTheme.outline),
+                    border: isCurrent
+                        ? Border.all(color: AppTheme.primary)
+                        : Border.all(color: AppTheme.outline),
                   ),
                   child: Text(
                     months[index],
                     style: TextStyle(
-                      color: isFuture ? Colors.grey : (isSelected ? AppTheme.onPrimary : AppTheme.onSurface),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isFuture
+                          ? Colors.grey
+                          : (isSelected
+                              ? AppTheme.onPrimary
+                              : AppTheme.onSurface),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),

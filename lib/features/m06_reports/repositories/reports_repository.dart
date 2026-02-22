@@ -3,6 +3,96 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 // import 'package:http/http.dart' as http; // Use supabase storage download instead
 
+class Ccp1TemperatureQuerySpec {
+  final DateTime start;
+  final DateTime end;
+  final String sensorId;
+
+  const Ccp1TemperatureQuerySpec({
+    required this.start,
+    required this.end,
+    required this.sensorId,
+  });
+}
+
+@visibleForTesting
+Ccp1TemperatureQuerySpec buildCcp1TemperatureQuerySpec(
+  DateTime month,
+  String sensorId,
+) {
+  final normalizedSensorId = sensorId.trim();
+  final start = DateTime(month.year, month.month, 1);
+  final end = DateTime(
+    month.year,
+    month.month + 1,
+    1,
+  ).subtract(const Duration(milliseconds: 1));
+
+  return Ccp1TemperatureQuerySpec(
+    start: start,
+    end: end,
+    sensorId: normalizedSensorId,
+  );
+}
+
+class Ccp1TemperatureReportRow {
+  final String date;
+  final String time;
+  final String temperature;
+  final String compliance;
+  final String correctiveActions;
+  final String signature;
+
+  const Ccp1TemperatureReportRow({
+    required this.date,
+    required this.time,
+    required this.temperature,
+    required this.compliance,
+    required this.correctiveActions,
+    required this.signature,
+  });
+
+  List<String> toPdfColumns() {
+    return <String>[date, time, temperature, compliance, correctiveActions, signature];
+  }
+}
+
+class Ccp1TemperatureDataset {
+  final String sensorId;
+  final String sensorName;
+  final DateTime month;
+  final List<Ccp1TemperatureReportRow> rows;
+
+  const Ccp1TemperatureDataset({
+    required this.sensorId,
+    required this.sensorName,
+    required this.month,
+    required this.rows,
+  });
+}
+
+@visibleForTesting
+Ccp1TemperatureReportRow mapTemperatureLogToCcp1Row(Map<String, dynamic> raw) {
+  final recordedAt = DateTime.parse(raw['recorded_at'] as String);
+  final temperatureValue = (raw['temperature_celsius'] as num).toDouble();
+  final isCompliant = temperatureValue >= 0.0 && temperatureValue <= 4.0;
+
+  final day = recordedAt.day.toString().padLeft(2, '0');
+  final month = recordedAt.month.toString().padLeft(2, '0');
+  final year = recordedAt.year.toString();
+  final hour = recordedAt.hour.toString().padLeft(2, '0');
+  final minute = recordedAt.minute.toString().padLeft(2, '0');
+
+  return Ccp1TemperatureReportRow(
+    date: '$day.$month.$year',
+    time: '$hour:$minute',
+    temperature: '${temperatureValue.toStringAsFixed(1)}\u00B0C',
+    compliance: isCompliant ? 'TAK' : 'NIE',
+    correctiveActions: '',
+    signature: '',
+  );
+}
+
 class CoolingLogsQuerySpec {
   final DateTime start;
   final DateTime end;
@@ -121,6 +211,43 @@ class ReportsRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Future<List<Map<String, dynamic>>> getMonthlySensorMeasurements(
+    DateTime month,
+    String sensorId,
+  ) async {
+    final spec = buildCcp1TemperatureQuerySpec(month, sensorId);
+    final response = await SupabaseService.client
+        .from('temperature_logs')
+        .select('sensor_id, temperature_celsius, recorded_at, sensors(name)')
+        .eq('sensor_id', spec.sensorId)
+        .gte('recorded_at', spec.start.toIso8601String())
+        .lte('recorded_at', spec.end.toIso8601String())
+        .order('recorded_at', ascending: true);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<Ccp1TemperatureDataset> getCcp1TemperatureDataset({
+    required DateTime month,
+    required String sensorId,
+  }) async {
+    final normalizedSensorId = sensorId.trim();
+    final records = await getMonthlySensorMeasurements(month, normalizedSensorId);
+
+    final sensorName = records.isNotEmpty && records.first['sensors'] is Map
+        ? (records.first['sensors']['name']?.toString() ?? 'Sensor $normalizedSensorId')
+        : 'Sensor $normalizedSensorId';
+
+    final rows = records.map(mapTemperatureLogToCcp1Row).toList();
+
+    return Ccp1TemperatureDataset(
+      sensorId: normalizedSensorId,
+      sensorName: sensorName,
+      month: DateTime(month.year, month.month, 1),
+      rows: rows,
+    );
+  }
+
   /// Helper to fetch logo bytes if available for a venue
   Future<Uint8List?> getVenueLogo(String venueId) async {
     try {
@@ -221,7 +348,12 @@ class ReportsRepository {
   /// Downloads a report from storage
   Future<Uint8List?> downloadReport(String path) async {
     try {
-      return await SupabaseService.client.storage.from('reports').download(path);
+      final normalizedPath = path.startsWith('reports/')
+          ? path.substring('reports/'.length)
+          : path;
+      return await SupabaseService.client.storage
+          .from('reports')
+          .download(normalizedPath);
     } catch (e) {
       debugPrint('Error downloading report: $e');
       return null;
@@ -243,3 +375,4 @@ class ReportsRepository {
     }
   }
 }
+

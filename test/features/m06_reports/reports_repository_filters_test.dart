@@ -56,4 +56,72 @@ void main() {
       expect(spec.venueId, isNull);
     });
   });
+
+  group('Ccp1TemperatureQuerySpec', () {
+    test('builds full month range and keeps single sensor', () {
+      final spec = buildCcp1TemperatureQuerySpec(
+        DateTime(2026, 2, 22, 15, 40),
+        'sensor-1',
+      );
+
+      expect(spec.sensorId, equals('sensor-1'));
+      expect(spec.start, equals(DateTime(2026, 2, 1, 0, 0, 0)));
+      expect(
+        spec.end,
+        equals(
+          DateTime(2026, 3, 1).subtract(const Duration(milliseconds: 1)),
+        ),
+      );
+    });
+
+    test('normalizes sensor id by trimming whitespace', () {
+      final spec = buildCcp1TemperatureQuerySpec(
+        DateTime(2026, 2, 1),
+        '  sensor-1  ',
+      );
+
+      expect(spec.sensorId, equals('sensor-1'));
+    });
+  });
+
+  group('CCP1 row mapping', () {
+    test('maps fixed output columns and compliance boundaries', () {
+      final samples = <Map<String, dynamic>>[
+        {
+          'sensor_id': 's1',
+          'temperature_celsius': -0.1,
+          'recorded_at': '2026-02-22T08:15:00Z',
+        },
+        {
+          'sensor_id': 's1',
+          'temperature_celsius': 0.0,
+          'recorded_at': '2026-02-22T08:16:00Z',
+        },
+        {
+          'sensor_id': 's1',
+          'temperature_celsius': 4.0,
+          'recorded_at': '2026-02-22T08:17:00Z',
+        },
+        {
+          'sensor_id': 's1',
+          'temperature_celsius': 4.1,
+          'recorded_at': '2026-02-22T08:18:00Z',
+        },
+      ];
+
+      final rows = samples.map(mapTemperatureLogToCcp1Row).toList();
+
+      expect(rows[0].compliance, equals('NIE'));
+      expect(rows[1].compliance, equals('TAK'));
+      expect(rows[2].compliance, equals('TAK'));
+      expect(rows[3].compliance, equals('NIE'));
+
+      expect(rows[1].date, equals('22.02.2026'));
+      expect(rows[1].time, equals('08:16'));
+      expect(rows[1].temperature, equals('0.0\u00B0C'));
+      expect(rows[1].correctiveActions, isEmpty);
+      expect(rows[1].signature, isEmpty);
+    });
+  });
 }
+

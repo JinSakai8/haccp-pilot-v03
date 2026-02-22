@@ -6,10 +6,6 @@ import 'package:haccp_pilot/core/services/pdf_service.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/shared/config/form_definitions.dart';
-import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
-import 'package:haccp_pilot/features/m06_reports/services/temperature_aggregator_service.dart';
-import 'package:haccp_pilot/features/m06_reports/services/html_report_generator.dart';
-import 'dart:convert'; // for utf8
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'reports_provider.g.dart';
@@ -51,14 +47,14 @@ class ReportsNotifier extends _$ReportsNotifier {
       final repo = ref.read(reportsRepositoryProvider);
       final pdf = ref.read(pdfServiceProvider);
       final user = ref.read(currentUserProvider);
-      
+
       List<int> pdfBytes;
       String fileName;
 
       if (reportType == 'waste') {
         final records = await repo.getWasteRecords(start, end);
         if (records.isEmpty) {
-          throw Exception('Brak danych o odpadach w tym miesiącu');
+          throw Exception('Brak danych o odpadach w tym miesiacu');
         }
         final columns = ['Data', 'Rodzaj', 'Kod', 'Masa (kg)', 'Odbiorca', 'KPO'];
         final rows = records.map((r) => [
@@ -69,10 +65,10 @@ class ReportsNotifier extends _$ReportsNotifier {
           r['recipient_company'].toString(),
           r['kpo_number']?.toString() ?? '-',
         ]).toList();
-        
+
         fileName = 'Karta_Odpadow_${month.year}_${month.month}.pdf';
         pdfBytes = await pdf.generateTableReport(
-          title: 'Karta Ewidencji Odpadów',
+          title: 'Karta Ewidencji Odpadow',
           columns: columns,
           rows: rows,
           userName: user?.fullName ?? 'System',
@@ -81,21 +77,21 @@ class ReportsNotifier extends _$ReportsNotifier {
       } else if (reportType == 'gmp_roasting' || reportType == 'gmp') {
         final records = await repo.getGmpLogs(start, end);
         if (records.isEmpty) {
-           throw Exception('Brak logów HACCP w tym miesiącu');
+          throw Exception('Brak logow HACCP w tym miesiacu');
         }
 
         final typeKey = reportType == 'gmp' ? 'gmp_roasting' : reportType;
         final definition = FormDefinitions.getDefinition(typeKey);
         final columns = ['Data', ...definition.fields.map((e) => e.label)];
-        
+
         final rows = records.map((r) {
-           final row = <String>[];
-           row.add((r['created_at'] as String).substring(0, 16));
-           final data = r['data'] as Map<String, dynamic>;
-           for (var field in definition.fields) {
-             row.add(data[field.id]?.toString() ?? '-');
-           }
-           return row;
+          final row = <String>[];
+          row.add((r['created_at'] as String).substring(0, 16));
+          final data = r['data'] as Map<String, dynamic>;
+          for (var field in definition.fields) {
+            row.add(data[field.id]?.toString() ?? '-');
+          }
+          return row;
         }).toList();
 
         fileName = 'Rejestr_HACCP_${month.year}_${month.month}.pdf';
@@ -106,59 +102,64 @@ class ReportsNotifier extends _$ReportsNotifier {
           userName: user?.fullName ?? 'System',
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
-        
       } else if (reportType == 'ghp') {
-          // Add basic GHP handling if needed, or similar to GMP
-          final records = await repo.getGmpLogs(start, end); // Repository should be updated for unified categories
-          // Filter by categories if needed. For now let's focus on temperature.
-          throw Exception('Raport GHP jest w trakcie przygotowania. Użyj GMP lub Temperatur.');
-
+        throw Exception('Raport GHP jest w trakcie przygotowania. Uzyj GMP lub Temperatur.');
       } else if (reportType == 'temperature') {
-        // 1. Fetch raw data
-        final rawLogs = await repo.getMeasurements(start, end);
-
-        if (rawLogs.isEmpty) {
-           throw Exception('Brak pomiarów temperatur w tym miesiącu');
+        if (sensorId == null || sensorId.trim().isEmpty) {
+          throw Exception('Wybierz urzadzenie dla raportu CCP-1 temperatur.');
         }
 
-        // 2. Map to TemperatureLog model & extract device names
-        var logs = rawLogs.map((raw) => TemperatureLog.fromJson(raw)).toList();
-        final deviceNames = <String, String>{};
-
-        for (var raw in rawLogs) {
-          // Extract sensor name from join: sensors: { name: "..." }
-          if (raw['sensors'] != null) {
-            final sensorData = raw['sensors'];
-            // Supabase join can return map or list depending on relationship (one-to-one here)
-            if (sensorData is Map) {
-              deviceNames[raw['sensor_id']] = sensorData['name']?.toString() ?? 'Sensor ${raw['sensor_id']}';
-            }
-          }
-        }
-
-        // 3. Filter by sensorId if provided
-        if (sensorId != null && sensorId.isNotEmpty) {
-           logs = logs.where((l) => l.sensorId == sensorId).toList();
-           if (logs.isEmpty) {
-              throw Exception('Brak danych dla wybranego urządzenia w tym miesiącu');
-           }
-        }
-
-        // 4. Aggregate
-        final stats = TemperatureAggregatorService.aggregate(logs, deviceNames: deviceNames);
-
-        // 5. Generate HTML
-        final htmlContent = HtmlReportGenerator.generateHtml(
-          stats: stats, 
+        final dataset = await repo.getCcp1TemperatureDataset(
           month: month,
-          userName: user?.fullName,
-          venueName: 'Lokal ${user?.role ?? ""}', 
+          sensorId: sensorId,
         );
 
-        // 6. Convert to bytes (UTF-8)
-        pdfBytes = Uint8List.fromList(utf8.encode(htmlContent));
-        fileName = 'Raport_Temperatur_${month.year}_${month.month}.html';
-        
+        if (dataset.rows.isEmpty) {
+          throw Exception('Brak pomiarow temperatur dla wybranego urzadzenia w tym miesiacu');
+        }
+
+        final rows = dataset.rows.map((row) => row.toPdfColumns()).toList();
+        final monthStr = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+        pdfBytes = await pdf.generateCcp1TemperatureReport(
+          sensorName: dataset.sensorName,
+          userName: user?.fullName ?? 'System',
+          monthLabel: monthStr,
+          rows: rows,
+        );
+        fileName = 'ccp1_temperature_${dataset.sensorId}_$monthStr.pdf';
+
+        final venueId = await _resolveVenueId();
+        if (venueId == null || venueId.isEmpty) {
+          throw Exception('Brak venue_id do archiwizacji raportu CCP-1.');
+        }
+        if (user == null) {
+          throw Exception('Brak zalogowanego uzytkownika do zapisu archiwum.');
+        }
+
+        final storagePathInBucket =
+            '$venueId/${month.year}/${month.month.toString().padLeft(2, '0')}/$fileName';
+        final uploadedPath = await repo.uploadReport(
+          storagePathInBucket,
+          Uint8List.fromList(pdfBytes),
+        );
+        if (uploadedPath == null) {
+          throw Exception('Nie udalo sie zapisac raportu CCP-1 w storage.');
+        }
+
+        await repo.saveReportMetadata(
+          venueId: venueId,
+          reportType: 'ccp1_temperature',
+          generationDate: DateTime.now(),
+          storagePath: 'reports/$uploadedPath',
+          userId: user.id,
+          metadata: {
+            'sensor_id': dataset.sensorId,
+            'sensor_name': dataset.sensorName,
+            'month': monthStr,
+            'template_version': 'ccp1_csv_v1',
+          },
+        );
       } else {
         throw UnimplementedError('Raport $reportType nie jest jeszcze zaimplementowany');
       }
@@ -172,6 +173,19 @@ class ReportsNotifier extends _$ReportsNotifier {
     }
   }
 
+  Future<String?> _resolveVenueId() async {
+    final zone = ref.read(currentZoneProvider);
+    if (zone != null && zone.venueId.isNotEmpty) {
+      return zone.venueId;
+    }
+
+    final zones = await ref.read(employeeZonesProvider.future);
+    if (zones.isNotEmpty && zones.first.venueId.isNotEmpty) {
+      return zones.first.venueId;
+    }
+    return null;
+  }
+
   Future<void> uploadCurrentReport() async {
     final data = state.value;
     if (data == null) return;
@@ -180,7 +194,7 @@ class ReportsNotifier extends _$ReportsNotifier {
     try {
       final drive = ref.read(driveServiceProvider);
       await drive.uploadReportBytes(data.bytes, data.fileName);
-      state = AsyncData(data); 
+      state = AsyncData(data);
     } catch (e, st) {
       state = AsyncError(e, st);
     }

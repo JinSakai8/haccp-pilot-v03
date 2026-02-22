@@ -244,6 +244,197 @@ class PdfService {
     return Uint8List.fromList(bytes);
   }
 
+  /// Generates CCP-1 monthly temperature report with a fixed layout.
+  Future<Uint8List> generateCcp1TemperatureReport({
+    required String sensorName,
+    required String userName,
+    required String monthLabel,
+    required List<List<String>> rows,
+  }) async {
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+
+    final params = _Ccp1TemperatureReportParams(
+      sensorName: sensorName,
+      userName: userName,
+      monthLabel: monthLabel,
+      rows: rows,
+      fontBytes: fontData.buffer.asUint8List(),
+      boldFontBytes: boldFontData.buffer.asUint8List(),
+    );
+
+    if (kIsWeb || !useIsolate) {
+      return await _generateCcp1TemperaturePdfIsolate(params);
+    }
+    return await compute(_generateCcp1TemperaturePdfIsolate, params);
+  }
+
+  static Future<Uint8List> _generateCcp1TemperaturePdfIsolate(
+    _Ccp1TemperatureReportParams params,
+  ) async {
+    final document = PdfDocument();
+    document.pageSettings.margins.all = 20;
+
+    // Footer template on every page.
+    final footer = PdfPageTemplateElement(const Rect.fromLTWH(0, 0, 520, 24));
+    final footerFont = _createRegularFont(params.fontBytes, 9);
+    final footerBold = _createBoldFont(params.boldFontBytes, 9);
+    footer.graphics.drawString(
+      'Sprawdzil/zatwierdzil: .................................................',
+      footerBold,
+      bounds: const Rect.fromLTWH(0, 0, 400, 14),
+    );
+    footer.graphics.drawString(
+      '(Data/podpis)',
+      footerFont,
+      bounds: const Rect.fromLTWH(180, 12, 120, 12),
+    );
+    document.template.bottom = footer;
+
+    final page = document.pages.add();
+    final graphics = page.graphics;
+    final font = _createRegularFont(params.fontBytes, 9);
+    final boldFont = _createBoldFont(params.boldFontBytes, 10);
+    final titleFont = _createBoldFont(params.boldFontBytes, 14);
+    final pageWidth = page.getClientSize().width;
+
+    // Header row.
+    final topGrid = PdfGrid();
+    topGrid.columns.add(count: 3);
+    topGrid.columns[0].width = pageWidth * 0.35;
+    topGrid.columns[1].width = pageWidth * 0.35;
+    topGrid.columns[2].width = pageWidth * 0.30;
+
+    final topRow = topGrid.rows.add();
+    topRow.cells[0].value =
+        'Restauracja "Mieso i Piana"\nul. Energetykow 18A,\n37-450 Stalowa Wola';
+    topRow.cells[0].style.font = boldFont;
+    topRow.cells[0].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+
+    topRow.cells[1].value = 'Arkusz monitorowania CCP-1';
+    topRow.cells[1].style.font = titleFont;
+    topRow.cells[1].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+
+    topRow.cells[2].value = 'Odpowiedzialny:\nUpowazniony pracownik';
+    topRow.cells[2].style.font = font;
+    topRow.cells[2].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+    topRow.height = 56;
+
+    final topLayout = topGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, 0, pageWidth, 0),
+    );
+    double currentY = topLayout!.bounds.bottom + 6;
+
+    // Parameters section.
+    final paramsGrid = PdfGrid();
+    paramsGrid.columns.add(count: 2);
+    paramsGrid.columns[0].width = pageWidth * 0.5;
+    paramsGrid.columns[1].width = pageWidth * 0.5;
+
+    final paramsHeader = paramsGrid.headers.add(1)[0];
+    paramsHeader.cells[0].value = 'Parametr';
+    paramsHeader.cells[1].value = 'Wartosc';
+    for (var i = 0; i < 2; i++) {
+      paramsHeader.cells[i].style.font = boldFont;
+      paramsHeader.cells[i].style.backgroundBrush =
+          PdfSolidBrush(PdfColor(229, 229, 229));
+    }
+
+    final sensorRow = paramsGrid.rows.add();
+    sensorRow.cells[0].value = 'Urzadzenie / sensor';
+    sensorRow.cells[1].value = params.sensorName;
+
+    final monthRow = paramsGrid.rows.add();
+    monthRow.cells[0].value = 'Okres';
+    monthRow.cells[1].value = params.monthLabel;
+
+    final limitsRow = paramsGrid.rows.add();
+    limitsRow.cells[0].value = 'Kryterium zgodnosci';
+    limitsRow.cells[1].value = 'TAK dla 0.0..4.0 C, NIE poza zakresem';
+
+    for (var rowIndex = 0; rowIndex < paramsGrid.rows.count; rowIndex++) {
+      final row = paramsGrid.rows[rowIndex];
+      for (var i = 0; i < row.cells.count; i++) {
+        row.cells[i].style.font = font;
+      }
+    }
+
+    final paramsLayout = paramsGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, currentY, pageWidth, 0),
+    );
+    currentY = paramsLayout!.bounds.bottom + 8;
+
+    // Main CCP-1 table.
+    final dataGrid = PdfGrid();
+    dataGrid.repeatHeader = true;
+    dataGrid.columns.add(count: 6);
+    dataGrid.columns[0].width = pageWidth * 0.14;
+    dataGrid.columns[1].width = pageWidth * 0.12;
+    dataGrid.columns[2].width = pageWidth * 0.16;
+    dataGrid.columns[3].width = pageWidth * 0.17;
+    dataGrid.columns[4].width = pageWidth * 0.27;
+    dataGrid.columns[5].width = pageWidth * 0.14;
+
+    final header = dataGrid.headers.add(1)[0];
+    final headers = <String>[
+      'Data',
+      'Godzina',
+      'Wartosc temperatury',
+      'Zgodnosc z ustaleniami',
+      'Dzialania korygujace',
+      'Podpis',
+    ];
+    for (var i = 0; i < headers.length; i++) {
+      header.cells[i].value = headers[i];
+      header.cells[i].style.font = boldFont;
+      header.cells[i].style.backgroundBrush =
+          PdfSolidBrush(PdfColor(229, 229, 229));
+      header.cells[i].stringFormat = PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        lineAlignment: PdfVerticalAlignment.middle,
+      );
+    }
+    header.height = 26;
+
+    for (final rowValues in params.rows) {
+      final row = dataGrid.rows.add();
+      for (var i = 0; i < headers.length; i++) {
+        row.cells[i].value = i < rowValues.length ? rowValues[i] : '';
+        row.cells[i].style.font = font;
+        row.cells[i].stringFormat = PdfStringFormat(
+          alignment: i == 4 ? PdfTextAlignment.left : PdfTextAlignment.center,
+          lineAlignment: PdfVerticalAlignment.middle,
+        );
+      }
+      if (row.cells[3].value == 'NIE') {
+        row.cells[3].style.textBrush = PdfBrushes.red;
+        row.cells[3].style.font = boldFont;
+      }
+    }
+
+    final availableHeight = page.getClientSize().height - currentY - 10;
+    dataGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, currentY, pageWidth, availableHeight),
+      format: PdfLayoutFormat(layoutType: PdfLayoutType.paginate),
+    );
+
+    final bytes = await document.save();
+    document.dispose();
+    return Uint8List.fromList(bytes);
+  }
+
   /// Opens the file (PDF or HTML) in the browser (Web) or viewer (Mobile).
   void openFile(Uint8List bytes, String fileName) {
     if (kIsWeb) {
@@ -526,6 +717,24 @@ class _Ccp3ReportParams {
     required this.userName,
     required this.date,
     this.venueLogo,
+    required this.fontBytes,
+    required this.boldFontBytes,
+  });
+}
+
+class _Ccp1TemperatureReportParams {
+  final String sensorName;
+  final String userName;
+  final String monthLabel;
+  final List<List<String>> rows;
+  final Uint8List fontBytes;
+  final Uint8List boldFontBytes;
+
+  _Ccp1TemperatureReportParams({
+    required this.sensorName,
+    required this.userName,
+    required this.monthLabel,
+    required this.rows,
     required this.fontBytes,
     required this.boldFontBytes,
   });

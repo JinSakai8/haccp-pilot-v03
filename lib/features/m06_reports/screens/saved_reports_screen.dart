@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 
-// Provider to fetch saved reports
-final savedReportsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+final savedReportsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final zones = await ref.watch(employeeZonesProvider.future);
   final venueId = zones.isNotEmpty ? zones.first.venueId : null;
-  
+
   if (venueId == null) return [];
 
   final repo = ref.read(reportsRepositoryProvider);
@@ -27,14 +27,14 @@ class SavedReportsScreen extends ConsumerWidget {
     final reportsAsync = ref.watch(savedReportsProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Archiwum Raportów'),
+      appBar: const HaccpTopBar(title: 'Archiwum Raportow'),
       backgroundColor: AppTheme.background,
       body: reportsAsync.when(
         data: (reports) {
           if (reports.isEmpty) {
             return const Center(
               child: Text(
-                'Brak zapisanych raportów',
+                'Brak zapisanych raportow',
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             );
@@ -51,29 +51,33 @@ class SavedReportsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
-          child: Text('Błąd: $err', style: const TextStyle(color: AppTheme.error)),
+          child: Text('Blad: $err', style: const TextStyle(color: AppTheme.error)),
         ),
       ),
     );
   }
 }
 
-class _ReportTile extends StatelessWidget {
+class _ReportTile extends ConsumerWidget {
   final Map<String, dynamic> report;
 
   const _ReportTile({required this.report});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dateStr = report['generation_date'] as String;
     final type = report['report_type'] as String;
-    final createdAt = DateTime.parse(report['created_at'] as String); // TZ string?
-    
-    // Label
+    final createdAt = DateTime.parse(report['created_at'] as String);
+
     String label = type;
-    if (type == 'ccp3_cooling') label = 'Schładzanie (CCP-3)';
-    else if (type == 'waste_monthly') label = 'Odpady (Miesięczny)';
-    
+    if (type == 'ccp3_cooling') {
+      label = 'Schladzanie (CCP-3)';
+    } else if (type == 'waste_monthly') {
+      label = 'Odpady (Miesieczny)';
+    } else if (type == 'ccp1_temperature') {
+      label = 'Temperatura (CCP-1)';
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surface,
@@ -85,34 +89,64 @@ class _ReportTile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.1),
+            color: AppTheme.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.picture_as_pdf, color: AppTheme.primary),
         ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Dotyczy dnia: $dateStr', style: const TextStyle(color: Colors.white70)),
-            Text('Utworzono: ${DateFormat('yyyy-MM-dd HH:mm').format(createdAt)}', 
-              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text('Okres: $dateStr', style: const TextStyle(color: Colors.white70)),
+            Text(
+              'Utworzono: ${DateFormat('yyyy-MM-dd HH:mm').format(createdAt)}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: () {
-          // Navigate to preview
-          if (type == 'ccp3_cooling') {
-             context.push('/reports/preview/ccp3?date=$dateStr');
-          } else {
-             // Fallback or other viewers
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Podgląd dla tego typu raportu nie jest jeszcze gotowy.')),
-             );
+        trailing: const Icon(Icons.download, color: Colors.grey),
+        onTap: () async {
+          final path = report['storage_path']?.toString();
+          if (path == null || path.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Brak sciezki storage dla raportu.')),
+            );
+            return;
           }
+
+          final repo = ref.read(reportsRepositoryProvider);
+          final bytes = await repo.downloadReport(path);
+          if (bytes == null || bytes.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Nie udalo sie pobrac raportu.')),
+              );
+            }
+            return;
+          }
+
+          final fileName = _buildFileName(type, dateStr, report['metadata']);
+          ref.read(pdfServiceProvider).openFile(bytes, fileName);
         },
       ),
     );
+  }
+
+  String _buildFileName(String type, String date, dynamic metadata) {
+    if (type == 'ccp1_temperature') {
+      final sensorId = metadata is Map<String, dynamic>
+          ? metadata['sensor_id']?.toString() ?? 'sensor'
+          : 'sensor';
+      final month = metadata is Map<String, dynamic>
+          ? metadata['month']?.toString() ?? date
+          : date;
+      return 'ccp1_temperature_${sensorId}_$month.pdf';
+    }
+    return '$type-$date.pdf';
   }
 }
