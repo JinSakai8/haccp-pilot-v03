@@ -51,11 +51,18 @@ class ZoneSelectionScreen extends ConsumerWidget {
       final errorText = e.toString();
       final isSessionError = errorText.contains('auth.uid() is null') ||
           errorText.contains('Brak sesji Supabase Auth');
+      final isEmployeeConfigError =
+          errorText.contains('employee is inactive') ||
+              errorText.contains('employee has no venue assignment') ||
+              errorText.contains('employee is missing or inactive') ||
+              errorText.contains('employee is missing');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             isSessionError
                 ? 'Brak sesji logowania. Odswiez aplikacje i sprobuj ponownie.'
+                : isEmployeeConfigError
+                    ? 'Niepoprawna konfiguracja pracownika (status lub lokal). Skontaktuj sie z administratorem.'
                 : 'Nie mozna ustawic kontekstu kiosku: $e',
           ),
           backgroundColor: HaccpDesignTokens.error,
