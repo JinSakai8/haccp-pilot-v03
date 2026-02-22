@@ -48,9 +48,16 @@ class ZoneSelectionScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (!context.mounted) return;
+      final errorText = e.toString();
+      final isSessionError = errorText.contains('auth.uid() is null') ||
+          errorText.contains('Brak sesji Supabase Auth');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Nie mozna ustawic kontekstu kiosku: $e'),
+          content: Text(
+            isSessionError
+                ? 'Brak sesji logowania. Odswiez aplikacje i sprobuj ponownie.'
+                : 'Nie mozna ustawic kontekstu kiosku: $e',
+          ),
           backgroundColor: HaccpDesignTokens.error,
         ),
       );

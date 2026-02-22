@@ -19,6 +19,7 @@ class AuthRepository {
     
     // Directive 12: Use RPC to bypass RLS for login
     try {
+      await SupabaseService.ensureAuthenticatedSession();
       final response = await _client.rpc(
         'login_with_pin',
         params: {'pin_input': hashedPin},
@@ -41,6 +42,7 @@ class AuthRepository {
 
   /// Fetches zones assigned to [employeeId] via the junction table.
   Future<List<Zone>> getZonesForEmployee(String employeeId) async {
+    await SupabaseService.ensureAuthenticatedSession();
     final response = await _client
         .from('employee_zones')
         .select('zones(id, name, venue_id)')
@@ -57,6 +59,7 @@ class AuthRepository {
     required String employeeId,
     required String zoneId,
   }) async {
+    await SupabaseService.ensureAuthenticatedSession();
     await _client.rpc(
       'set_kiosk_context',
       params: {
@@ -68,6 +71,7 @@ class AuthRepository {
 
   /// Clears kiosk context for current Supabase Auth user.
   Future<void> clearKioskContext() async {
+    await SupabaseService.ensureAuthenticatedSession();
     await _client.rpc('clear_kiosk_context');
   }
 }
