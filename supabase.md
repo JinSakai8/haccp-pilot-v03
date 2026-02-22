@@ -339,3 +339,59 @@ Kompatybilnosc legacy w odczycie historii:
   - RPC zalezne od `auth.uid()` (np. `set_kiosk_context`) nie dzialaja.
 - Runbook incydentowy:
   - `directives/18_GMP_DB_Implementation_Plan/11_Incident_Recovery_Anonymous_Auth.md`.
+
+---
+
+## 11. Aktualizacja po M06 Sprint 1 (2026-02-22)
+
+### 11.1 `generated_reports.report_type` (CCP-1 temperatura)
+
+- Wdrozona migracja:
+  - `supabase/migrations/20260222130356_m06_ccp1_generated_reports_report_type.sql`
+- Zmiana:
+  - rozszerzenie check constraint `generated_reports_report_type_check`
+  - nowy dozwolony typ: `ccp1_temperature`
+
+### 11.2 RLS i zakres zmiany
+
+- RLS dla `generated_reports` bez zmian (tylko check constraint).
+
+### 11.3 Walidacja
+
+- Test pozytywny: insert `report_type='ccp1_temperature'` przechodzi.
+- Test negatywny: insert nieznanego typu jest blokowany przez check constraint.
+- Test regresji: stare typy (`ccp3_cooling`, `waste_monthly`, `gmp_daily`) nadal przechodza.
+
+---
+
+## 12. Aktualizacja po M06 Sprint 4-5 (2026-02-22)
+
+### 12.1 Finalny zakres zmian DB dla M06 CCP-1
+
+- Jedyna zmiana schematu DB dla M06 CCP-1:
+  - rozszerzenie `generated_reports_report_type_check` o `ccp1_temperature`
+  - migracja: `supabase/migrations/20260222130356_m06_ccp1_generated_reports_report_type.sql`
+- Brak nowych tabel i brak nowych kolumn.
+- Brak zmian polityk RLS (dla M06 CCP-1).
+
+### 12.2 Kontrakt archiwizacji w runtime (storage + generated_reports)
+
+- Bucket: `reports`
+- Tabela: `generated_reports`
+- `report_type`: `ccp1_temperature`
+- `storage_path`:
+  - `reports/{venueId}/{YYYY}/{MM}/ccp1_temperature_{sensorId}_{YYYY-MM}.pdf`
+- `metadata`:
+  - `sensor_id`
+  - `sensor_name`
+  - `month`
+  - `template_version = ccp1_csv_v1`
+
+### 12.3 Walidacja koncowa
+
+- Pelny `flutter test` po wdrozeniu M06 CCP-1:
+  - **31 passed, 1 skipped, 0 failed**
+- Potwierdzone:
+  - brak regresji dla pozostalych typow raportow,
+  - poprawna archiwizacja `ccp1_temperature` w `generated_reports`,
+  - rollback DB nadal oparty o przywrocenie poprzedniego check constraint.
