@@ -327,3 +327,15 @@ Kompatybilnosc legacy w odczycie historii:
 - Operacyjnie (otwarte):
   - canary rollout,
   - obserwacja 48h i decyzja go-live close.
+
+---
+
+## 10. Krytyczny warunek runtime (Auth)
+
+- Dla modelu kiosk + RLS wymagane jest wlaczenie w Supabase:
+  - `Authentication -> Providers -> Anonymous Sign-Ins`.
+- Gdy provider jest wylaczony:
+  - aplikacja nie moze utworzyc sesji,
+  - RPC zalezne od `auth.uid()` (np. `set_kiosk_context`) nie dzialaja.
+- Runbook incydentowy:
+  - `directives/18_GMP_DB_Implementation_Plan/11_Incident_Recovery_Anonymous_Auth.md`.

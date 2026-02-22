@@ -5,6 +5,7 @@
 - [ ] Sprint 0-5 zamknięte.
 - [x] SQL zweryfikowany na staging.
 - [x] Plan rollback zatwierdzony.
+- [ ] Supabase Auth: `Anonymous Sign-Ins` wlaczone.
 
 ## B. Wdrożenie aplikacji
 - [ ] Deploy wersji z kompatybilnym odczytem legacy `form_id`.

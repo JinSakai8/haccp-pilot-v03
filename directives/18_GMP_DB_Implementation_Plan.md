@@ -15,6 +15,7 @@ Ten dokument jest podzielony na mniejsze pliki, aby zmniejszyć zużycie tokenó
 5. `directives/18_GMP_DB_Implementation_Plan/05_DB_Runbook_RLS_Migration.md`
 6. `directives/18_GMP_DB_Implementation_Plan/06_Release_Checklist.md`
 7. `directives/18_GMP_DB_Implementation_Plan/10_Release_Test_Plan.md`
+8. `directives/18_GMP_DB_Implementation_Plan/11_Incident_Recovery_Anonymous_Auth.md`
 
 ## Rekomendowana kolejność rozmów
 1. Kontekst i priorytety.
