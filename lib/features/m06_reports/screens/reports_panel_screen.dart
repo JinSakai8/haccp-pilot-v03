@@ -339,89 +339,91 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surface,
-      builder: (context) {
-        final sensorsAsync = ref.watch(activeSensorsProvider(zone.id));
-        return sensorsAsync.when(
-          data: (sensors) {
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      'Wybierz urzadzenie (${sensors.length})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurfaceVariant,
+      builder: (context) => Consumer(
+        builder: (context, modalRef, _) {
+          final sensorsAsync = modalRef.watch(activeSensorsProvider(zone.id));
+          return sensorsAsync.when(
+            data: (sensors) {
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Text(
+                        'Wybierz urzadzenie (${sensors.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                  ),
-                  const Divider(),
-                  const ListTile(
-                    title: Text(
-                      'Wymagany wybor 1 urzadzenia',
-                      style: TextStyle(
-                        color: AppTheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    leading: Icon(Icons.info_outline, color: AppTheme.primary),
-                  ),
-                  if (sensors.isEmpty)
-                    ListTile(
+                    const Divider(),
+                    const ListTile(
                       title: Text(
-                        'Brak czujnikow w strefie "${zone.name}"',
-                        style: const TextStyle(color: AppTheme.error),
+                        'Wymagany wybor 1 urzadzenia',
+                        style: TextStyle(
+                          color: AppTheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      subtitle: const Text(
-                        'Upewnij sie, ze sensory sa przypisane do tej strefy i aktywne.',
-                        style: TextStyle(color: Colors.grey),
+                      leading: Icon(Icons.info_outline, color: AppTheme.primary),
+                    ),
+                    if (sensors.isEmpty)
+                      ListTile(
+                        title: Text(
+                          'Brak czujnikow w strefie "${zone.name}"',
+                          style: const TextStyle(color: AppTheme.error),
+                        ),
+                        subtitle: const Text(
+                          'Upewnij sie, ze sensory sa przypisane do tej strefy i aktywne.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ...sensors.map(
+                      (s) => ListTile(
+                        title: Text(
+                          s.name,
+                          style: const TextStyle(color: AppTheme.onSurface),
+                        ),
+                        leading: const Icon(
+                          Icons.thermostat,
+                          color: AppTheme.onSurfaceVariant,
+                        ),
+                        trailing: _selectedSensorId == s.id
+                            ? const Icon(Icons.check, color: AppTheme.success)
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _selectedSensorId = s.id;
+                            _selectedSensorName = s.name;
+                          });
+                          Navigator.pop(context);
+                        },
                       ),
                     ),
-                  ...sensors.map(
-                    (s) => ListTile(
-                      title: Text(
-                        s.name,
-                        style: const TextStyle(color: AppTheme.onSurface),
-                      ),
-                      leading: const Icon(
-                        Icons.thermostat,
-                        color: AppTheme.onSurfaceVariant,
-                      ),
-                      trailing: _selectedSensorId == s.id
-                          ? const Icon(Icons.check, color: AppTheme.success)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedSensorId = s.id;
-                          _selectedSensorName = s.name;
-                        });
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            );
-          },
-          loading: () => const SizedBox(
-            height: 200,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (e, st) => SizedBox(
-            height: 200,
-            child: Center(
-              child: Text(
-                'Blad: $e',
-                style: const TextStyle(color: AppTheme.error),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              );
+            },
+            loading: () => const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, st) => SizedBox(
+              height: 200,
+              child: Center(
+                child: Text(
+                  'Blad: $e',
+                  style: const TextStyle(color: AppTheme.error),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
