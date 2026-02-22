@@ -352,7 +352,7 @@ class PdfService {
 
     final sensorRow = paramsGrid.rows.add();
     sensorRow.cells[0].value = 'Urzadzenie / sensor';
-    sensorRow.cells[1].value = params.sensorName;
+    sensorRow.cells[1].value = _toPdfSafeText(params.sensorName);
 
     final monthRow = paramsGrid.rows.add();
     monthRow.cells[0].value = 'Okres';
@@ -410,7 +410,8 @@ class PdfService {
     for (final rowValues in params.rows) {
       final row = dataGrid.rows.add();
       for (var i = 0; i < headers.length; i++) {
-        row.cells[i].value = i < rowValues.length ? rowValues[i] : '';
+        row.cells[i].value =
+            i < rowValues.length ? _toPdfSafeText(rowValues[i]) : '';
         row.cells[i].style.font = font;
         row.cells[i].stringFormat = PdfStringFormat(
           alignment: i == 4 ? PdfTextAlignment.left : PdfTextAlignment.center,
@@ -702,6 +703,35 @@ class PdfService {
       );
     }
   }
+
+  // Fallback text sanitizer for cases where engine falls back to non-Unicode font.
+  static String _toPdfSafeText(String input) {
+    const replacements = <String, String>{
+      '\u0105': 'a', // ą
+      '\u0107': 'c', // ć
+      '\u0119': 'e', // ę
+      '\u0142': 'l', // ł
+      '\u0144': 'n', // ń
+      '\u00F3': 'o', // ó
+      '\u015B': 's', // ś
+      '\u017C': 'z', // ż
+      '\u017A': 'z', // ź
+      '\u0104': 'A', // Ą
+      '\u0106': 'C', // Ć
+      '\u0118': 'E', // Ę
+      '\u0141': 'L', // Ł
+      '\u0143': 'N', // Ń
+      '\u00D3': 'O', // Ó
+      '\u015A': 'S', // Ś
+      '\u017B': 'Z', // Ż
+      '\u0179': 'Z', // Ź
+    };
+    var out = input;
+    replacements.forEach((from, to) {
+      out = out.replaceAll(from, to);
+    });
+    return out;
+  }
 }
 
 class _Ccp3ReportParams {
@@ -781,3 +811,4 @@ class _PdfTableParams {
     required this.boldFontBytes,
   });
 }
+

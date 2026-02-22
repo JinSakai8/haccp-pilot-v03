@@ -117,6 +117,22 @@ void main() {
       expect(text, contains('Sprawdzil/zatwierdzil'));
     });
 
+    test('generateCcp1TemperatureReport supports Polish sensor names', () async {
+      final rows = <List<String>>[
+        ['01.02.2026', '08:00', '2.0\u00B0C', 'TAK', '', ''],
+      ];
+
+      final bytes = await pdfService.generateCcp1TemperatureReport(
+        sensorName: 'Ch\u0142odnia Mi\u0119s',
+        userName: 'Tester',
+        monthLabel: '2026-02',
+        rows: rows,
+      );
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes.sublist(0, 4)), '%PDF');
+    });
+
     test('generateCcp1TemperatureReport handles multipage dataset', () async {
       final rows = List<List<String>>.generate(320, (i) {
         final day = ((i % 28) + 1).toString().padLeft(2, '0');
