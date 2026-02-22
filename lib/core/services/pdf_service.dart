@@ -10,7 +10,10 @@ import 'package:haccp_pilot/core/services/file_opener.dart'; // Conditional impo
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
 class PdfService {
-  
+  final bool useIsolate;
+
+  PdfService({this.useIsolate = true});
+
   /// Generates a PDF report for a generic form (GMP/GHP).
   Future<Uint8List> generateFormReport({
     required String title,
@@ -65,7 +68,7 @@ class PdfService {
     );
 
     // compute doesn't work on web, so run directly
-    if (kIsWeb) {
+    if (kIsWeb || !useIsolate) {
       return await _generatePdfIsolate(params);
     }
     return await compute(_generatePdfIsolate, params);
@@ -77,8 +80,8 @@ class PdfService {
     final page = document.pages.add();
     final graphics = page.graphics;
     
-    final font = PdfTrueTypeFont(params.fontBytes, 12);
-    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 14);
+    final font = _createRegularFont(params.fontBytes, 12);
+    final boldFont = _createBoldFont(params.boldFontBytes, 14);
 
     graphics.drawString(
       params.title.toUpperCase(),
@@ -189,7 +192,7 @@ class PdfService {
       boldFontBytes: boldFontData.buffer.asUint8List(),
     );
 
-    if (kIsWeb) {
+    if (kIsWeb || !useIsolate) {
       return await _generateTablePdfIsolate(params);
     }
     return await compute(_generateTablePdfIsolate, params);
@@ -199,8 +202,8 @@ class PdfService {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
-    final font = PdfTrueTypeFont(params.fontBytes, 10);
-    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 14);
+    final font = _createRegularFont(params.fontBytes, 10);
+    final boldFont = _createBoldFont(params.boldFontBytes, 14);
 
     graphics.drawString(
       params.title.toUpperCase(),
@@ -270,7 +273,7 @@ class PdfService {
       boldFontBytes: boldFontData.buffer.asUint8List(),
     );
 
-    if (kIsWeb) {
+    if (kIsWeb || !useIsolate) {
       return await _generateCcp3PdfIsolate(params);
     }
     return await compute(_generateCcp3PdfIsolate, params);
@@ -287,9 +290,9 @@ class PdfService {
     final graphics = page.graphics;
     
     // Fonts
-    final font = PdfTrueTypeFont(params.fontBytes, 9);
-    final boldFont = PdfTrueTypeFont(params.boldFontBytes, 10);
-    final titleFont = PdfTrueTypeFont(params.boldFontBytes, 14);
+    final font = _createRegularFont(params.fontBytes, 9);
+    final boldFont = _createBoldFont(params.boldFontBytes, 10);
+    final titleFont = _createBoldFont(params.boldFontBytes, 14);
 
     // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
@@ -487,6 +490,26 @@ class PdfService {
     document.dispose();
     debugPrint('🟢 _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.');
     return Uint8List.fromList(bytes);
+  }
+
+  static PdfFont _createRegularFont(Uint8List fontBytes, double size) {
+    try {
+      return PdfTrueTypeFont(fontBytes, size);
+    } catch (_) {
+      return PdfStandardFont(PdfFontFamily.helvetica, size);
+    }
+  }
+
+  static PdfFont _createBoldFont(Uint8List fontBytes, double size) {
+    try {
+      return PdfTrueTypeFont(fontBytes, size);
+    } catch (_) {
+      return PdfStandardFont(
+        PdfFontFamily.helvetica,
+        size,
+        style: PdfFontStyle.bold,
+      );
+    }
   }
 }
 

@@ -7,6 +7,7 @@ import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../shared/providers/dynamic_form_provider.dart';
 import '../providers/gmp_provider.dart';
+import '../config/gmp_form_ids.dart';
 import '../../../core/widgets/success_overlay.dart';
 import '../../../core/widgets/haccp_long_press_button.dart';
 
@@ -18,7 +19,7 @@ class MeatRoastingFormScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roastingFormDef = FormDefinitions.roastingFormDef;
-    const String formId = 'meat_roasting_daily';
+    const String formId = gmpMeatRoastingFormId;
     final formState = ref.watch(dynamicFormProvider(formId, roastingFormDef));
     final submissionState = ref.watch(gmpFormSubmissionProvider);
 

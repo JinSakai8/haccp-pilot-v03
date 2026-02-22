@@ -38,3 +38,6 @@ assets/credentials.json
 *.jks
 *.keystore
 key.properties
+
+# Supabase local temp artifacts
+supabase/.temp/

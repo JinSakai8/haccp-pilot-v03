@@ -1,44 +1,98 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 // import 'package:http/http.dart' as http; // Use supabase storage download instead
 
+class CoolingLogsQuerySpec {
+  final DateTime start;
+  final DateTime end;
+  final String category;
+  final String formId;
+  final String? zoneId;
+  final String? venueId;
+
+  const CoolingLogsQuerySpec({
+    required this.start,
+    required this.end,
+    required this.category,
+    required this.formId,
+    this.zoneId,
+    this.venueId,
+  });
+
+  bool get usesZoneFilter => zoneId != null && zoneId!.isNotEmpty;
+  bool get usesVenueFallback =>
+      !usesZoneFilter && venueId != null && venueId!.isNotEmpty;
+}
+
+@visibleForTesting
+CoolingLogsQuerySpec buildCoolingLogsQuerySpec(
+  DateTime date, {
+  String? zoneId,
+  String? venueId,
+}) {
+  final start = DateTime(date.year, date.month, date.day);
+  final end = start
+      .add(const Duration(days: 1))
+      .subtract(const Duration(milliseconds: 1));
+
+  final normalizedZoneId =
+      (zoneId != null && zoneId.trim().isNotEmpty) ? zoneId.trim() : null;
+  final normalizedVenueId =
+      (venueId != null && venueId.trim().isNotEmpty) ? venueId.trim() : null;
+
+  return CoolingLogsQuerySpec(
+    start: start,
+    end: end,
+    category: 'gmp',
+    formId: 'food_cooling',
+    zoneId: normalizedZoneId,
+    venueId: normalizedVenueId,
+  );
+}
+
 class ReportsRepository {
-  Future<List<Map<String, dynamic>>> getWasteRecords(DateTime start, DateTime end) async {
+  Future<List<Map<String, dynamic>>> getWasteRecords(
+    DateTime start,
+    DateTime end,
+  ) async {
     final response = await SupabaseService.client
         .from('waste_records')
         .select()
         .gte('created_at', start.toIso8601String())
         .lte('created_at', end.toIso8601String())
         .order('created_at');
-    
+
     return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<List<Map<String, dynamic>>> getCoolingLogs(DateTime date) async {
-    // Determine start and end of the day
-    final start = DateTime(date.year, date.month, date.day);
-    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+  Future<List<Map<String, dynamic>>> getCoolingLogs(
+    DateTime date, {
+    String? zoneId,
+    String? venueId,
+  }) async {
+    final spec = buildCoolingLogsQuerySpec(
+      date,
+      zoneId: zoneId,
+      venueId: venueId,
+    );
 
-    debugPrint('🔵 getCoolingLogs: category=gmp, form_id=food_cooling');
-    debugPrint('🔵 getCoolingLogs: range ${start.toIso8601String()} → ${end.toIso8601String()}');
-
-    final response = await SupabaseService.client
+    var query = SupabaseService.client
         .from('haccp_logs')
         .select()
-        .eq('category', 'gmp')
-        .eq('form_id', 'food_cooling')
-        .gte('created_at', start.toIso8601String())
-        .lte('created_at', end.toIso8601String())
-        .order('created_at');
-    
-    final results = List<Map<String, dynamic>>.from(response);
-    debugPrint('🔵 getCoolingLogs: Found ${results.length} records');
-    if (results.isNotEmpty) {
-      debugPrint('🔵 getCoolingLogs: First record keys: ${results.first.keys.toList()}');
+        .eq('category', spec.category)
+        .eq('form_id', spec.formId)
+        .gte('created_at', spec.start.toIso8601String())
+        .lte('created_at', spec.end.toIso8601String());
+
+    if (spec.usesZoneFilter) {
+      query = query.eq('zone_id', spec.zoneId!);
+    } else if (spec.usesVenueFallback) {
+      query = query.eq('venue_id', spec.venueId!);
     }
-    return results;
+
+    final response = await query.order('created_at');
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<Map<String, dynamic>>> getGmpLogs(DateTime start, DateTime end) async {
@@ -50,7 +104,7 @@ class ReportsRepository {
         .gte('created_at', start.toIso8601String())
         .lte('created_at', end.toIso8601String())
         .order('created_at');
-    
+
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -63,7 +117,7 @@ class ReportsRepository {
         .gte('recorded_at', start.toIso8601String()) // Note: field is recorded_at, not timestamp
         .lte('recorded_at', end.toIso8601String())
         .order('recorded_at');
-    
+
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -75,7 +129,7 @@ class ReportsRepository {
           .select('logo_url')
           .eq('id', venueId)
           .maybeSingle();
-      
+
       if (venue == null || venue['logo_url'] == null) return null;
 
       final logoUrl = venue['logo_url'] as String;
@@ -83,31 +137,34 @@ class ReportsRepository {
       // If logo_url is full public URL: https://.../storage/v1/object/public/branding/logos/...
       // Supabase download needs the path relative to bucket.
       // Current upload implementation stores full URL in DB.
-      // So we must download via HTTP or parse path. 
+      // So we must download via HTTP or parse path.
       // Supabase helper download() works on bucket paths.
       // Easier: Use http.get since it is a public URL.
-      
-      // Since we don't have http package imported in this file, let's use Supabase storage 
+
+      // Since we don't have http package imported in this file, let's use Supabase storage
       // if we can extract the path.
       // URL format: .../branding/logos/venueId/timestamp.jpg
-      
+
       final uri = Uri.parse(logoUrl);
-      final segments = uri.pathSegments; 
+      final segments = uri.pathSegments;
       // segments usually: ['storage', 'v1', 'object', 'public', 'branding', 'logos', ...]
       // We want 'logos/...'
-      
+
       final brandingIndex = segments.indexOf('branding');
       if (brandingIndex != -1 && brandingIndex + 1 < segments.length) {
-         final path = segments.sublist(brandingIndex + 1).join('/');
-         // path = 'logos/venueId/...'
-         final bytes = await SupabaseService.client.storage.from('branding').download(path);
-         return bytes;
+        final path = segments.sublist(brandingIndex + 1).join('/');
+        // path = 'logos/venueId/...'
+        final bytes = await SupabaseService.client.storage
+            .from('branding')
+            .download(path);
+        return bytes;
       }
     } catch (e) {
       debugPrint('Error fetching logo: $e');
     }
     return null;
   }
+
   /// Uploads report bytes to Supabase Storage
   Future<String?> uploadReport(String path, Uint8List bytes) async {
     try {
@@ -170,6 +227,7 @@ class ReportsRepository {
       return null;
     }
   }
+
   /// Fetches list of generated reports for a venue
   Future<List<Map<String, dynamic>>> getGeneratedReports(String venueId) async {
     try {

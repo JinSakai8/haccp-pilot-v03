@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/design_tokens.dart';
+import '../../../core/models/zone.dart';
 import '../../../core/providers/auth_provider.dart';
 
 /// Ekran 1.3 — Wybór Strefy
@@ -29,6 +30,33 @@ class ZoneSelectionScreen extends ConsumerWidget {
     return Icons.kitchen;
   }
 
+  Future<void> _activateZone(
+    BuildContext context,
+    WidgetRef ref, {
+    required String employeeId,
+    required String zoneId,
+    required Zone zone,
+  }) async {
+    try {
+      await ref.read(authRepositoryProvider).setKioskContext(
+            employeeId: employeeId,
+            zoneId: zoneId,
+          );
+      ref.read(currentZoneProvider.notifier).set(zone);
+      if (context.mounted) {
+        context.go('/hub');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nie mozna ustawic kontekstu kiosku: $e'),
+          backgroundColor: HaccpDesignTokens.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final employee = ref.watch(currentUserProvider);
@@ -46,10 +74,17 @@ class ZoneSelectionScreen extends ConsumerWidget {
                 children: [
                   // Back to PIN Pad
                   IconButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      try {
+                        await ref.read(authRepositoryProvider).clearKioskContext();
+                      } catch (_) {
+                        // Non-fatal: local state reset still proceeds.
+                      }
                       ref.read(currentUserProvider.notifier).clear();
                       ref.read(pinLoginProvider.notifier).reset();
-                      context.go('/login');
+                      if (context.mounted) {
+                        context.go('/login');
+                      }
                     },
                     icon: const Icon(Icons.arrow_back, size: 28),
                     constraints: const BoxConstraints(
@@ -98,9 +133,15 @@ class ZoneSelectionScreen extends ConsumerWidget {
                   // Auto-select if only one zone
                   if (zones.length == 1) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      ref.read(currentZoneProvider.notifier).set(
-                          zones.first);
-                      context.go('/hub');
+                      final emp = ref.read(currentUserProvider);
+                      if (emp == null) return;
+                      _activateZone(
+                        context,
+                        ref,
+                        employeeId: emp.id,
+                        zoneId: zones.first.id,
+                        zone: zones.first,
+                      );
                     });
                     return const Center(
                       child: CircularProgressIndicator(
@@ -124,9 +165,16 @@ class ZoneSelectionScreen extends ConsumerWidget {
                       return _ZoneTile(
                         name: zone.name,
                         icon: _iconForZone(zone.name),
-                        onTap: () {
-                          ref.read(currentZoneProvider.notifier).set(zone);
-                          context.go('/hub');
+                        onTap: () async {
+                          final emp = ref.read(currentUserProvider);
+                          if (emp == null) return;
+                          await _activateZone(
+                            context,
+                            ref,
+                            employeeId: emp.id,
+                            zoneId: zone.id,
+                            zone: zone,
+                          );
                         },
                       );
                     },

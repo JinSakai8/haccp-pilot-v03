@@ -51,4 +51,23 @@ class AuthRepository {
       return Zone.fromJson(zoneData);
     }).toList();
   }
+
+  /// Stores kiosk context for current Supabase Auth user (anonymous kiosk session).
+  Future<void> setKioskContext({
+    required String employeeId,
+    required String zoneId,
+  }) async {
+    await _client.rpc(
+      'set_kiosk_context',
+      params: {
+        'employee_id_input': employeeId,
+        'zone_id_input': zoneId,
+      },
+    );
+  }
+
+  /// Clears kiosk context for current Supabase Auth user.
+  Future<void> clearKioskContext() async {
+    await _client.rpc('clear_kiosk_context');
+  }
 }

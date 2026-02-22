@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/widgets/haccp_top_bar.dart';
-import '../../../../core/widgets/haccp_date_picker.dart';
-import '../../../../core/widgets/empty_state_widget.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/haccp_top_bar.dart';
+import '../config/gmp_form_ids.dart';
 import '../providers/gmp_provider.dart';
 
 class GmpHistoryScreen extends ConsumerStatefulWidget {
@@ -20,12 +20,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
   DateTime? _toDate;
   String? _selectedFormId;
 
-  // Manual list of processes for filtering
-  final Map<String, String> _processTypes = {
-    'meat_roasting': 'Obróbka Termiczna',
-    'food_cooling': 'Schładzanie',
-    'delivery_control': 'Dostawa',
-  };
+  final Map<String, String> _processTypes = gmpProcessLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +34,6 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
       appBar: const HaccpTopBar(title: 'Historia GMP'),
       body: Column(
         children: [
-          // Filters Header
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white.withOpacity(0.05),
@@ -59,16 +53,19 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       ActionChip(
                         label: Text(_toDate == null ? 'Do: Dzisiaj' : 'Do: ${DateFormat('MM-dd').format(_toDate!)}'),
                         onPressed: () => _pickDate(false),
-                         backgroundColor: _toDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
+                        backgroundColor: _toDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
                       ),
                       const SizedBox(width: 8),
                       if (_fromDate != null || _toDate != null)
-                        IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () {
-                          setState(() {
-                            _fromDate = null;
-                            _toDate = null;
-                          });
-                        }),
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _fromDate = null;
+                              _toDate = null;
+                            });
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -101,13 +98,12 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
               ],
             ),
           ),
-          
           Expanded(
             child: historyAsync.when(
               data: (logs) => logs.isEmpty
                   ? const HaccpEmptyState(
-                      headline: "Brak wyników",
-                      subtext: "Nie znaleziono wpisów dla wybranych filtrów.",
+                      headline: 'Brak wynikow',
+                      subtext: 'Nie znaleziono wpisow dla wybranych filtrow.',
                       icon: Icons.filter_list_off,
                     )
                   : ListView.builder(
@@ -116,8 +112,9 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       itemBuilder: (context, index) {
                         final log = logs[index];
                         final date = DateTime.parse(log['created_at']);
-                        final formId = log['form_id'] as String;
-                        final label = _processTypes[formId] ?? formId.toUpperCase();
+                        final rawFormId = log['form_id'] as String;
+                        final normalizedFormId = normalizeGmpFormId(rawFormId);
+                        final label = _processTypes[normalizedFormId] ?? normalizedFormId.toUpperCase();
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -127,12 +124,12 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                             subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
-                              if (formId == 'food_cooling') {
+                              if (normalizedFormId == gmpFoodCoolingFormId) {
                                 final dateStr = DateFormat('yyyy-MM-dd').format(date);
                                 context.push('/reports/preview/ccp3?date=$dateStr');
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Podgląd szczegółów dostępny wkrótce')),
+                                  const SnackBar(content: Text('Podglad szczegolow dostepny wkrotce')),
                                 );
                               }
                             },
@@ -141,7 +138,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       },
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Błąd: $err')),
+              error: (err, stack) => Center(child: Text('Blad: $err')),
             ),
           ),
         ],
@@ -170,7 +167,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isFrom) {

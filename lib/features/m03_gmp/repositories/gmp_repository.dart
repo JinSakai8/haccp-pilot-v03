@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../config/gmp_form_ids.dart';
 
 class GmpRepository {
   final _client = SupabaseService.client;
@@ -45,8 +46,7 @@ class GmpRepository {
       query = query.lte('created_at', toDate.toIso8601String());
     }
     if (formId != null) {
-       // Allow partial match if needed, but exact match is safer for now
-       query = query.eq('form_id', formId);
+       query = query.inFilter('form_id', gmpHistoryCompatibleFormIds(formId));
     }
         
     final response = await query.order('created_at', ascending: false);

@@ -175,3 +175,155 @@ Analiza plików źródłowych wykazała zgodność, z małymi wyjątkami:
 
 - **`Code_description.MD`**: Jest najbardziej aktualny (Luty 2026).
 - **`00_Architecture_Master_Plan.md`**: Opisuje plan z 15.02.2026. Struktura jest poprawna, ale szczegóły tabeli `products` (kolumna `venue_id` do multi-tenancy) zostały doprecyzowane w sprincie 5 (SQL `32_update_products_table.sql`). Dokumentacja `supabase.md` uwzględnia ten nowszy stan.
+
+---
+
+## 6. Aktualizacja po Sprint 0-1 (2026-02-22)
+
+Niniejsza sekcja doprecyzowuje najnowszy stan po pracach Sprint 0/1.
+
+### 6.1 Stan schematu i tabel
+
+- Kanoniczna tabela dla logow GMP/GHP: `haccp_logs`.
+- W zdalnym `public` nadal istnieja legacy tabele `gmp_logs` oraz `ghp_logs`, ale aktualnie sa puste (0 rekordow).
+- Nie wykonano fizycznej migracji danych `form_id` w DB w Sprint 0/1 (to zakres pozniejszych sprintow).
+
+### 6.2 Zamrozony kontrakt `form_id` (GMP)
+
+Docelowe wartosci:
+
+- `food_cooling`
+- `meat_roasting`
+- `delivery_control`
+
+Kompatybilnosc legacy w odczycie historii:
+
+- `meat_roasting_daily` -> `meat_roasting`
+- `delivery_control_daily` -> `delivery_control`
+
+### 6.3 Snapshot diagnostyczny `haccp_logs` (2026-02-22)
+
+- Laczna liczba rekordow: **9**
+- Per `form_id`:
+  - `food_cooling`: **9**
+- `zone_id IS NULL`: **0**
+- `venue_id IS NULL`: **0**
+
+### 6.4 RLS
+
+- `haccp_logs` pozostaje w trybie pilotowym RLS (`USING (true)` / `CHECK (true)`).
+- Hardening RLS jest zaplanowany na kolejne sprinty (`03_Sprint_2_3.md`).
+
+### 6.5 Artefakty baseline
+
+- `baseline_schema.sql`
+- `baseline_haccp_logs_report.md`
+- zrodlo baseline schema: `supabase db pull` (plik: `supabase/migrations/20260222084803_remote_schema.sql`)
+
+---
+
+## 7. Aktualizacja po Sprint 2-3 (2026-02-22)
+
+### 7.1 CCP-3 (aplikacja)
+
+- Odczyt logow chlodzenia (`food_cooling`) zostal uszczelniony po kontekscie:
+  - priorytet: `zone_id`,
+  - fallback: `venue_id` gdy brak `zone_id`.
+- Implementacja:
+  - `lib/features/m06_reports/repositories/reports_repository.dart`
+  - `lib/features/m06_reports/screens/ccp3_preview_screen.dart`
+
+### 7.2 Kontekst kiosk pod RLS (aplikacja)
+
+- Po wyborze strefy aplikacja zapisuje kontekst sesji kiosk przez RPC:
+  - `set_kiosk_context(employee_id_input, zone_id_input)`.
+- Przy wyjsciu do ekranu logowania aplikacja czysci kontekst:
+  - `clear_kiosk_context()`.
+- Implementacja:
+  - `lib/core/repositories/auth_repository.dart`
+  - `lib/features/m01_auth/screens/zone_selection_screen.dart`
+
+### 7.3 Hardening DB (Sprint 3) - przygotowany artefakt SQL
+
+- Dodana migracja:
+  - `supabase/migrations/20260222123000_sprint3_haccp_logs_hardening.sql`
+- Zakres migracji:
+  - tabela `kiosk_sessions` (mapowanie `auth.uid()` -> `employee_id`/`venue_id`/`zone_id`),
+  - RPC: `set_kiosk_context`, `clear_kiosk_context`,
+  - indeksy `haccp_logs`:
+    - `(category, form_id, created_at)`,
+    - `(zone_id, created_at)`,
+    - `(venue_id, created_at)`,
+  - constraints:
+    - `category in ('gmp','ghp')`,
+    - slownik `form_id` dla GMP/GHP,
+  - nowe polityki RLS SELECT/INSERT scoped do `kiosk_sessions`,
+  - usuniecie pilotowych polityk `USING/CHECK (true)` dla `haccp_logs`.
+
+### 7.4 Status wdrozenia DB
+
+- Migracja Sprint 3 zostala wdrozona na remote przez `supabase db push` (2026-02-22).
+- Stan zdalny zawiera:
+  - tabele `kiosk_sessions`,
+  - RPC `set_kiosk_context` oraz `clear_kiosk_context`,
+  - nowe indeksy i polityki RLS dla `haccp_logs`.
+
+### 7.5 Walidacja testowa po zmianach
+
+- Testy CCP-3/GMP i smoke testy UI przechodza.
+- Pelny `flutter test` przechodzi (1 test oznaczony jako `skip` z powodu ograniczenia fontow Syncfusion w runnerze testowym).
+
+---
+
+## 8. Aktualizacja po Sprint 4 (2026-02-22)
+
+### 8.1 Migracja danych historycznych (`haccp_logs`)
+
+- Wdrozona migracja:
+  - `supabase/migrations/20260222150000_sprint4_haccp_logs_data_migration.sql`
+- Zakres:
+  - normalizacja legacy `form_id`:
+    - `meat_roasting_daily` -> `meat_roasting`
+    - `delivery_control_daily` -> `delivery_control`
+  - uzupelnienie brakujacego `venue_id` z mapowania `user_id -> employees.venue_id`,
+  - uzupelnienie brakujacego `zone_id` tylko dla jednoznacznych przypisan pracownika do jednej strefy.
+
+### 8.2 Backup i rollback
+
+- Migracja tworzy backup rekordow:
+  - `public.haccp_logs_sprint4_backup_20260222`
+- Rollback danych jest mozliwy przez odtworzenie `form_id`/`venue_id`/`zone_id` z tabeli backup.
+
+### 8.3 Wynik wykonania na danych produkcyjnych
+
+- `supabase db push` wykonany poprawnie (po 2 poprawkach kompatybilnosci SQL).
+- Snapshot po wdrozeniu:
+  - `haccp_logs`: 9 rekordow,
+  - `food_cooling`: 9,
+  - legacy `form_id`: 0,
+  - `venue_id IS NULL`: 0,
+  - `zone_id IS NULL`: 0.
+- Tabela backup istnieje i zawiera 0 rekordow (migracja byla logicznie no-op dla aktualnego zbioru).
+
+---
+
+## 9. Aktualizacja po Sprint 5 (2026-02-22)
+
+### 9.1 Testy automatyczne
+
+- Uruchomiono:
+  - `test/db_consistency_test.dart`,
+  - `test/features/m03_gmp/gmp_form_id_contract_test.dart`,
+  - `test/features/m06_reports/reports_repository_filters_test.dart`,
+  - pelny `flutter test`.
+- Wynik pelnego suite:
+  - 19 passed, 1 skipped, 0 failed.
+
+### 9.2 Status release
+
+- Technicznie:
+  - migracje DB (Sprint 3+4) sa wdrozone na remote,
+  - testy regresji przechodza.
+- Operacyjnie (otwarte):
+  - canary rollout,
+  - obserwacja 48h i decyzja go-live close.
