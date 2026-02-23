@@ -395,3 +395,50 @@ Kompatybilnosc legacy w odczycie historii:
   - brak regresji dla pozostalych typow raportow,
   - poprawna archiwizacja `ccp1_temperature` w `generated_reports`,
   - rollback DB nadal oparty o przywrocenie poprzedniego check constraint.
+
+---
+
+## 13. Aktualizacja po M02 Sprint 0-4 (2026-02-23)
+
+### 13.1 Migracja DB (M02 7D + Edit)
+
+- Wdrozona migracja:
+  - `supabase/migrations/20260223120000_m02_temperature_logs_table_edit_hardening.sql`
+- Status remote:
+  - migracja wypchnieta przez `supabase db push` dnia **2026-02-23**.
+
+### 13.2 Zmiany w `temperature_logs`
+
+- Dodane kolumny metadanych edycji:
+  - `edited_at timestamptz`
+  - `edited_by uuid` (FK do `employees.id`)
+  - `edit_reason text`
+- Dodany indeks:
+  - `temperature_logs_sensor_recorded_at_desc_idx` na `(sensor_id, recorded_at desc)`
+
+### 13.3 Hardening RLS
+
+- Usuniete liberalne policy:
+  - `"Logs updateable by all"`
+- Dodane policy scoped do sesji kiosk (`kiosk_sessions`) i topologii `sensor -> zone -> venue`:
+  - `temperature_logs_select_kiosk_scope`
+  - `temperature_logs_insert_kiosk_scope`
+
+### 13.4 RPC enforcement (edycja i ACK)
+
+- Dodane/utrzymane funkcje:
+  - `update_temperature_log_value(log_id_input uuid, new_temperature_input numeric, edit_reason_input text)`
+  - `acknowledge_temperature_alert(log_id_input uuid)`
+- Reguly backendowe:
+  - edycja tylko dla roli `manager`/`owner`,
+  - edycja tylko w scope kiosk (venue/zone),
+  - limit czasu edycji: rekord nie starszy niz 7 dni,
+  - zakres temperatury: `-50..150`.
+
+### 13.5 Wplyw na aplikacje i walidacja
+
+- Aplikacja M02 korzysta z RPC zamiast direct update:
+  - edycja -> `update_temperature_log_value`
+  - potwierdzenie alertu -> `acknowledge_temperature_alert`
+- Walidacja po wdrozeniu:
+  - `flutter test` -> **34 passed, 1 skipped, 0 failed** (stan na **2026-02-23**).

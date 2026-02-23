@@ -167,3 +167,61 @@ Aplikacja jest budowana jako **Flutter Web** (PWA).
 - **Komenda:** `flutter build web --release --no-tree-shake-icons`.
 - **Hosting:** Vercel (automatyczny deploy z GitHub).
 - **Konfiguracja:** Zmienne środowiskowe (Supabase URL/Key) są wstrzykiwane podczas builda (`--dart-define`).
+
+---
+
+## 8. Aktualizacja kodu M02 (2026-02-23): Tabela 7 dni + edycja temperatury
+
+### 8.1 Zakres UI (Sensor Chart)
+
+- `SensorChartScreen` ma 4 tryby:
+  - `24h`
+  - `7 dni`
+  - `30 dni`
+  - `Tabela 7 dni`
+- W trybie tabeli pokazujemy kolumny:
+  - data
+  - godzina
+  - temperatura
+  - alert
+  - status potwierdzenia
+  - akcja
+
+### 8.2 Read path i logika aplikacyjna
+
+- Repozytorium:
+  - `MeasurementsRepository.getSevenDayTable(sensorId)`
+- Provider:
+  - `sensorSevenDayTableProvider`
+- Akcja edycji:
+  - `TemperatureLogEditAction.editTemperatureLog(...)`
+  - invalidacja po zapisie:
+    - `sensorSevenDayTableProvider`
+    - `sensorHistoryProvider` dla zakresow `24h/7d/30d`
+
+### 8.3 Reguly edycji po stronie klienta
+
+- Walidacje:
+  - liczba dziesietna
+  - maksymalnie 2 miejsca po przecinku
+  - zakres `-50..150`
+- Bramka uprawnien UI:
+  - aktywna edycja tylko dla `manager`/`owner`
+  - `cook`/`cleaner` -> readonly
+- Bramka czasu:
+  - edycja tylko dla rekordow `>= now() - 7 dni`
+
+### 8.4 Integracja z DB (RPC zamiast direct update)
+
+- Aplikacja korzysta z RPC:
+  - `update_temperature_log_value` (edycja)
+  - `acknowledge_temperature_alert` (ACK alertu)
+- Brak bezposredniego `.update()` na `temperature_logs` w kodzie klienta.
+
+### 8.5 Testy i walidacja
+
+- Dodane testy widgetowe M02:
+  - scenariusz graniczny `6d23h` vs `7d+1m`
+  - scenariusz roli `cook` (readonly)
+- Wynik suite po zmianach (2026-02-23):
+  - `flutter test` -> **34 passed, 1 skipped, 0 failed**

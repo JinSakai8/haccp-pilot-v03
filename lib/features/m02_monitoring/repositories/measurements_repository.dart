@@ -43,6 +43,25 @@ class MeasurementsRepository {
     return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
   }
 
+  Future<List<TemperatureLog>> getSevenDayTable(
+    String sensorId, {
+    int limit = 500,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final from = now.subtract(const Duration(days: 7));
+
+    final response = await _client
+        .from('temperature_logs')
+        .select()
+        .eq('sensor_id', sensorId)
+        .gte('recorded_at', from.toIso8601String())
+        .lte('recorded_at', now.toIso8601String())
+        .order('recorded_at', ascending: false)
+        .limit(limit);
+
+    return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
+  }
+
   // Pobierz alerty (aktywne lub historyczne)
   Future<List<TemperatureLog>> getAlerts(String zoneId, {bool activeOnly = true}) async {
     // 1. FETCH SENSORS FIRST to filter by zone
@@ -62,12 +81,28 @@ class MeasurementsRepository {
     return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
   }
 
-  Future<void> acknowledgeAlert(String logId, String userId) async {
-    await _client.from('temperature_logs').update({
-      'is_acknowledged': true,
-      'acknowledged_by': userId,
-      'acknowledged_at': DateTime.now().toIso8601String(),
-    }).eq('id', logId);
+  Future<void> acknowledgeAlert(String logId) async {
+    await _client.rpc(
+      'acknowledge_temperature_alert',
+      params: {
+        'log_id_input': logId,
+      },
+    );
+  }
+
+  Future<void> editTemperatureLogValue({
+    required String logId,
+    required double newTemperature,
+    String? editReason,
+  }) async {
+    await _client.rpc(
+      'update_temperature_log_value',
+      params: {
+        'log_id_input': logId,
+        'new_temperature_input': newTemperature,
+        'edit_reason_input': editReason,
+      },
+    );
   }
 
   // Nowa metoda do dodawania adnotacji

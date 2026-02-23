@@ -477,3 +477,48 @@ dev_dependencies:
 6. **Enforcement "Glove-Friendly":** Wszystkie krytyczne akcje (Zapisz/Potwierdź) MUSZĄ używać `HaccpLongPressButton` (1s). Touch target min. 60x60dp jest twardym warunkiem architektonicznym.
 7. **Alarm Acknowledgement:** Logujemy potwierdzenia bezpośrednio w `temperature_logs` (kolumny `is_acknowledged`, `acknowledged_by`), eliminując potrzebę osobnej tabeli junction dla uproszczenia zapytań realtime.
 8. **Strategia RLS dla Sessionless Auth:** Ponieważ aplikacja w trybie Kiosk często korzysta z autoryzacji anonimowej (`signInAnonymously()`), polityki RLS dla tabel odczytowych (`sensors`, `temperature_logs`) muszą obejmować zarówno rolę `authenticated`, jak i `anon`, aby zapobiec blokadzie danych przy błędach sesji.
+
+---
+
+## 8. Aktualizacja architektury M02 (2026-02-23)
+
+### 8.1 Sensor Chart: dodatkowy widok 7 dni
+
+- Ekran `SensorChartScreen` przeszedl z 3 trybow wykresu do 4 trybow widoku:
+  - `24h` (wykres)
+  - `7 dni` (wykres)
+  - `30 dni` (wykres)
+  - `Tabela 7 dni` (widok tabelaryczny per sensor)
+- Nie dodano nowego route. Zmiana jest wewnatrz istniejacej trasy:
+  - `/monitoring/chart/:deviceId`
+
+### 8.2 Architektura edycji danych (M02)
+
+- Warstwa UI:
+  - dialog edycji temperatury w tabeli 7 dni
+  - walidacje klienta (`-50..150`, max 2 miejsca po przecinku)
+  - bramka roli (`manager`/`owner`) i okna czasu (7 dni)
+- Warstwa State:
+  - `TemperatureLogEditAction.editTemperatureLog(...)`
+  - invalidacja read path po zapisie (`sensorSevenDayTable`, `sensorHistory 24h/7d/30d`)
+- Warstwa Data:
+  - read: `getSevenDayTable(sensorId)`
+  - write: RPC `update_temperature_log_value(...)` (zamiast direct update)
+
+### 8.3 DB hardening powiazany z M02
+
+- Migracja: `supabase/migrations/20260223120000_m02_temperature_logs_table_edit_hardening.sql`
+- Zmiany:
+  - kolumny `edited_at`, `edited_by`, `edit_reason`
+  - indeks `(sensor_id, recorded_at desc)`
+  - usuniecie liberalnych policy update
+  - scoped policy SELECT/INSERT po `kiosk_sessions` i relacji `sensor->zone->venue`
+  - RPC:
+    - `update_temperature_log_value(...)`
+    - `acknowledge_temperature_alert(...)`
+
+### 8.4 Status wdrozenia
+
+- `supabase db push` wykonany: **2026-02-23**.
+- Walidacja aplikacji po zmianach:
+  - `flutter test` -> **34 passed, 1 skipped, 0 failed**.
