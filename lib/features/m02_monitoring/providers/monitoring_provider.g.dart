@@ -297,13 +297,13 @@ final alarmsProvider = AlarmsFamily._();
 final class AlarmsProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<TemperatureLog>>,
-          List<TemperatureLog>,
-          FutureOr<List<TemperatureLog>>
+          AsyncValue<List<AlarmListItem>>,
+          List<AlarmListItem>,
+          FutureOr<List<AlarmListItem>>
         >
     with
-        $FutureModifier<List<TemperatureLog>>,
-        $FutureProvider<List<TemperatureLog>> {
+        $FutureModifier<List<AlarmListItem>>,
+        $FutureProvider<List<AlarmListItem>> {
   AlarmsProvider._({
     required AlarmsFamily super.from,
     required (String, {bool activeOnly}) super.argument,
@@ -327,12 +327,12 @@ final class AlarmsProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<TemperatureLog>> $createElement(
+  $FutureProviderElement<List<AlarmListItem>> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<List<TemperatureLog>> create(Ref ref) {
+  FutureOr<List<AlarmListItem>> create(Ref ref) {
     final argument = this.argument as (String, {bool activeOnly});
     return alarms(ref, argument.$1, activeOnly: argument.activeOnly);
   }
@@ -348,12 +348,12 @@ final class AlarmsProvider
   }
 }
 
-String _$alarmsHash() => r'8d0a2fa6dc7fd7c987b4dfc95b1b303f7428681e';
+String _$alarmsHash() => r'c0c8b1ab9ae8c08b7e4f8c53bebd9b73b0ca9682';
 
 final class AlarmsFamily extends $Family
     with
         $FunctionalFamilyOverride<
-          FutureOr<List<TemperatureLog>>,
+          FutureOr<List<AlarmListItem>>,
           (String, {bool activeOnly})
         > {
   AlarmsFamily._()
@@ -396,7 +396,7 @@ final class AlarmActionProvider
   AlarmAction create() => AlarmAction();
 }
 
-String _$alarmActionHash() => r'521d4dca23b629576dfe74083c5a17dbd6dbcca6';
+String _$alarmActionHash() => r'0887386fb813134494600fa1990cdf5e43cae5bd';
 
 abstract class _$AlarmAction extends $AsyncNotifier<void> {
   FutureOr<void> build();
@@ -440,7 +440,7 @@ final class AnnotationActionProvider
   AnnotationAction create() => AnnotationAction();
 }
 
-String _$annotationActionHash() => r'904f2ebfd7de4e4eedda645d6532712408067d8a';
+String _$annotationActionHash() => r'7a7d4b6f34fedeba470e8577f5efae61609ada1c';
 
 abstract class _$AnnotationAction extends $AsyncNotifier<void> {
   FutureOr<void> build();

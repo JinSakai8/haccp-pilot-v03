@@ -442,3 +442,47 @@ Kompatybilnosc legacy w odczycie historii:
   - potwierdzenie alertu -> `acknowledge_temperature_alert`
 - Walidacja po wdrozeniu:
   - `flutter test` -> **34 passed, 1 skipped, 0 failed** (stan na **2026-02-23**).
+
+---
+
+## 14. Aktualizacja po M02 Alarm Panel Refactor (2026-02-23)
+
+### 14.1 Nowa migracja DB
+
+- Wdrozona migracja:
+  - `supabase/migrations/20260223163000_m02_get_temperature_alarms_rpc.sql`
+- Status remote:
+  - migracja wypchnieta przez `supabase db push` dnia **2026-02-23**.
+
+### 14.2 Nowy RPC read-model alarmow
+
+- Dodana funkcja:
+  - `get_temperature_alarms(zone_id_input uuid, active_only_input boolean, limit_input int default 100, offset_input int default 0)`
+- Kontrakt odpowiedzi (pod UI):
+  - `log_id`
+  - `sensor_id`
+  - `sensor_name`
+  - `temperature`
+  - `started_at`
+  - `last_seen_at`
+  - `duration_minutes`
+  - `is_acknowledged`
+  - `acknowledged_at`
+  - `acknowledged_by`
+
+### 14.3 Security i scope danych
+
+- RPC jest `SECURITY DEFINER`.
+- Scope danych oparty o `kiosk_sessions` oraz relacje `sensor -> zone -> venue`.
+- Brak nowych tabel.
+- Istniejace RPC ACK pozostaje bez zmian:
+  - `acknowledge_temperature_alert(log_id_input uuid)`
+- Dodany `grant execute` dla `authenticated` i `service_role`.
+
+### 14.4 Wydajnosc
+
+- Dodany indeks czesciowy dla alarmow:
+  - `temperature_logs_alerts_sensor_recorded_desc_idx`
+  - definicja: `(sensor_id, recorded_at desc) where is_alert = true`
+- Nadal wykorzystywany jest tez indeks:
+  - `temperature_logs_sensor_recorded_at_desc_idx`.

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
+import 'package:haccp_pilot/features/m02_monitoring/models/alarm_list_item.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/sensor.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
 
@@ -63,22 +64,26 @@ class MeasurementsRepository {
   }
 
   // Pobierz alerty (aktywne lub historyczne)
-  Future<List<TemperatureLog>> getAlerts(String zoneId, {bool activeOnly = true}) async {
-    // 1. FETCH SENSORS FIRST to filter by zone
-    final sensors = await getSensors(zoneId);
-    final sensorIds = sensors.map((s) => s.id).toList();
+  Future<List<AlarmListItem>> getAlerts(
+    String zoneId, {
+    bool activeOnly = true,
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final response = await _client.rpc(
+      'get_temperature_alarms',
+      params: {
+        'zone_id_input': zoneId,
+        'active_only_input': activeOnly,
+        'limit_input': limit,
+        'offset_input': offset,
+      },
+    );
 
-    if (sensorIds.isEmpty) return [];
-
-    // 2. Build query with all filters first
-    final response = await _client.from('temperature_logs')
-        .select()
-        .eq('is_alert', true)
-        .eq('is_acknowledged', !activeOnly)
-        .filter('sensor_id', 'in', sensorIds)
-        .order('recorded_at', ascending: false);
-
-    return (response as List).map((e) => TemperatureLog.fromJson(e)).toList();
+    return (response as List)
+        .cast<Map<String, dynamic>>()
+        .map(AlarmListItem.fromJson)
+        .toList();
   }
 
   Future<void> acknowledgeAlert(String logId) async {

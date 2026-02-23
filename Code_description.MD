@@ -225,3 +225,48 @@ Aplikacja jest budowana jako **Flutter Web** (PWA).
   - scenariusz roli `cook` (readonly)
 - Wynik suite po zmianach (2026-02-23):
   - `flutter test` -> **34 passed, 1 skipped, 0 failed**
+
+---
+
+## 9. Aktualizacja kodu M02 (2026-02-23): Alarm Panel Refactor
+
+### 9.1 Nowy model widoku alarmu
+
+- Dodany DTO:
+  - `lib/features/m02_monitoring/models/alarm_list_item.dart`
+- UI panelu alarmow nie renderuje juz surowego `TemperatureLog`, tylko read-model `AlarmListItem`.
+
+### 9.2 Zmiana read path alarmow
+
+- Repozytorium:
+  - `MeasurementsRepository.getAlerts(...)` korzysta z RPC `get_temperature_alarms(...)`.
+- Provider:
+  - `alarmsProvider(zoneId, activeOnly)` zwraca `List<AlarmListItem>`.
+- Usuniety zostal dwuetapowy flow `alarms + sensors` po stronie UI.
+
+### 9.3 Refactor UI ekranu alarmow
+
+- Zmieniony plik:
+  - `lib/features/m02_monitoring/screens/alarms_panel_screen.dart`
+- Wprowadzone elementy:
+  - czytelne karty alarmow (sensor, temperatura 24sp, czas trwania, status)
+  - taby: `AKTYWNE` / `HISTORIA`
+  - `HaccpEmptyState` per tab
+  - loading per rekord podczas ACK
+  - blokada duplikacji ACK
+- ACK realizowany jest przez `HaccpLongPressButton` (1s), zgodnie z architektura glove-friendly.
+
+### 9.4 Usprawnienia komponentu long press
+
+- Zmieniony plik:
+  - `lib/core/widgets/haccp_long_press_button.dart`
+- Dodano zabezpieczenie przed overflow tekstu (`Expanded + ellipsis`) dla waskich layoutow.
+
+### 9.5 Testy
+
+- Dodane testy widgetowe:
+  - `test/features/m02_monitoring/alarms_panel_screen_test.dart`
+- Zakres:
+  - render aktywnej karty
+  - render historii bez przycisku ACK
+  - brak overflow dla szerokosci `360px`

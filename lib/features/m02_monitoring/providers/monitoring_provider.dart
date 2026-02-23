@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/features/m02_monitoring/models/alarm_list_item.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/sensor.dart';
 import 'package:haccp_pilot/features/m02_monitoring/models/temperature_log.dart';
 import 'package:haccp_pilot/features/m02_monitoring/repositories/measurements_repository.dart';
@@ -57,7 +58,7 @@ final sensorSevenDayTableProvider =
     });
 
 @riverpod
-Future<List<TemperatureLog>> alarms(
+Future<List<AlarmListItem>> alarms(
   Ref ref,
   String zoneId, {
   bool activeOnly = true,
@@ -72,7 +73,6 @@ class AlarmAction extends _$AlarmAction {
   FutureOr<void> build() {}
 
   Future<void> acknowledge(String logId) async {
-    state = const AsyncLoading();
     final repo = ref.read(measurementsRepositoryProvider);
     final user = ref.read(currentUserProvider);
 
@@ -81,7 +81,7 @@ class AlarmAction extends _$AlarmAction {
       return;
     }
 
-    state = await AsyncValue.guard(() => repo.acknowledgeAlert(logId));
+    await repo.acknowledgeAlert(logId);
 
     ref.invalidate(alarmsProvider);
   }
