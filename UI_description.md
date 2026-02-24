@@ -1320,3 +1320,36 @@ graph TD
     M7 --> E2[7.3 Dodaj Pracownika]
     M7 --> E3[7.4 Lista Pracowników]
 ```
+
+---
+
+## Aktualizacja implementacyjna M07 UI (2026-02-24)
+
+### Ekran 7.1: Dashboard HR (zmiana realizacji)
+
+Plik: `lib/features/m07_hr/screens/hr_dashboard_screen.dart`
+
+Zmieniono uklad z ciezkich, wysokich kart alertow na uklad kompaktowy:
+- 3 male karty statusu: `Przeterminowane`, `Wygasaja <=30d`, `Wazne`,
+- 2 sekcje listowe alertow (`Krytyczne alerty`, `Wygasaja wkrotce`) z limitem pozycji i CTA `Zobacz wszystkie`,
+- stale szybkie akcje na dole sekcji (`Lista`, `Dodaj`).
+
+Cel zmiany:
+- usuniecie efektu "rozciagnietych kafelkow" blokujacych widok,
+- lepszy skan ekranu na desktop i tablet w realnym trybie kiosk.
+
+### Ekran 7.3: Dodaj Pracownika (stabilizacja UX)
+
+Plik: `lib/features/m07_hr/screens/add_employee_screen.dart`
+
+Wprowadzone poprawki:
+- lock przycisku zapisu podczas `loading` (brak duplikacji submit),
+- czytelne komunikaty bledow domenowych RPC,
+- filtrowanie widocznych stref do aktualnego kontekstu lokalu,
+- stabilniejsze zachowanie modalu PIN i walidacji przed zapisem.
+
+### Ekran 7.2: Profil Pracownika (techniczna zmiana sciezki)
+
+Plik: `lib/features/m07_hr/screens/employee_profile_screen.dart`
+
+Zmiana PIN wykonywana jest teraz przez RPC `update_employee_pin` (backend contract), bez bezposredniego update tabeli `employees` z klienta.

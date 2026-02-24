@@ -270,3 +270,57 @@ Aplikacja jest budowana jako **Flutter Web** (PWA).
   - render aktywnej karty
   - render historii bez przycisku ACK
   - brak overflow dla szerokosci `360px`
+
+---
+
+## 10. Lokalne Narzedzia
+
+- Flutter SDK (Windows): C:\scr\flutter\bin
+- Uzywaj tej sciezki jako domyslnej lokalizacji Flutter CLI w tym projekcie.
+
+
+---
+
+## 11. Aktualizacja kodu M07 (2026-02-24): Stabilizacja HR
+
+### 11.1 Zakres zmian
+
+Wdrozono pakiet `Krytyczne + Stabilizacja` dla modulu HR:
+- naprawa kontraktu dodawania pracownika,
+- stabilizacja flow `AddEmployee`,
+- przejscie zmiany PIN na RPC,
+- odchudzenie layoutu dashboardu HR.
+
+### 11.2 Zmiany w warstwie repository
+
+Plik: `lib/features/m07_hr/repositories/hr_repository.dart`
+- `createEmployee(...)` nadal korzysta z RPC `create_employee`,
+- dodano mapowanie bledow domenowych M07 (`M07_PIN_DUPLICATE`, `M07_ZONE_REQUIRED`, `M07_ZONE_NOT_FOUND`, `M07_ZONE_MULTI_VENUE`, `M07_EMPLOYEE_NOT_FOUND`, `M07_PIN_REQUIRED`),
+- `updatePin(...)` przelaczono z direct update tabeli `employees` na RPC `update_employee_pin`.
+
+### 11.3 Zmiany w UI M07
+
+Plik: `lib/features/m07_hr/screens/add_employee_screen.dart`
+- blokada duplikacji submit podczas `loading`,
+- czytelne komunikaty po bledach RPC,
+- filtrowanie stref do biezacego kontekstu lokalu (`currentZoneProvider`),
+- poprawa stabilnosci inputu PIN i walidacji.
+
+Plik: `lib/features/m07_hr/screens/hr_dashboard_screen.dart`
+- zastapiono duze karty alertow kompaktowym ukladem:
+  - 3 karty statusu (przeterminowane, wygasaja <=30d, wazne),
+  - krotkie listy alertow z CTA `Zobacz wszystkie`,
+  - szybkie akcje `Lista` i `Dodaj`.
+
+### 11.4 Zmiany pomocnicze i testy
+
+Nowy plik: `lib/features/m07_hr/utils/hr_alerts_snapshot.dart`
+- wydzielenie klasyfikacji pracownikow wg dat sanepidu (expired / expiring / valid).
+
+Nowy test: `test/features/m07_hr/hr_alerts_snapshot_test.dart`
+- test klasyfikacji alertow,
+- test granicy `today + 30 dni`.
+
+### 11.5 Efekt funkcjonalny
+
+Po zmianach nowy pracownik tworzony przez M07 ma poprawna sciezke do dalszego flow kiosk/auth, a panel HR nie jest blokowany przez rozciagniete kafelki.

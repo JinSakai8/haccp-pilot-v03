@@ -486,3 +486,51 @@ Kompatybilnosc legacy w odczycie historii:
   - definicja: `(sensor_id, recorded_at desc) where is_alert = true`
 - Nadal wykorzystywany jest tez indeks:
   - `temperature_logs_sensor_recorded_at_desc_idx`.
+
+---
+
+## 15. Aktualizacja po M07 Stabilizacja HR (2026-02-24)
+
+### 15.1 Nowe migracje DB
+
+Wdrozone migracje:
+- `supabase/migrations/20260224100000_m07_01_create_employee_contract_fix.sql`
+- `supabase/migrations/20260224101000_m07_02_pin_hash_unique_constraint.sql`
+- `supabase/migrations/20260224102000_m07_03_update_employee_pin_rpc.sql`
+- `supabase/migrations/20260224103000_m07_05_fix_create_employee_uuid_aggregate.sql` (hotfix)
+
+### 15.2 Zmiana kontraktu `create_employee`
+
+Funkcja `create_employee(...)` zostala utwardzona:
+- wymaga co najmniej jednej strefy (`M07_ZONE_REQUIRED`),
+- waliduje istnienie wszystkich stref (`M07_ZONE_NOT_FOUND`),
+- waliduje jednorodnosc lokalu dla `zone_ids_input` (`M07_ZONE_MULTI_VENUE`),
+- zapisuje `employees.venue_id` na podstawie przypisanych stref,
+- zwraca kontrolowany blad dla duplikatu PIN (`M07_PIN_DUPLICATE`).
+
+### 15.3 Unikalnosc PIN
+
+Dodano twarde wymuszenie unikalnosci:
+- indeks: `employees_pin_hash_unique_idx` na `employees(pin_hash)`.
+- migracja przerywa wykonanie, jesli w danych istnieja duplikaty (`M07_PIN_DUPLICATES_EXIST`).
+
+### 15.4 Nowe RPC zmiany PIN
+
+Dodana funkcja:
+- `update_employee_pin(employee_id uuid, new_pin_hash text)`
+
+Reguly:
+- pusty PIN -> `M07_PIN_REQUIRED`,
+- duplikat PIN -> `M07_PIN_DUPLICATE`,
+- brak pracownika -> `M07_EMPLOYEE_NOT_FOUND`.
+
+### 15.5 Walidacja smoke (runtime)
+
+Wykonano smoke test kontraktu M07 (2026-02-24):
+- create employee: PASS,
+- duplicate PIN: PASS,
+- update PIN RPC: PASS,
+- `employees.venue_id` ustawione: PASS,
+- multi-venue case: SKIPPED (dataset z jednym venue).
+
+Referencja: `supabase/m07_04_hr_smoke_tests.sql`.

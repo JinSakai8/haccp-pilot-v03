@@ -1,9 +1,23 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/employee.dart';
 import '../../../core/models/zone.dart';
 import '../../../../core/services/supabase_service.dart';
+
+class HrRepositoryException implements Exception {
+  final String code;
+  final String message;
+
+  const HrRepositoryException({
+    required this.code,
+    required this.message,
+  });
+
+  @override
+  String toString() => message;
+}
 
 class HrRepository {
   final _client = SupabaseService.client;
@@ -11,6 +25,53 @@ class HrRepository {
   /// Hashes PIN with SHA-256 (matches format stored in DB).
   String _hashPin(String pin) {
     return sha256.convert(utf8.encode(pin)).toString();
+  }
+
+  Never _throwMappedException(PostgrestException e) {
+    final normalized = '${e.message} ${e.details ?? ''} ${e.hint ?? ''}'
+        .toUpperCase();
+
+    if (normalized.contains('M07_PIN_DUPLICATE')) {
+      throw const HrRepositoryException(
+        code: 'M07_PIN_DUPLICATE',
+        message: 'PIN jest juz zajety. Wybierz inny kod.',
+      );
+    }
+    if (normalized.contains('M07_ZONE_REQUIRED')) {
+      throw const HrRepositoryException(
+        code: 'M07_ZONE_REQUIRED',
+        message: 'Przypisz co najmniej jedna strefe.',
+      );
+    }
+    if (normalized.contains('M07_ZONE_NOT_FOUND')) {
+      throw const HrRepositoryException(
+        code: 'M07_ZONE_NOT_FOUND',
+        message: 'Wybrane strefy nie istnieja w bazie danych.',
+      );
+    }
+    if (normalized.contains('M07_ZONE_MULTI_VENUE')) {
+      throw const HrRepositoryException(
+        code: 'M07_ZONE_MULTI_VENUE',
+        message: 'Nie mozna przypisac stref z roznych lokali.',
+      );
+    }
+    if (normalized.contains('M07_EMPLOYEE_NOT_FOUND')) {
+      throw const HrRepositoryException(
+        code: 'M07_EMPLOYEE_NOT_FOUND',
+        message: 'Nie znaleziono pracownika do aktualizacji PIN.',
+      );
+    }
+    if (normalized.contains('M07_PIN_REQUIRED')) {
+      throw const HrRepositoryException(
+        code: 'M07_PIN_REQUIRED',
+        message: 'PIN jest wymagany.',
+      );
+    }
+
+    throw HrRepositoryException(
+      code: 'M07_UNKNOWN',
+      message: 'Operacja HR nie powiodla sie: ${e.message}',
+    );
   }
 
   /// Checks if a PIN is unique (Pre-check).
@@ -52,16 +113,20 @@ class HrRepository {
   /// Creates a new employee with assigned zones.
   Future<void> createEmployee(Employee employee, String pin, List<String> zoneIds) async {
     final hashedPin = _hashPin(pin);
-    
-    // Use RPC to create employee (bypassing RLS)
-    await _client.rpc('create_employee', params: {
-      'name_input': employee.fullName,
-      'pin_hash_input': hashedPin,
-      'role_input': employee.role,
-      'sanepid_input': employee.sanepidExpiry?.toIso8601String(),
-      'zone_ids_input': zoneIds, // Pass List<String> which maps to uuid[]
-      'is_active_input': employee.isActive,
-    });
+
+    try {
+      // Use RPC to create employee (bypassing RLS)
+      await _client.rpc('create_employee', params: {
+        'name_input': employee.fullName,
+        'pin_hash_input': hashedPin,
+        'role_input': employee.role,
+        'sanepid_input': employee.sanepidExpiry?.toIso8601String(),
+        'zone_ids_input': zoneIds, // Pass List<String> which maps to uuid[]
+        'is_active_input': employee.isActive,
+      });
+    } on PostgrestException catch (e) {
+      _throwMappedException(e);
+    }
   }
 
   /// Updates Sanepid expiry date for an employee.
@@ -84,12 +149,13 @@ class HrRepository {
 
   Future<void> updatePin(String employeeId, String newPin) async {
     final hashedPin = _hashPin(newPin);
-    // Note: If updatePin is needed, we should also create an RPC for it.
-    // For now, leaving as direct update (might fail if RLS triggers).
-    // Given the task scope was "Adding Employees", I'll focus on that.
-    // But logically, this should also be an RPC if used by admins.
-    await _client.from('employees').update({
-      'pin_hash': hashedPin,
-    }).eq('id', employeeId);
+    try {
+      await _client.rpc('update_employee_pin', params: {
+        'employee_id': employeeId,
+        'new_pin_hash': hashedPin,
+      });
+    } on PostgrestException catch (e) {
+      _throwMappedException(e);
+    }
   }
 }
