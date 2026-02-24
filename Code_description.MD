@@ -324,3 +324,55 @@ Nowy test: `test/features/m07_hr/hr_alerts_snapshot_test.dart`
 ### 11.5 Efekt funkcjonalny
 
 Po zmianach nowy pracownik tworzony przez M07 ma poprawna sciezke do dalszego flow kiosk/auth, a panel HR nie jest blokowany przez rozciagniete kafelki.
+
+---
+
+## 12. Aktualizacja kodu M08 (2026-02-24): Settings Recovery + UX Domkniecie
+
+### 12.1 Routing i autoryzacja
+
+Plik: `lib/core/router/app_router.dart`
+- Guard roli rozszerzony o M08:
+  - `/settings`
+  - `/settings/products`
+- Dostep tylko dla `manager` / `owner` (spojnie z M07 HR).
+
+### 12.2 Stabilizacja `GlobalSettingsScreen`
+
+Plik: `lib/features/m08_settings/screens/global_settings_screen.dart`
+- Usunieto ryzyko nieskonczonego loadera:
+  - zrodlo `venueId` oparte o `currentZoneProvider`.
+- Dodany jawny stan bledu przy braku aktywnej strefy (CTA do `/zone-select` i `/hub`).
+- Zapis ustawien:
+  - sukces przez `HaccpSuccessOverlay`,
+  - mapowanie bledow DB/RLS na komunikaty domenowe,
+  - walidacja NIP (`10` cyfr) po stronie UI.
+- Sekcja `System` zostala oznaczona jako lokalna (bez persystencji DB).
+
+### 12.3 Domkniecie `ManageProductsScreen`
+
+Plik: `lib/features/m08_settings/screens/manage_products_screen.dart`
+- CRUD oparty o aktualny kontekst lokalu (`currentZoneProvider`).
+- Dodana walidacja nazwy produktu i deduplikacja w kategorii.
+- Dodany czytelny pusty stan przez `HaccpEmptyState`.
+- Ujednolicone mapowanie bledow (RLS/constraint) w SnackBar.
+
+### 12.4 `ProductsRepository` (usuniecie fallbackow)
+
+Plik: `lib/features/shared/repositories/products_repository.dart`
+- Usuniete fallbackowe dane awaryjne maskujace problemy runtime.
+- `getProducts(...)` zwraca realny wynik DB lub blad (z logiem `debugPrint`).
+- `productsProvider` korzysta z `currentZoneProvider` zamiast dodatkowych zapytan o strefy.
+
+### 12.5 Testy M08
+
+Nowe/uzupelnione testy:
+- `test/features/m08_settings/global_settings_screen_test.dart`
+  - scenariusze braku aktywnej strefy + nawigacja CTA.
+- `test/features/m08_settings/m08_sprint3_test.dart`
+  - mapowanie bledow settings,
+  - empty state produktow.
+
+Wyniki (2026-02-24):
+- `flutter test test/features/m08_settings --reporter compact` -> PASS
+- `flutter test --reporter compact` -> PASS (`43 passed, 1 skipped, 0 failed`)

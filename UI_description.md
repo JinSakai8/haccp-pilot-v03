@@ -1173,7 +1173,7 @@ SELECT * FROM profiles WHERE is_active = false
 
 | Element | Typ | Akcja |
 |:--------|:----|:------|
-| Zapisz Ustawienia | HaccpLongPressButton | UPDATE `venue_settings` → Success overlay |
+| Zapisz Ustawienia | HaccpLongPressButton | UPDATE `venues` (`name`, `nip`, `address`, `logo_url`, `temp_interval`, `temp_threshold`) → Success overlay |
 
 #### Nawigacja
 
@@ -1353,3 +1353,49 @@ Wprowadzone poprawki:
 Plik: `lib/features/m07_hr/screens/employee_profile_screen.dart`
 
 Zmiana PIN wykonywana jest teraz przez RPC `update_employee_pin` (backend contract), bez bezposredniego update tabeli `employees` z klienta.
+
+---
+
+## Aktualizacja implementacyjna M08 UI (2026-02-24)
+
+### Ekran 8.1: Ustawienia Globalne (stabilizacja i UX)
+
+Plik: `lib/features/m08_settings/screens/global_settings_screen.dart`
+
+Wprowadzone poprawki:
+- usuniety nieskonczony loader przy braku kontekstu strefy,
+- jawny error state z akcjami:
+  - `Wybierz strefe` -> `/zone-select`
+  - `Powrot do Hub` -> `/hub`
+- zapis ustawien zakonczony przez `HaccpSuccessOverlay` (M09),
+- czytelne komunikaty bledow domenowych (RLS/constraint),
+- walidacja NIP (dokladnie 10 cyfr),
+- sekcja `System` oznaczona jako lokalna (bez zapisu do DB).
+
+### Ekran 8.1: Kontrakt zapisu danych
+
+Akcja przycisku `Zapisz Ustawienia`:
+- UPDATE tabeli `venues` (nie `venue_settings`)
+- pola:
+  - `name`
+  - `nip`
+  - `address`
+  - `logo_url`
+  - `temp_interval`
+  - `temp_threshold`
+
+### Ekran 8.1a: Zarzadzanie produktami
+
+Plik: `lib/features/m08_settings/screens/manage_products_screen.dart`
+
+Zmiany:
+- empty state przez `HaccpEmptyState`,
+- walidacja nazwy produktu i deduplikacja przed zapisem,
+- brak fallbackowych danych testowych w UI,
+- obsluga bledow RLS i constraint w komunikatach dla operatora.
+
+### Dostep rolowy
+
+Routing (`app_router.dart`):
+- `/settings` i `/settings/products` dostepne tylko dla `manager` / `owner`.
+- `cook` / `cleaner` otrzymuja przekierowanie do `Dashboard Hub`.

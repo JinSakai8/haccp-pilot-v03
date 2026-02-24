@@ -86,6 +86,7 @@ erDiagram
 | | `nip` | TEXT | Numer NIP. |
 | | `logo_url` | TEXT | URL do logo w Storage (`branding`). |
 | | `temp_interval` | INT | Częstotliwość pomiarów IoT (minuty). |
+| | `temp_threshold` | NUMERIC | Próg alarmowy temperatury (zakres 0..15). |
 | **`employees`** | `id` | UUID (PK) | ID pracownika. |
 | | `venue_id` | UUID (FK) | Powiązanie z lokalem. |
 | | `pin_hash` | TEXT | Hash SHA-256 kodu PIN (4 cyfry). |
@@ -166,6 +167,9 @@ Bezpieczeństwo opiera się na Row Level Security. Aplikacja nie korzysta ze sta
 
 3. **Role:**
     - Kolumna `role` w `employees` (`owner`, `manager`, `cook`) steruje dostępem do ekranów w aplikacji (Guardy).
+    - Dla M08 polityki RLS wymuszają dodatkowo:
+      - `venues`: odczyt tylko w scope `kiosk_sessions.venue_id`, update tylko `manager/owner`.
+      - `products`: odczyt globalnych (`venue_id is null`) i lokalnych z kontekstu kiosku, zapis tylko `manager/owner` w swoim `venue_id`.
 
 ---
 
@@ -534,3 +538,46 @@ Wykonano smoke test kontraktu M07 (2026-02-24):
 - multi-venue case: SKIPPED (dataset z jednym venue).
 
 Referencja: `supabase/m07_04_hr_smoke_tests.sql`.
+
+---
+
+## 16. Aktualizacja po M08 Settings Recovery (2026-02-24)
+
+### 16.1 Wdrozone migracje DB
+
+- `supabase/migrations/20260224113000_m08_01_venues_settings_columns.sql`
+- `supabase/migrations/20260224114000_m08_02_venues_rls_update_policy.sql`
+- `supabase/migrations/20260224115000_m08_03_products_rls_scope_hardening.sql`
+
+Migracje zostaly wypchniete na remote przez `supabase db push` dnia **2026-02-24**.
+
+### 16.2 Zmiany schematu `venues`
+
+- Dodane/utwardzone pola konfiguracyjne M08:
+  - `temp_interval integer` (default `15`, check: `5/15/60`)
+  - `temp_threshold numeric(5,2)` (default `8.0`, check: `0..15`)
+- Dodana walidacja `nip`:
+  - `nip` musi miec dokladnie 10 cyfr (`^[0-9]{10}$`) lub byc `NULL`.
+
+### 16.3 RLS `venues` (M08)
+
+- Odczyt (`SELECT`) tylko w scope kiosku:
+  - `kiosk_sessions.auth_user_id = auth.uid()`
+  - `kiosk_sessions.venue_id = venues.id`
+- Zapis (`UPDATE`) tylko dla roli `manager` / `owner` w tym samym `venue`.
+
+### 16.4 RLS `products` (M08)
+
+- `SELECT`:
+  - produkty globalne (`venue_id IS NULL`) oraz lokalne z aktywnego `venue` kiosku.
+- `INSERT/UPDATE/DELETE`:
+  - tylko `manager` / `owner`,
+  - tylko dla rekordow w scope aktywnego `venue`.
+
+### 16.5 Smoke testy M08
+
+- Przygotowany plik wykonywalny:
+  - `supabase/m08_04_settings_smoke_tests.sql`
+- Zakres:
+  - pozytywne i negatywne scenariusze walidacji `venues`,
+  - scenariusze RLS allow/deny dla `venues` i `products`.
