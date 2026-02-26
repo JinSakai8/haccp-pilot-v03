@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../shared/models/form_definition.dart';
-import '../../shared/widgets/dynamic_form/dynamic_form_renderer.dart';
-import '../../../core/widgets/haccp_top_bar.dart';
-import '../../../core/constants/design_tokens.dart';
-import '../../shared/providers/dynamic_form_provider.dart';
-import '../providers/gmp_provider.dart';
-import '../config/gmp_form_ids.dart';
-import '../../../core/widgets/success_overlay.dart';
-import '../../../core/widgets/haccp_long_press_button.dart';
 
+import '../../../core/constants/design_tokens.dart';
+import '../../../core/widgets/haccp_long_press_button.dart';
+import '../../../core/widgets/haccp_top_bar.dart';
+import '../../../core/widgets/success_overlay.dart';
 import '../../shared/config/form_definitions.dart';
+import '../../shared/models/form_definition.dart';
+import '../../shared/providers/dynamic_form_provider.dart';
+import '../../shared/widgets/dynamic_form/dynamic_form_renderer.dart';
+import '../config/gmp_form_ids.dart';
+import '../providers/gmp_provider.dart';
 
 class MeatRoastingFormScreen extends ConsumerWidget {
   const MeatRoastingFormScreen({super.key});
@@ -41,14 +41,22 @@ class MeatRoastingFormScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               orElse: () => HaccpLongPressButton(
                 label: formState.isValid ? 'ZAPISZ RAPORT' : 'UZUPEŁNIJ DANE',
-                color: formState.isValid ? HaccpDesignTokens.success : Colors.grey,
-                onCompleted: formState.isValid ? () {
-                  _handleSubmit(context, ref, formState, formId);
-                } : () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Proszę uzupełnić wszystkie wymagane pola')),
-                  );
-                },
+                color: formState.isValid
+                    ? HaccpDesignTokens.success
+                    : Colors.grey,
+                onCompleted: formState.isValid
+                    ? () {
+                        _handleSubmit(context, ref, formState, formId);
+                      }
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Proszę uzupełnić wszystkie wymagane pola',
+                            ),
+                          ),
+                        );
+                      },
               ),
             ),
           ),
@@ -57,11 +65,15 @@ class MeatRoastingFormScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleSubmit(BuildContext context, WidgetRef ref, DynamicFormState state, String formId) async {
-    final success = await ref.read(gmpFormSubmissionProvider.notifier).submitLog(
-      formId: formId,
-      data: state.values,
-    );
+  Future<void> _handleSubmit(
+    BuildContext context,
+    WidgetRef ref,
+    DynamicFormState state,
+    String formId,
+  ) async {
+    final success = await ref
+        .read(gmpFormSubmissionProvider.notifier)
+        .submitLog(formId: formId, data: state.values);
 
     if (success && context.mounted) {
       await HaccpSuccessOverlay.show(context);

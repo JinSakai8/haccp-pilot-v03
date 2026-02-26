@@ -123,7 +123,7 @@ class PdfService {
     }
 
     graphics.drawString(
-      'Data: ${params.date} | WykonaĹ‚: ${params.userName}',
+      'Data: ${params.date} | Wykonal: ${params.userName}',
       font,
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
@@ -133,7 +133,7 @@ class PdfService {
     grid.headers.add(1);
     final header = grid.headers[0];
     header.cells[0].value = 'Parametr';
-    header.cells[1].value = 'WartoĹ›Ä‡ / Uwagi';
+    header.cells[1].value = 'Wartosc / Uwagi';
 
     for (var field in params.definition.fields) {
       final row = grid.rows.add();
@@ -144,9 +144,9 @@ class PdfService {
       if (field.type == HaccpFieldType.photo) {
         final imageBytes = params.images[field.id];
         if (imageBytes != null) {
-          row.cells[1].value = '[ZDJÄCIE ZAĹÄ„CZONE NIĹ»EJ]';
+          row.cells[1].value = '[ZDJECIE ZALACZONE NIZEJ]';
         } else {
-          row.cells[1].value = '[ZDJÄCIE NIEDOSTÄPNE]';
+          row.cells[1].value = '[ZDJECIE NIEDOSTEPNE]';
         }
       } else if (field.type == HaccpFieldType.toggle) {
         final boolValue = val == true;
@@ -170,7 +170,7 @@ class PdfService {
 
     if (params.images.isNotEmpty) {
       graphics.drawString(
-        'ZAĹÄ„CZNIKI ZDJÄCIOWE:',
+        'ZALACZNIKI ZDJECIOWE:',
         boldFont,
         bounds: Rect.fromLTWH(0, currentY, 500, 20),
       );
@@ -250,7 +250,7 @@ class PdfService {
     );
 
     graphics.drawString(
-      'Okres: ${params.dateRange} | GenerowaĹ‚: ${params.userName}',
+      'Okres: ${params.dateRange} | Generowal: ${params.userName}',
       font,
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
@@ -730,7 +730,7 @@ class PdfService {
   static Future<Uint8List> _generateCcp3PdfIsolate(
     _Ccp3ReportParams params,
   ) async {
-    debugPrint('đź”µ _generateCcp3PdfIsolate: Start');
+    debugPrint('[CCP3 PDF] Start');
     final document = PdfDocument();
 
     // Set margins to match a standard printable sheet (approx 1 cm/0.5 inch)
@@ -751,11 +751,13 @@ class PdfService {
     // Safety check for page width
     double pageWidth = page.getClientSize().width;
     if (pageWidth <= 0) {
-      debugPrint('âš ď¸Ź Page width is <= 0 ($pageWidth), defaulting to 500');
+      debugPrint(
+        '[CCP3 PDF] Page width is <= 0 ($pageWidth), defaulting to 500',
+      );
       pageWidth = 500;
     }
 
-    debugPrint('đź”µ _generateCcp3PdfIsolate: Page Width = $pageWidth');
+    debugPrint('[CCP3 PDF] Page Width = $pageWidth');
 
     topGrid.columns[0].width = pageWidth * 0.35;
     topGrid.columns[1].width = pageWidth * 0.35;
@@ -765,7 +767,7 @@ class PdfService {
 
     // Cell 1: Restaurant Info
     topRow.cells[0].value =
-        'Restauracja â€žMiÄ™so i Pianaâ€ť\nul. EnergetykĂłw 18A,\n37-450 Stalowa Wola';
+        'Restauracja "Mieso i Piana"\nul. Energetykow 18A,\n37-450 Stalowa Wola';
     topRow.cells[0].style.font = boldFont;
     topRow.cells[0].stringFormat = PdfStringFormat(
       alignment: PdfTextAlignment.center,
@@ -781,7 +783,7 @@ class PdfService {
     );
 
     // Cell 3: Responsible
-    topRow.cells[2].value = 'Odpowiedzialny:\nUpowaĹĽniony pracownik';
+    topRow.cells[2].value = 'Odpowiedzialny:\nUpowazniony pracownik';
     topRow.cells[2].style.font = font;
     topRow.cells[2].stringFormat = PdfStringFormat(
       alignment: PdfTextAlignment.center,
@@ -791,7 +793,7 @@ class PdfService {
     // Set height for consistency
     topRow.height = 50;
 
-    debugPrint('đź”µ _generateCcp3PdfIsolate: Drawing header...');
+    debugPrint('[CCP3 PDF] Drawing header...');
     final topLayout = topGrid.draw(
       page: page,
       bounds: Rect.fromLTWH(0, 0, pageWidth, 0),
@@ -808,7 +810,7 @@ class PdfService {
     final limitRow = limitGrid.rows.add();
 
     // Limit 1: Target
-    limitRow.cells[0].value = 'WartoĹ›Ä‡ docelowa\n20Â°C w 2 godz.';
+    limitRow.cells[0].value = 'Wartosc docelowa\n20°C w 2 godz.';
     limitRow.cells[0].style.backgroundBrush =
         PdfBrushes.white; // Explicit white (or light green if requested)
     limitRow.cells[0].style.font = boldFont;
@@ -818,7 +820,7 @@ class PdfService {
     );
 
     // Limit 2: Tolerance
-    limitRow.cells[1].value = 'Tolerancja\n+ 10Â°C';
+    limitRow.cells[1].value = 'Tolerancja\n+ 10°C';
     limitRow.cells[1].style.font = boldFont;
     limitRow.cells[1].stringFormat = PdfStringFormat(
       alignment: PdfTextAlignment.center,
@@ -826,7 +828,7 @@ class PdfService {
     );
 
     // Limit 3: Critical
-    limitRow.cells[2].value = 'WartoĹ›Ä‡ krytyczna\n30Â°C';
+    limitRow.cells[2].value = 'Wartosc krytyczna\n30°C';
     limitRow.cells[2].style.font = boldFont;
     limitRow.cells[2].stringFormat = PdfStringFormat(
       alignment: PdfTextAlignment.center,
@@ -842,9 +844,7 @@ class PdfService {
     currentY = limitLayout!.bounds.bottom;
 
     // --- Data Grid ---
-    debugPrint(
-      'đź”µ _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs',
-    );
+    debugPrint('[CCP3 PDF] Preparing data grid for ${params.logs.length} logs');
     final grid = PdfGrid();
     grid.columns.add(count: 7);
 
@@ -862,12 +862,12 @@ class PdfService {
     header.height = 40; // Taller header for multi-line text
 
     final headers = [
-      'Data/godz\nrozpoczÄ™cia\nschĹ‚adzania',
-      'Rodzaj\npierogĂłw',
-      'Godz.\nzakoĹ„czenia\nschĹ‚adzania',
-      'WartoĹ›Ä‡\ntemperatury',
-      'ZgodnoĹ›Ä‡ z\nustaleniami',
-      'DziaĹ‚ania\nkorygujÄ…ce',
+      'Data/godz\nrozpoczecia\nschladzania',
+      'Rodzaj\npierogow',
+      'Godz.\nzakonczenia\nschladzania',
+      'Wartosc\ntemperatury',
+      'Zgodnosc z\nustaleniami',
+      'Dzialania\nkorygujace',
       'Podpis',
     ];
 
@@ -978,13 +978,13 @@ class PdfService {
       }
     }
 
-    debugPrint('đź”µ _generateCcp3PdfIsolate: Drawing data grid...');
+    debugPrint('[CCP3 PDF] Drawing data grid...');
     grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
 
     // Footer Signature Line
     final footerY = page.getClientSize().height - 40;
     graphics.drawString(
-      'SprawdziĹ‚/zatwierdziĹ‚: .................................................',
+      'Sprawdzil/zatwierdzil: .................................................',
       boldFont,
       bounds: Rect.fromLTWH(0, footerY, 400, 20),
     );
@@ -994,12 +994,10 @@ class PdfService {
       bounds: Rect.fromLTWH(200, footerY + 15, 100, 20),
     );
 
-    debugPrint('đź”µ _generateCcp3PdfIsolate: Saving document...');
+    debugPrint('[CCP3 PDF] Saving document...');
     final List<int> bytes = await document.save();
     document.dispose();
-    debugPrint(
-      'đźź˘ _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.',
-    );
+    debugPrint('[CCP3 PDF] Done! ${bytes.length} bytes generated.');
     return Uint8List.fromList(bytes);
   }
 

@@ -1,23 +1,34 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/theme/app_theme.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
-import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
-import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
+import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 
 final savedReportsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final zones = await ref.watch(employeeZonesProvider.future);
-  final venueId = zones.isNotEmpty ? zones.first.venueId : null;
+      final zones = await ref.watch(employeeZonesProvider.future);
+      final venueId = zones.isNotEmpty ? zones.first.venueId : null;
 
-  if (venueId == null) return [];
+      if (venueId == null) return [];
 
-  final repo = ref.read(reportsRepositoryProvider);
-  return repo.getGeneratedReports(venueId);
-});
+      final repo = ref.read(reportsRepositoryProvider);
+      return repo.getGeneratedReports(venueId);
+    });
+
+bool _looksLikePdf(Uint8List bytes) {
+  if (bytes.length < 4) return false;
+  return bytes[0] == 0x25 && // %
+      bytes[1] == 0x50 && // P
+      bytes[2] == 0x44 && // D
+      bytes[3] == 0x46; // F
+}
 
 class SavedReportsScreen extends ConsumerWidget {
   const SavedReportsScreen({super.key});
@@ -27,14 +38,14 @@ class SavedReportsScreen extends ConsumerWidget {
     final reportsAsync = ref.watch(savedReportsProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Archiwum Raportow'),
+      appBar: const HaccpTopBar(title: 'Archiwum Raportów'),
       backgroundColor: AppTheme.background,
       body: reportsAsync.when(
         data: (reports) {
           if (reports.isEmpty) {
             return const Center(
               child: Text(
-                'Brak zapisanych raportow',
+                'Brak zapisanych raportów',
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             );
@@ -51,7 +62,10 @@ class SavedReportsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
-          child: Text('Blad: $err', style: const TextStyle(color: AppTheme.error)),
+          child: Text(
+            'Błąd: $err',
+            style: const TextStyle(color: AppTheme.error),
+          ),
         ),
       ),
     );
@@ -98,13 +112,19 @@ class _ReportTile extends ConsumerWidget {
         ),
         title: Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Okres: $dateStr', style: const TextStyle(color: Colors.white70)),
+            Text(
+              'Okres: $dateStr',
+              style: const TextStyle(color: Colors.white70),
+            ),
             Text(
               'Utworzono: ${DateFormat('yyyy-MM-dd HH:mm').format(createdAt)}',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -116,18 +136,29 @@ class _ReportTile extends ConsumerWidget {
           final path = report['storage_path']?.toString();
           if (path == null || path.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Brak sciezki storage dla raportu.')),
+              const SnackBar(
+                content: Text('Brak ścieżki storage dla raportu.'),
+              ),
             );
             return;
           }
 
           final repo = ref.read(reportsRepositoryProvider);
           final bytes = await repo.downloadReport(path);
-          if (bytes == null || bytes.isEmpty) {
+          if (bytes == null || bytes.isEmpty || !_looksLikePdf(bytes)) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Nie udalo sie pobrac raportu.')),
+                const SnackBar(
+                  content: Text('Raport jest uszkodzony lub nie jest PDF.'),
+                ),
               );
+
+              if (type == 'ccp2_roasting') {
+                final date = DateTime.tryParse(dateStr);
+                if (date != null) {
+                  context.push('/reports/preview/ccp2?date=$dateStr');
+                }
+              }
             }
             return;
           }

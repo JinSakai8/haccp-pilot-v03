@@ -23,6 +23,14 @@ void _ccp2Log(String message) {
   }
 }
 
+bool _looksLikePdf(Uint8List bytes) {
+  if (bytes.length < 4) return false;
+  return bytes[0] == 0x25 && // %
+      bytes[1] == 0x50 && // P
+      bytes[2] == 0x44 && // D
+      bytes[3] == 0x46; // F
+}
+
 String _monthLabel(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}';
 
@@ -120,9 +128,10 @@ final ccp2ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
           final path = savedMetadata['storage_path']?.toString();
           if (path != null && path.isNotEmpty) {
             final bytes = await repo.downloadReport(path);
-            if (bytes != null) {
+            if (bytes != null && _looksLikePdf(bytes)) {
               return bytes;
             }
+            _ccp2Log('cached report is not a valid PDF, regenerate');
           }
         }
       } catch (e) {
