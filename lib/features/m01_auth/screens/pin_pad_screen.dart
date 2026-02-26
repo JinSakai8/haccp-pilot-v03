@@ -273,6 +273,7 @@ class _PinPadScreenState extends ConsumerState<PinPadScreen> {
         ),
       ),
     ], // end of Stack children
+    ),
     );
   }
 
