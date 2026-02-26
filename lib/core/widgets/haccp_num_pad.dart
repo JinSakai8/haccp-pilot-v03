@@ -7,6 +7,7 @@ class HaccpNumPad extends StatelessWidget {
   final VoidCallback onBackspace;
   final bool disabled;
   final List<String> extraKeys;
+  final bool isPremiumGlass;
 
   const HaccpNumPad({
     super.key,
@@ -15,6 +16,7 @@ class HaccpNumPad extends StatelessWidget {
     required this.onBackspace,
     this.disabled = false,
     this.extraKeys = const [],
+    this.isPremiumGlass = false,
   });
 
   @override
@@ -52,13 +54,13 @@ class HaccpNumPad extends StatelessWidget {
     Color bgColor;
     Color fgColor;
     if (label == 'C') {
-      bgColor = HaccpDesignTokens.error.withValues(alpha: 0.15);
-      fgColor = HaccpDesignTokens.error;
+      bgColor = isPremiumGlass ? Colors.white.withValues(alpha: 0.1) : HaccpDesignTokens.error.withValues(alpha: 0.15);
+      fgColor = isPremiumGlass ? const Color(0xFFE0E0E0) : HaccpDesignTokens.error;
     } else if (label == '←') {
-      bgColor = HaccpDesignTokens.surface;
-      fgColor = Colors.white70;
+      bgColor = isPremiumGlass ? Colors.white.withValues(alpha: 0.1) : HaccpDesignTokens.surface;
+      fgColor = isPremiumGlass ? const Color(0xFFE0E0E0) : Colors.white70;
     } else {
-      bgColor = HaccpDesignTokens.surface;
+      bgColor = isPremiumGlass ? Colors.white.withValues(alpha: 0.1) : HaccpDesignTokens.surface;
       fgColor = Colors.white;
     }
 
@@ -84,9 +86,10 @@ class HaccpNumPad extends StatelessWidget {
           disabledBackgroundColor: bgColor.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HaccpDesignTokens.cardRadius),
+            side: isPremiumGlass ? BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 1.0) : BorderSide.none,
           ),
           padding: EdgeInsets.zero,
-          elevation: 2,
+          elevation: isPremiumGlass ? 0 : 2,
         ),
         child: Text(
           label,

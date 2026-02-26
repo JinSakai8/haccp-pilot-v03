@@ -1444,3 +1444,19 @@ Testy powiazane:
 - `test/features/m03_gmp/gmp_history_navigation_smoke_test.dart`,
 - `test/features/m06_reports/ccp_monthly_request_contract_test.dart`,
 - `test/features/m06_reports/reports_panel_validation_test.dart`.
+
+## Aktualizacja M01 UI (2026-02-26)
+
+### Ekran 1.2: Logowanie PIN (Luxury Redesign)
+
+Pliki:
+- lib/features/m01_auth/screens/pin_pad_screen.dart
+- lib/core/widgets/haccp_num_pad.dart
+
+Zmiany UX/UI:
+- Wdro¿ono styl "Premium/Luxury" odpowiadaj¹cy marce fine-dining "Miêso i Piana".
+- Zamieniono jednolite t³o na fotograficzne (premium food) z ciemnym, u¿ytecznym gradientem, zwiêkszaj¹c wra¿enie ekskluzywnoœci zachowuj¹c przy tym pe³n¹ czytelnoœæ.
+- Klawiatura numeryczna (HaccpNumPad) otrzyma³a wariant isPremiumGlass z efektem Glassmorphism (lekki blur t³a, pó³przezroczyste krawêdzie, brak cienia rzucanego).
+- Odœwie¿ono typografiê nag³ówka, u¿ywamy z³oto-miedzianego akcentu koloru (#D4AF37) na ikonie i nazwie lokalu.
+- Zast¹piono ikonê tarczy na bardziej autorsk¹ ikonê sztuæców restauracyjnych (estaurant_menu).
+- Zachowano pe³n¹ zgodnoœæ z wymogami "glove-friendly" (przyciski numeryczne min. 80x80 dp) oraz niezmieniono kodu weryfikacji PIN (backend zostaje ten sam).
