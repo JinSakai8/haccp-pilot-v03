@@ -112,15 +112,33 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       itemBuilder: (context, index) {
                         final log = logs[index];
                         final date = DateTime.parse(log['created_at']);
+                        final logData = log['data'] as Map<String, dynamic>? ?? {};
                         final rawFormId = log['form_id'] as String;
                         final normalizedFormId = normalizeGmpFormId(rawFormId);
                         final label = _processTypes[normalizedFormId] ?? normalizedFormId.toUpperCase();
+                        
+                        // Parse status for list UI
+                        Widget statusIcon = const SizedBox.shrink();
+                        if (logData.containsKey('is_compliant') || logData.containsKey('compliance')) {
+                           final isCompliant = logData['is_compliant'] ?? logData['compliance'];
+                           if (isCompliant == true) {
+                             statusIcon = const Icon(Icons.check_circle, color: HaccpDesignTokens.success, size: 20);
+                           } else if (isCompliant == false) {
+                             statusIcon = const Icon(Icons.warning, color: HaccpDesignTokens.warning, size: 20);
+                           }
+                        }
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: const Icon(Icons.history),
-                            title: Text(label),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(label)),
+                                const SizedBox(width: 8),
+                                statusIcon,
+                              ],
+                            ),
                             subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
@@ -129,7 +147,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                                 context.push('/reports/preview/ccp3?date=$dateStr');
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Podglad szczegolow dostepny wkrotce')),
+                                  const SnackBar(content: Text('Podgląd szczegółów dostępny wkrótce')),
                                 );
                               }
                             },

@@ -25,6 +25,7 @@ import '../../features/m08_settings/screens/global_settings_screen.dart';
 import '../../features/m08_settings/screens/manage_products_screen.dart';
 import '../../features/m06_reports/screens/reports_panel_screen.dart';
 import '../../features/m06_reports/screens/pdf_preview_screen.dart';
+import '../../features/m06_reports/screens/ccp2_preview_screen.dart';
 import '../../features/m06_reports/screens/ccp3_preview_screen.dart';
 import '../../features/m06_reports/screens/saved_reports_screen.dart';
 import '../../features/m06_reports/screens/drive_status_screen.dart';
@@ -192,6 +193,17 @@ GoRouter appRouter(Ref ref) {
               state.uri.queryParameters['date'] ??
               DateTime.now().toIso8601String().split('T')[0];
           return Ccp3PreviewScreen(
+            date: DateTime.tryParse(dateStr) ?? DateTime.now(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/reports/preview/ccp2',
+        builder: (context, state) {
+          final dateStr =
+              state.uri.queryParameters['date'] ??
+              DateTime.now().toIso8601String().split('T')[0];
+          return Ccp2PreviewScreen(
             date: DateTime.tryParse(dateStr) ?? DateTime.now(),
           );
         },

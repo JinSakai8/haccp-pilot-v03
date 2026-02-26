@@ -141,6 +141,54 @@ CoolingLogsQuerySpec buildCoolingLogsQuerySpec(
   );
 }
 
+class RoastingLogsQuerySpec {
+  final DateTime start;
+  final DateTime end;
+  final String category;
+  final String formId;
+  final String? zoneId;
+  final String? venueId;
+
+  const RoastingLogsQuerySpec({
+    required this.start,
+    required this.end,
+    required this.category,
+    required this.formId,
+    this.zoneId,
+    this.venueId,
+  });
+
+  bool get usesZoneFilter => zoneId != null && zoneId!.isNotEmpty;
+  bool get usesVenueFallback =>
+      !usesZoneFilter && venueId != null && venueId!.isNotEmpty;
+}
+
+@visibleForTesting
+RoastingLogsQuerySpec buildRoastingLogsQuerySpec(
+  DateTime date, {
+  String? zoneId,
+  String? venueId,
+}) {
+  final start = DateTime(date.year, date.month, date.day);
+  final end = start
+      .add(const Duration(days: 1))
+      .subtract(const Duration(milliseconds: 1));
+
+  final normalizedZoneId =
+      (zoneId != null && zoneId.trim().isNotEmpty) ? zoneId.trim() : null;
+  final normalizedVenueId =
+      (venueId != null && venueId.trim().isNotEmpty) ? venueId.trim() : null;
+
+  return RoastingLogsQuerySpec(
+    start: start,
+    end: end,
+    category: 'gmp',
+    formId: 'meat_roasting',
+    zoneId: normalizedZoneId,
+    venueId: normalizedVenueId,
+  );
+}
+
 class ReportsRepository {
   Future<List<Map<String, dynamic>>> getWasteRecords(
     DateTime start,
@@ -162,6 +210,35 @@ class ReportsRepository {
     String? venueId,
   }) async {
     final spec = buildCoolingLogsQuerySpec(
+      date,
+      zoneId: zoneId,
+      venueId: venueId,
+    );
+
+    var query = SupabaseService.client
+        .from('haccp_logs')
+        .select()
+        .eq('category', spec.category)
+        .eq('form_id', spec.formId)
+        .gte('created_at', spec.start.toIso8601String())
+        .lte('created_at', spec.end.toIso8601String());
+
+    if (spec.usesZoneFilter) {
+      query = query.eq('zone_id', spec.zoneId!);
+    } else if (spec.usesVenueFallback) {
+      query = query.eq('venue_id', spec.venueId!);
+    }
+
+    final response = await query.order('created_at');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<List<Map<String, dynamic>>> getRoastingLogs(
+    DateTime date, {
+    String? zoneId,
+    String? venueId,
+  }) async {
+    final spec = buildRoastingLogsQuerySpec(
       date,
       zoneId: zoneId,
       venueId: venueId,

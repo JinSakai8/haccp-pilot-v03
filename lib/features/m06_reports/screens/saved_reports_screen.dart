@@ -71,9 +71,11 @@ class _ReportTile extends ConsumerWidget {
 
     String label = type;
     if (type == 'ccp3_cooling') {
-      label = 'Schladzanie (CCP-3)';
+      label = 'Schładzanie (CCP-3)';
+    } else if (type == 'ccp2_roasting') {
+      label = 'Pieczenie (CCP-2)';
     } else if (type == 'waste_monthly') {
-      label = 'Odpady (Miesieczny)';
+      label = 'Odpady (Miesięczny)';
     } else if (type == 'ccp1_temperature') {
       label = 'Temperatura (CCP-1)';
     }

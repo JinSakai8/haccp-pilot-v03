@@ -95,6 +95,24 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                           return;
                         }
 
+                        if (_selectedReportType == 'ccp3_cooling') {
+                          final dateStr =
+                              _selectedDate.toIso8601String().split('T')[0];
+                          context.push(
+                            '/reports/preview/ccp3?date=$dateStr',
+                          );
+                          return;
+                        }
+
+                        if (_selectedReportType == 'ccp2_roasting') {
+                          final dateStr =
+                              _selectedDate.toIso8601String().split('T')[0];
+                          context.push(
+                            '/reports/preview/ccp2?date=$dateStr',
+                          );
+                          return;
+                        }
+
                         ref.read(reportsProvider.notifier).generateReport(
                               reportType: _selectedReportType,
                               month: _selectedDate,
@@ -111,7 +129,9 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 label: Text(
                   reportsState.isLoading
                       ? 'GENEROWANIE...'
-                      : 'GENERUJ RAPORT (PDF)',
+                      : _selectedReportType.startsWith('ccp') && _selectedReportType != 'ccp1_temperature' 
+                          ? 'PODGLĄD RAPORTU' 
+                          : 'GENERUJ RAPORT (PDF)',
                 ),
               ),
             ),
@@ -261,13 +281,17 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
   String _getReportLabel(String type) {
     switch (type) {
       case 'waste':
-        return 'Ewidencja Odpadow';
+        return 'Ewidencja Odpadów';
       case 'gmp':
         return 'Logs GMP';
       case 'ghp':
         return 'Checklisty GHP';
       case 'temperature':
         return 'Rejestr Temperatur';
+      case 'ccp3_cooling':
+        return 'Druk CCP-3 (Chłodzenie)';
+      case 'ccp2_roasting':
+        return 'Druk CCP-2 (Pieczenie)';
       default:
         return type;
     }
@@ -284,6 +308,8 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
           _buildOption('gmp'),
           _buildOption('ghp'),
           _buildOption('temperature'),
+          _buildOption('ccp3_cooling'),
+          _buildOption('ccp2_roasting'),
         ],
       ),
     );
@@ -520,11 +546,11 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                 'Maj',
                 'Czerwiec',
                 'Lipiec',
-                'Sierpien',
-                'Wrzesien',
-                'Pazdziernik',
+                'Sierpień',
+                'Wrzesień',
+                'Październik',
                 'Listopad',
-                'Grudzien',
+                'Grudzień',
               ];
 
               return InkWell(

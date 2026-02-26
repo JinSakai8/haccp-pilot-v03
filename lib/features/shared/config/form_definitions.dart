@@ -8,8 +8,41 @@ class FormDefinitions {
         id: 'product_name',
         type: HaccpFieldType.dropdown,
         label: 'Produkt',
-        config: {'options': ['Kurczak Pieczony', 'Uda z Kurczaka', 'Skrzydełka']},
+        config: {
+          'source': 'products_table',
+          'type': 'roasting'
+        },
         required: true,
+      ),
+      FormFieldConfig(
+        id: 'batch_number',
+        type: HaccpFieldType.text,
+        label: 'Nr Partii',
+        required: true,
+      ),
+      FormFieldConfig(
+        id: 'oven_temp',
+        type: HaccpFieldType.stepper,
+        label: 'Temp. Nastawy Pieca [°C]',
+        config: {
+          'min': 50,
+          'max': 300,
+          'step': 5,
+          'default': 180.0
+        },
+        required: true,
+      ),
+      FormFieldConfig(
+        id: 'start_time',
+        type: HaccpFieldType.time,
+        label: 'Czas Start',
+        required: true,
+      ),
+      FormFieldConfig(
+        id: 'end_time',
+        type: HaccpFieldType.time,
+        label: 'Czas Stop',
+        required: false,
       ),
       FormFieldConfig(
         id: 'internal_temp',
@@ -17,19 +50,26 @@ class FormDefinitions {
         label: 'Temp. Wewnętrzna [°C]',
         config: {
           'min': 0, 
-          'max': 120, 
+          'max': 200, 
           'step': 1, 
           'unit': '°C',
-          'default': 75.0,
-          'warningRange': {'min': 75.0} // Warning if < 75
+          'default': 90.0,
+          'warningRange': {'min': 90.0} // Warning if < 90
         },
         required: true,
       ),
       FormFieldConfig(
-        id: 'comments',
-        type: HaccpFieldType.toggle, // Using toggle as a simple OK/Not OK + comment field for now
-        label: 'Zgodność organoleptyczna',
+        id: 'is_compliant',
+        type: HaccpFieldType.toggle,
+        label: 'Zgodność z ustaleniami',
         required: true,
+      ),
+      FormFieldConfig(
+        id: 'corrective_actions',
+        type: HaccpFieldType.text,
+        label: 'Działania korygujące',
+        required: false,
+        visibleIf: {'field': 'is_compliant', 'value': false}, // Widoczne tylko gdy Zgodność to NIE
       ),
     ],
   );
@@ -52,7 +92,7 @@ class FormDefinitions {
       FormFieldConfig(id: 'end_time', type: HaccpFieldType.time, label: 'Godzina Zakończenia', required: true),
       FormFieldConfig(id: 'temperature', type: HaccpFieldType.stepper, label: 'Wartość temperatury [°C]', config: {'min': -10, 'max': 100, 'default': 4, 'step': 0.1}, required: true),
       FormFieldConfig(id: 'compliance', type: HaccpFieldType.toggle, label: 'Zgodność z ustaleniami', required: true),
-      FormFieldConfig(id: 'corrective_actions', type: HaccpFieldType.text, label: 'Działania korygujące', required: false),
+      FormFieldConfig(id: 'corrective_actions', type: HaccpFieldType.text, label: 'Działania korygujące', required: false, visibleIf: {'field': 'compliance', 'value': false}),
     ],
   );
 

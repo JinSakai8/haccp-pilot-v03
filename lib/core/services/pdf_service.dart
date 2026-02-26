@@ -446,6 +446,194 @@ class PdfService {
     }
   }
 
+  /// Generates the CCP-2 Roasting Report with custom header and table layout.
+  Future<Uint8List> generateCcp2Report({
+    required List<Map<String, dynamic>> logs,
+    required String userName,
+    required String date,
+    Uint8List? venueLogo,
+  }) async {
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
+
+    final params = _Ccp2ReportParams(
+      logs: logs,
+      userName: userName,
+      date: date,
+      venueLogo: venueLogo,
+      fontBytes: fontData.buffer.asUint8List(),
+      boldFontBytes: boldFontData.buffer.asUint8List(),
+    );
+
+    if (kIsWeb || !useIsolate) {
+      return await _generateCcp2PdfIsolate(params);
+    }
+    return await compute(_generateCcp2PdfIsolate, params);
+  }
+
+  static Future<Uint8List> _generateCcp2PdfIsolate(_Ccp2ReportParams params) async {
+    debugPrint('🔵 _generateCcp2PdfIsolate: Start');
+    final document = PdfDocument();
+    
+    document.pageSettings.margins.all = 20;
+
+    final page = document.pages.add();
+    final graphics = page.graphics;
+    
+    // Fonts
+    final font = _createRegularFont(params.fontBytes, 9);
+    final boldFont = _createBoldFont(params.boldFontBytes, 10);
+    final titleFont = _createBoldFont(params.boldFontBytes, 14);
+
+    // 1. Header Grid (Restaurant Info, Title, Responsible)
+    final topGrid = PdfGrid();
+    topGrid.columns.add(count: 3);
+    
+    double pageWidth = page.getClientSize().width;
+    if (pageWidth <= 0) {
+      pageWidth = 500;
+    }
+    
+    topGrid.columns[0].width = pageWidth * 0.35;
+    topGrid.columns[1].width = pageWidth * 0.35;
+    topGrid.columns[2].width = pageWidth * 0.30;
+
+    final topRow = topGrid.rows.add();
+    
+    topRow.cells[0].value = 'Restauracja „Mięso i Piana”\nul. Energetyków 18A,\n37-450 Stalowa Wola';
+    topRow.cells[0].style.font = boldFont;
+    topRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    
+    topRow.cells[1].value = 'Arkusz monitorowania CCP-2';
+    topRow.cells[1].style.font = titleFont;
+    topRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+
+    topRow.cells[2].value = 'Odpowiedzialny:\nUpoważniony pracownik';
+    topRow.cells[2].style.font = font;
+    topRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+
+    topRow.height = 50;
+
+    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
+    var currentY = topLayout!.bounds.bottom + 10;
+
+    // --- Data Grid ---
+    final grid = PdfGrid();
+    grid.columns.add(count: 6);
+    
+    // Column Mapping & Widths
+    grid.columns[0].width = pageWidth * 0.16; // Data
+    grid.columns[1].width = pageWidth * 0.24; // Rodzaj potrawy
+    grid.columns[2].width = pageWidth * 0.15; // Wartosc temperatury
+    grid.columns[3].width = pageWidth * 0.15; // Zgodnosc z ustaleniami
+    grid.columns[4].width = pageWidth * 0.20; // Dzialania korygujace
+    grid.columns[5].width = pageWidth * 0.10; // Podpis
+
+    // Header Row
+    final header = grid.headers.add(1)[0];
+    header.height = 40; 
+    
+    final headers = [
+      'Data / Godzina',
+      'Rodzaj\npotrawy',
+      'Wartość\ntemperatury',
+      'Zgodność z\nustaleniami',
+      'Działania\nkorygujące',
+      'Podpis'
+    ];
+
+    for(int i=0; i<headers.length; i++) {
+      header.cells[i].value = headers[i];
+      header.cells[i].style.backgroundBrush = PdfSolidBrush(PdfColor(229, 229, 229));
+      header.cells[i].style.font = boldFont;
+      header.cells[i].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    }
+
+    // Data Rows
+    for (var log in params.logs) {
+      final data = log['data'] as Map<String, dynamic>;
+      final row = grid.rows.add();
+      
+      // 1. Start Date/Time
+      final prepDate = data['prep_date'] ?? data['date']?.toString() ?? '-';
+      final startTime = data['start_time'] ?? data['time']?.toString() ?? '-';
+      String dateStr = prepDate; 
+      try {
+         final dt = DateTime.parse(prepDate);
+         dateStr = '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}';
+      } catch(_) {}
+      
+      row.cells[0].value = '$dateStr\n$startTime';
+
+      // 2. Product
+      row.cells[1].value = data['product_name']?.toString() ?? '-';
+
+      // 3. Temp
+      final tempVal = data['internal_temp'] ?? data['temperature'];
+      row.cells[2].value = tempVal != null ? '$tempVal' : '-'; 
+
+      // 4. Compliance
+      bool isCompliant = true;
+      if (data.containsKey('is_compliant')) {
+         isCompliant = data['is_compliant'] == true;
+      } else if (data.containsKey('compliance')) {
+         isCompliant = data['compliance'] == true;
+      } else {
+         if (tempVal != null) {
+            final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+            if (t != null) isCompliant = t >= 90.0;
+         }
+      }
+      
+      row.cells[3].value = isCompliant ? 'TAK' : 'NIE';
+      if (!isCompliant) {
+        row.cells[3].style.textBrush = PdfBrushes.red;
+        row.cells[3].style.font = boldFont;
+      }
+
+      // 5. Corrective Actions
+      final comments = data['corrective_actions'] ?? data['comments'] ?? '';
+      row.cells[4].value = comments?.toString() ?? '';
+
+      // 6. Signature (Initials)
+      row.cells[5].value = ''; 
+    }
+    
+    // Add empty rows
+    for(int i=0; i<15; i++) {
+       final row = grid.rows.add();
+       for(int j=0; j<6; j++) row.cells[j].value = '';
+       row.height = 20;
+    }
+
+    // Set Cell Style for all rows
+    for(int i=0; i<grid.rows.count; i++) {
+      final row = grid.rows[i];
+      for(int j=0; j<row.cells.count; j++) {
+        if (j != 1 && j != 4) {
+           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+        } else {
+           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.left, lineAlignment: PdfVerticalAlignment.middle);
+           row.cells[j].style.cellPadding = PdfPaddings(left: 4, right: 2, top: 2, bottom: 2);
+        }
+        if (row.cells[j].style.font == null) {
+          row.cells[j].style.font = font;
+        }
+      }
+    }
+
+    grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
+
+    // Footer Signature Line
+    final footerY = page.getClientSize().height - 40;
+    graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
+    graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
+    
+    final List<int> bytes = await document.save();
+    document.dispose();
+    return Uint8List.fromList(bytes);
+  }
+
   /// Generates the CCP-3 Cooling Report with custom header and 3-box limits layout.
   Future<Uint8List> generateCcp3Report({
     required List<Map<String, dynamic>> logs,
@@ -743,6 +931,24 @@ class _Ccp3ReportParams {
   final Uint8List boldFontBytes;
 
   _Ccp3ReportParams({
+    required this.logs,
+    required this.userName,
+    required this.date,
+    this.venueLogo,
+    required this.fontBytes,
+    required this.boldFontBytes,
+  });
+}
+
+class _Ccp2ReportParams {
+  final List<Map<String, dynamic>> logs;
+  final String userName;
+  final String date;
+  final Uint8List? venueLogo;
+  final Uint8List fontBytes;
+  final Uint8List boldFontBytes;
+
+  _Ccp2ReportParams({
     required this.logs,
     required this.userName,
     required this.date,
