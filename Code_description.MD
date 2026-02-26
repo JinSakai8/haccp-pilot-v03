@@ -376,3 +376,24 @@ Nowe/uzupelnione testy:
 Wyniki (2026-02-24):
 - `flutter test test/features/m08_settings --reporter compact` -> PASS
 - `flutter test --reporter compact` -> PASS (`43 passed, 1 skipped, 0 failed`)
+
+## 14) CCP2 End-to-End hardening (2026-02-26)
+
+Wdrozone usprawnienia dla ccp2_roasting:
+
+- Raport CCP2 korzysta z zakresu miesiecznego (od 1 dnia miesiaca do jego konca), zamiast zakresu dobowego.
+- Cache lookup raportu jest scoped do enue_id (getSavedReport(..., venueId: ...)) i nie miesza tenantow.
+- Metadane generated_reports.metadata sa standaryzowane:
+  - period_start`r
+  - period_end`r
+  - 	emplate_version`r
+  - source_form_id`r
+- Formularz pieczenia wymusza corrective_actions gdy is_compliant = false.
+- Generator PDF CCP2:
+  - przyjmuje ustrukturyzowane wiersze (Ccp2ReportRow) zamiast surowych map,
+  - korzysta z danych lokalu z DB (nazwa/adres),
+  - posiada stabilniejszy layout dla dluzszych zestawow danych (paginate + repeatHeader).
+- Dodane artefakty operacyjne:
+  - migracja hardening generated_reports (RLS + indeksy + unikalnosc),
+  - skrypt walidacyjny SQL kontraktu CCP2.
+

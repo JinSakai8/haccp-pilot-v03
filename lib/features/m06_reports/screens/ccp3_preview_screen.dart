@@ -10,7 +10,10 @@ import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/services/file_opener.dart';
 
-final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
+final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
+  ref,
+  date,
+) async {
   try {
     final repo = ref.read(reportsRepositoryProvider);
     final user = ref.read(currentUserProvider);
@@ -31,7 +34,11 @@ final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, dat
     // 1. Try to fetch saved report first (Cache)
     if (venueId != null) {
       try {
-        final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
+        final savedMetadata = await repo.getSavedReport(
+          date,
+          'ccp3_cooling',
+          venueId: venueId,
+        );
         if (savedMetadata != null) {
           final path = savedMetadata['storage_path'];
           final bytes = await repo.downloadReport(path);
@@ -116,11 +123,15 @@ class Ccp3PreviewScreen extends ConsumerWidget {
             data: (bytes) => IconButton(
               icon: const Icon(Icons.share),
               onPressed: () async {
-                 // Share logic specific to bytes
-               if (bytes != null) {
-                 final file = XFile.fromData(bytes, name: 'CCP3_Raport.pdf', mimeType: 'application/pdf');
-                 await Share.shareXFiles([file], text: 'Raport Chłodzenia');
-               }
+                // Share logic specific to bytes
+                if (bytes != null) {
+                  final file = XFile.fromData(
+                    bytes,
+                    name: 'CCP3_Raport.pdf',
+                    mimeType: 'application/pdf',
+                  );
+                  await Share.shareXFiles([file], text: 'Raport Chłodzenia');
+                }
               },
             ),
             loading: () => const SizedBox.shrink(),
@@ -136,7 +147,11 @@ class Ccp3PreviewScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.description_outlined, size: 64, color: Colors.white38),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 64,
+                    color: Colors.white38,
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'Brak raportów chłodzenia\ndla wybranego dnia',
@@ -157,11 +172,18 @@ class Ccp3PreviewScreen extends ConsumerWidget {
             children: [
               // Debug info bar (visible during development)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 color: Colors.green.withOpacity(0.15),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'PDF załadowany: ${bytes.length} bajtów',
@@ -170,7 +192,10 @@ class Ccp3PreviewScreen extends ConsumerWidget {
                     const Spacer(),
                     TextButton.icon(
                       icon: const Icon(Icons.download, size: 16),
-                      label: const Text('Pobierz', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Pobierz',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       onPressed: () {
                         openFileFromBytes(bytes, 'CCP3_Raport.pdf');
                       },
@@ -179,9 +204,7 @@ class Ccp3PreviewScreen extends ConsumerWidget {
                 ),
               ),
               // PDF Viewer
-              Expanded(
-                child: SfPdfViewer.memory(bytes),
-              ),
+              Expanded(child: SfPdfViewer.memory(bytes)),
             ],
           );
         },
@@ -191,7 +214,10 @@ class Ccp3PreviewScreen extends ConsumerWidget {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Generowanie raportu...', style: TextStyle(color: Colors.white70)),
+              Text(
+                'Generowanie raportu...',
+                style: TextStyle(color: Colors.white70),
+              ),
             ],
           ),
         ),
@@ -203,11 +229,19 @@ class Ccp3PreviewScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Błąd generowania raportu',
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(

@@ -1399,3 +1399,13 @@ Zmiany:
 Routing (`app_router.dart`):
 - `/settings` i `/settings/products` dostepne tylko dla `manager` / `owner`.
 - `cook` / `cleaner` otrzymuja przekierowanie do `Dashboard Hub`.
+
+## Aktualizacja CCP2 (2026-02-26)
+
+Zmiany UX/UI dla przeplywu CCP2:
+
+- Ekran podgladu CCP2 (Ccp2PreviewScreen) dziala na okresie miesiecznym, zgodnie z selektorem miesiaca w panelu raportow.
+- Komunikaty empty-state dla CCP2 odnosza sie do wybranego miesiaca (nie dnia).
+- Dla formularza pieczenia, gdy Zgodnosc z ustaleniami = NIE, pole Dzialania korygujace jest traktowane jako wymagane i blokuje zapis do czasu uzupelnienia.
+- Podglad PDF CCP2 wykorzystuje dane lokalu pobrane z DB (nazwa/adres), co usuwa hardcoded naglowek.
+

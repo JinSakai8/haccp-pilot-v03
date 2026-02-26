@@ -7,6 +7,24 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:haccp_pilot/features/shared/models/form_definition.dart';
 import 'package:haccp_pilot/core/services/file_opener.dart'; // Conditional import helper
 
+class Ccp2ReportRow {
+  final String dateTime;
+  final String productName;
+  final String temperature;
+  final bool isCompliant;
+  final String correctiveActions;
+  final String signature;
+
+  const Ccp2ReportRow({
+    required this.dateTime,
+    required this.productName,
+    required this.temperature,
+    required this.isCompliant,
+    required this.correctiveActions,
+    this.signature = '',
+  });
+}
+
 /// Service for generating PDF reports.
 /// Uses [compute] to run heavy PDF generation in a separate isolate.
 class PdfService {
@@ -25,33 +43,35 @@ class PdfService {
   }) async {
     final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
     final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
-    
+
     final images = <String, Uint8List>{};
-    
+
     if (logoBytes != null) {
       images['__venue_logo__'] = logoBytes;
     }
-    
+
     for (var field in definition.fields) {
       if (field.type == HaccpFieldType.photo) {
         final path = data[field.id];
         if (path != null && path is String && path.isNotEmpty) {
+          try {
+            // On web, we can only download from Supabase (no local files)
             try {
-              // On web, we can only download from Supabase (no local files)
-              try {
-                final Uint8List bytes = await Supabase.instance.client.storage
-                    .from('waste-docs')
-                    .download(path);
-                
-                if (bytes.isNotEmpty) {
-                  images[field.id] = bytes;
-                }
-              } catch (storageError) {
-                debugPrint('Supabase Storage Download Error for $path: $storageError');
+              final Uint8List bytes = await Supabase.instance.client.storage
+                  .from('waste-docs')
+                  .download(path);
+
+              if (bytes.isNotEmpty) {
+                images[field.id] = bytes;
               }
-            } catch (e) {
-              debugPrint('Error loading image for PDF: $e');
+            } catch (storageError) {
+              debugPrint(
+                'Supabase Storage Download Error for $path: $storageError',
+              );
             }
+          } catch (e) {
+            debugPrint('Error loading image for PDF: $e');
+          }
         }
       }
     }
@@ -75,11 +95,13 @@ class PdfService {
   }
 
   /// The static method that runs in an isolate.
-  static Future<Uint8List> _generatePdfIsolate(_PdfGenerationParams params) async {
+  static Future<Uint8List> _generatePdfIsolate(
+    _PdfGenerationParams params,
+  ) async {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
-    
+
     final font = _createRegularFont(params.fontBytes, 12);
     final boldFont = _createBoldFont(params.boldFontBytes, 14);
 
@@ -94,11 +116,14 @@ class PdfService {
       final logoBitmap = PdfBitmap(logoBytes);
       const logoWidth = 60.0;
       final logoHeight = logoBitmap.height * (logoWidth / logoBitmap.width);
-      graphics.drawImage(logoBitmap, Rect.fromLTWH(420, 0, logoWidth, logoHeight));
+      graphics.drawImage(
+        logoBitmap,
+        Rect.fromLTWH(420, 0, logoWidth, logoHeight),
+      );
     }
 
     graphics.drawString(
-      'Data: ${params.date} | Wykonał: ${params.userName}',
+      'Data: ${params.date} | WykonaĹ‚: ${params.userName}',
       font,
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
@@ -108,30 +133,31 @@ class PdfService {
     grid.headers.add(1);
     final header = grid.headers[0];
     header.cells[0].value = 'Parametr';
-    header.cells[1].value = 'Wartość / Uwagi';
+    header.cells[1].value = 'WartoĹ›Ä‡ / Uwagi';
 
     for (var field in params.definition.fields) {
       final row = grid.rows.add();
       row.cells[0].value = field.label;
 
       final val = params.data[field.id];
-      
+
       if (field.type == HaccpFieldType.photo) {
         final imageBytes = params.images[field.id];
         if (imageBytes != null) {
-           row.cells[1].value = '[ZDJĘCIE ZAŁĄCZONE NIŻEJ]';
+          row.cells[1].value = '[ZDJÄCIE ZAĹÄ„CZONE NIĹ»EJ]';
         } else {
-           row.cells[1].value = '[ZDJĘCIE NIEDOSTĘPNE]';
+          row.cells[1].value = '[ZDJÄCIE NIEDOSTÄPNE]';
         }
       } else if (field.type == HaccpFieldType.toggle) {
-         final boolValue = val == true;
-         row.cells[1].value = boolValue ? 'ZGODNE' : 'NIEZGODNE';
-         final commentKey = '${field.id}_comment';
-         if (params.data.containsKey(commentKey)) {
-           row.cells[1].value = '${row.cells[1].value}\nUwagi: ${params.data[commentKey]}';
-         }
+        final boolValue = val == true;
+        row.cells[1].value = boolValue ? 'ZGODNE' : 'NIEZGODNE';
+        final commentKey = '${field.id}_comment';
+        if (params.data.containsKey(commentKey)) {
+          row.cells[1].value =
+              '${row.cells[1].value}\nUwagi: ${params.data[commentKey]}';
+        }
       } else {
-         row.cells[1].value = val?.toString() ?? '-';
+        row.cells[1].value = val?.toString() ?? '-';
       }
     }
 
@@ -141,9 +167,13 @@ class PdfService {
     );
 
     var currentY = layoutResult!.bounds.bottom + 20;
-    
+
     if (params.images.isNotEmpty) {
-      graphics.drawString('ZAŁĄCZNIKI ZDJĘCIOWE:', boldFont, bounds: Rect.fromLTWH(0, currentY, 500, 20));
+      graphics.drawString(
+        'ZAĹÄ„CZNIKI ZDJÄCIOWE:',
+        boldFont,
+        bounds: Rect.fromLTWH(0, currentY, 500, 20),
+      );
       currentY += 30;
 
       for (var entry in params.images.entries) {
@@ -151,17 +181,23 @@ class PdfService {
 
         final imageBytes = entry.value;
         final pdfBitmap = PdfBitmap(imageBytes);
-        
+
         const maxWidth = 400.0;
         final scale = maxWidth / pdfBitmap.width;
         final height = pdfBitmap.height * scale;
 
         if (currentY + height > page.getClientSize().height) {
-           final newPage = document.pages.add();
-           newPage.graphics.drawImage(pdfBitmap, Rect.fromLTWH(0, 20, maxWidth, height));
+          final newPage = document.pages.add();
+          newPage.graphics.drawImage(
+            pdfBitmap,
+            Rect.fromLTWH(0, 20, maxWidth, height),
+          );
         } else {
-           graphics.drawImage(pdfBitmap, Rect.fromLTWH(0, currentY, maxWidth, height));
-           currentY += height + 20;
+          graphics.drawImage(
+            pdfBitmap,
+            Rect.fromLTWH(0, currentY, maxWidth, height),
+          );
+          currentY += height + 20;
         }
       }
     }
@@ -198,7 +234,9 @@ class PdfService {
     return await compute(_generateTablePdfIsolate, params);
   }
 
-  static Future<Uint8List> _generateTablePdfIsolate(_PdfTableParams params) async {
+  static Future<Uint8List> _generateTablePdfIsolate(
+    _PdfTableParams params,
+  ) async {
     final document = PdfDocument();
     final page = document.pages.add();
     final graphics = page.graphics;
@@ -212,7 +250,7 @@ class PdfService {
     );
 
     graphics.drawString(
-      'Okres: ${params.dateRange} | Generował: ${params.userName}',
+      'Okres: ${params.dateRange} | GenerowaĹ‚: ${params.userName}',
       font,
       bounds: Rect.fromLTWH(0, 30, 500, 20),
     );
@@ -220,7 +258,7 @@ class PdfService {
     final grid = PdfGrid();
     grid.columns.add(count: params.columns.length);
     final header = grid.headers.add(1)[0];
-    
+
     for (int i = 0; i < params.columns.length; i++) {
       header.cells[i].value = params.columns[i];
     }
@@ -234,10 +272,7 @@ class PdfService {
       }
     }
 
-    grid.draw(
-      page: page,
-      bounds: Rect.fromLTWH(0, 60, 0, 0),
-    );
+    grid.draw(page: page, bounds: Rect.fromLTWH(0, 60, 0, 0));
 
     final List<int> bytes = await document.save();
     document.dispose();
@@ -346,8 +381,9 @@ class PdfService {
     paramsHeader.cells[1].value = 'Wartosc';
     for (var i = 0; i < 2; i++) {
       paramsHeader.cells[i].style.font = boldFont;
-      paramsHeader.cells[i].style.backgroundBrush =
-          PdfSolidBrush(PdfColor(229, 229, 229));
+      paramsHeader.cells[i].style.backgroundBrush = PdfSolidBrush(
+        PdfColor(229, 229, 229),
+      );
     }
 
     final sensorRow = paramsGrid.rows.add();
@@ -398,8 +434,9 @@ class PdfService {
     for (var i = 0; i < headers.length; i++) {
       header.cells[i].value = headers[i];
       header.cells[i].style.font = boldFont;
-      header.cells[i].style.backgroundBrush =
-          PdfSolidBrush(PdfColor(229, 229, 229));
+      header.cells[i].style.backgroundBrush = PdfSolidBrush(
+        PdfColor(229, 229, 229),
+      );
       header.cells[i].stringFormat = PdfStringFormat(
         alignment: PdfTextAlignment.center,
         lineAlignment: PdfVerticalAlignment.middle,
@@ -410,8 +447,9 @@ class PdfService {
     for (final rowValues in params.rows) {
       final row = dataGrid.rows.add();
       for (var i = 0; i < headers.length; i++) {
-        row.cells[i].value =
-            i < rowValues.length ? _toPdfSafeText(rowValues[i]) : '';
+        row.cells[i].value = i < rowValues.length
+            ? _toPdfSafeText(rowValues[i])
+            : '';
         row.cells[i].style.font = font;
         row.cells[i].stringFormat = PdfStringFormat(
           alignment: i == 4 ? PdfTextAlignment.left : PdfTextAlignment.center,
@@ -448,18 +486,22 @@ class PdfService {
 
   /// Generates the CCP-2 Roasting Report with custom header and table layout.
   Future<Uint8List> generateCcp2Report({
-    required List<Map<String, dynamic>> logs,
+    required List<Ccp2ReportRow> rows,
     required String userName,
-    required String date,
+    required String monthLabel,
+    required String venueName,
+    String? venueAddress,
     Uint8List? venueLogo,
   }) async {
     final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
     final boldFontData = await rootBundle.load('assets/fonts/Roboto-Bold.ttf');
 
     final params = _Ccp2ReportParams(
-      logs: logs,
+      rows: rows,
       userName: userName,
-      date: date,
+      monthLabel: monthLabel,
+      venueName: venueName,
+      venueAddress: venueAddress,
       venueLogo: venueLogo,
       fontBytes: fontData.buffer.asUint8List(),
       boldFontBytes: boldFontData.buffer.asUint8List(),
@@ -471,164 +513,190 @@ class PdfService {
     return await compute(_generateCcp2PdfIsolate, params);
   }
 
-  static Future<Uint8List> _generateCcp2PdfIsolate(_Ccp2ReportParams params) async {
-    debugPrint('🔵 _generateCcp2PdfIsolate: Start');
+  static Future<Uint8List> _generateCcp2PdfIsolate(
+    _Ccp2ReportParams params,
+  ) async {
     final document = PdfDocument();
-    
     document.pageSettings.margins.all = 20;
 
     final page = document.pages.add();
     final graphics = page.graphics;
-    
-    // Fonts
     final font = _createRegularFont(params.fontBytes, 9);
     final boldFont = _createBoldFont(params.boldFontBytes, 10);
     final titleFont = _createBoldFont(params.boldFontBytes, 14);
 
-    // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
     topGrid.columns.add(count: 3);
-    
+
     double pageWidth = page.getClientSize().width;
     if (pageWidth <= 0) {
       pageWidth = 500;
     }
-    
+
     topGrid.columns[0].width = pageWidth * 0.35;
     topGrid.columns[1].width = pageWidth * 0.35;
     topGrid.columns[2].width = pageWidth * 0.30;
 
     final topRow = topGrid.rows.add();
-    
-    topRow.cells[0].value = 'Restauracja „Mięso i Piana”\nul. Energetyków 18A,\n37-450 Stalowa Wola';
+    final safeVenueName = _toPdfSafeText(params.venueName);
+    final safeVenueAddress = _toPdfSafeText(params.venueAddress ?? '');
+    topRow.cells[0].value = safeVenueAddress.isNotEmpty
+        ? '$safeVenueName\n$safeVenueAddress'
+        : safeVenueName;
     topRow.cells[0].style.font = boldFont;
-    topRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
-    
+    topRow.cells[0].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+
     topRow.cells[1].value = 'Arkusz monitorowania CCP-2';
     topRow.cells[1].style.font = titleFont;
-    topRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    topRow.cells[1].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
-    topRow.cells[2].value = 'Odpowiedzialny:\nUpoważniony pracownik';
+    topRow.cells[2].value =
+        'Odpowiedzialny:\n${_toPdfSafeText(params.userName)}';
     topRow.cells[2].style.font = font;
-    topRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
-
+    topRow.cells[2].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
     topRow.height = 50;
 
-    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
+    final topLayout = topGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, 0, pageWidth, 0),
+    );
     var currentY = topLayout!.bounds.bottom + 10;
 
-    // --- Data Grid ---
-    final grid = PdfGrid();
-    grid.columns.add(count: 6);
-    
-    // Column Mapping & Widths
-    grid.columns[0].width = pageWidth * 0.16; // Data
-    grid.columns[1].width = pageWidth * 0.24; // Rodzaj potrawy
-    grid.columns[2].width = pageWidth * 0.15; // Wartosc temperatury
-    grid.columns[3].width = pageWidth * 0.15; // Zgodnosc z ustaleniami
-    grid.columns[4].width = pageWidth * 0.20; // Dzialania korygujace
-    grid.columns[5].width = pageWidth * 0.10; // Podpis
+    final limitsGrid = PdfGrid();
+    limitsGrid.columns.add(count: 3);
+    limitsGrid.columns[0].width = pageWidth * 0.40;
+    limitsGrid.columns[1].width = pageWidth * 0.20;
+    limitsGrid.columns[2].width = pageWidth * 0.40;
 
-    // Header Row
+    final limitsRow = limitsGrid.rows.add();
+    limitsRow.cells[0].value =
+        'Okres raportu\n${_toPdfSafeText(params.monthLabel)}';
+    limitsRow.cells[1].value = 'Cel\n> 90°C';
+    limitsRow.cells[2].value = 'Wymaganie\nDzialania korygujace dla NIE';
+    for (var i = 0; i < limitsRow.cells.count; i++) {
+      limitsRow.cells[i].style.font = font;
+      limitsRow.cells[i].stringFormat = PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        lineAlignment: PdfVerticalAlignment.middle,
+      );
+    }
+    limitsRow.height = 34;
+
+    final limitsLayout = limitsGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, currentY, pageWidth, 0),
+    );
+    currentY = limitsLayout!.bounds.bottom + 8;
+
+    final grid = PdfGrid();
+    grid.repeatHeader = true;
+    grid.columns.add(count: 6);
+
+    grid.columns[0].width = pageWidth * 0.16;
+    grid.columns[1].width = pageWidth * 0.24;
+    grid.columns[2].width = pageWidth * 0.15;
+    grid.columns[3].width = pageWidth * 0.15;
+    grid.columns[4].width = pageWidth * 0.20;
+    grid.columns[5].width = pageWidth * 0.10;
+
     final header = grid.headers.add(1)[0];
-    header.height = 40; 
-    
+    header.height = 40;
+
     final headers = [
       'Data / Godzina',
       'Rodzaj\npotrawy',
-      'Wartość\ntemperatury',
-      'Zgodność z\nustaleniami',
-      'Działania\nkorygujące',
-      'Podpis'
+      'Wartosc\ntemperatury',
+      'Zgodnosc z\nustaleniami',
+      'Dzialania\nkorygujace',
+      'Podpis',
     ];
 
-    for(int i=0; i<headers.length; i++) {
+    for (int i = 0; i < headers.length; i++) {
       header.cells[i].value = headers[i];
-      header.cells[i].style.backgroundBrush = PdfSolidBrush(PdfColor(229, 229, 229));
+      header.cells[i].style.backgroundBrush = PdfSolidBrush(
+        PdfColor(229, 229, 229),
+      );
       header.cells[i].style.font = boldFont;
-      header.cells[i].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+      header.cells[i].stringFormat = PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        lineAlignment: PdfVerticalAlignment.middle,
+      );
     }
 
-    // Data Rows
-    for (var log in params.logs) {
-      final data = log['data'] as Map<String, dynamic>;
+    for (final rowModel in params.rows) {
       final row = grid.rows.add();
-      
-      // 1. Start Date/Time
-      final prepDate = data['prep_date'] ?? data['date']?.toString() ?? '-';
-      final startTime = data['start_time'] ?? data['time']?.toString() ?? '-';
-      String dateStr = prepDate; 
-      try {
-         final dt = DateTime.parse(prepDate);
-         dateStr = '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}';
-      } catch(_) {}
-      
-      row.cells[0].value = '$dateStr\n$startTime';
-
-      // 2. Product
-      row.cells[1].value = data['product_name']?.toString() ?? '-';
-
-      // 3. Temp
-      final tempVal = data['internal_temp'] ?? data['temperature'];
-      row.cells[2].value = tempVal != null ? '$tempVal' : '-'; 
-
-      // 4. Compliance
-      bool isCompliant = true;
-      if (data.containsKey('is_compliant')) {
-         isCompliant = data['is_compliant'] == true;
-      } else if (data.containsKey('compliance')) {
-         isCompliant = data['compliance'] == true;
-      } else {
-         if (tempVal != null) {
-            final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-            if (t != null) isCompliant = t >= 90.0;
-         }
-      }
-      
-      row.cells[3].value = isCompliant ? 'TAK' : 'NIE';
-      if (!isCompliant) {
+      row.cells[0].value = _toPdfSafeText(rowModel.dateTime);
+      row.cells[1].value = _toPdfSafeText(rowModel.productName);
+      row.cells[2].value = _toPdfSafeText(rowModel.temperature);
+      row.cells[3].value = rowModel.isCompliant ? 'TAK' : 'NIE';
+      if (!rowModel.isCompliant) {
         row.cells[3].style.textBrush = PdfBrushes.red;
         row.cells[3].style.font = boldFont;
       }
-
-      // 5. Corrective Actions
-      final comments = data['corrective_actions'] ?? data['comments'] ?? '';
-      row.cells[4].value = comments?.toString() ?? '';
-
-      // 6. Signature (Initials)
-      row.cells[5].value = ''; 
-    }
-    
-    // Add empty rows
-    for(int i=0; i<15; i++) {
-       final row = grid.rows.add();
-       for(int j=0; j<6; j++) row.cells[j].value = '';
-       row.height = 20;
+      row.cells[4].value = _toPdfSafeText(rowModel.correctiveActions);
+      row.cells[5].value = _toPdfSafeText(rowModel.signature);
     }
 
-    // Set Cell Style for all rows
-    for(int i=0; i<grid.rows.count; i++) {
+    for (int i = 0; i < 15; i++) {
+      final row = grid.rows.add();
+      for (int j = 0; j < 6; j++) {
+        row.cells[j].value = '';
+      }
+      row.height = 20;
+    }
+
+    for (int i = 0; i < grid.rows.count; i++) {
       final row = grid.rows[i];
-      for(int j=0; j<row.cells.count; j++) {
+      for (int j = 0; j < row.cells.count; j++) {
         if (j != 1 && j != 4) {
-           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+          row.cells[j].stringFormat = PdfStringFormat(
+            alignment: PdfTextAlignment.center,
+            lineAlignment: PdfVerticalAlignment.middle,
+          );
         } else {
-           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.left, lineAlignment: PdfVerticalAlignment.middle);
-           row.cells[j].style.cellPadding = PdfPaddings(left: 4, right: 2, top: 2, bottom: 2);
+          row.cells[j].stringFormat = PdfStringFormat(
+            alignment: PdfTextAlignment.left,
+            lineAlignment: PdfVerticalAlignment.middle,
+          );
+          row.cells[j].style.cellPadding = PdfPaddings(
+            left: 4,
+            right: 2,
+            top: 2,
+            bottom: 2,
+          );
         }
-        if (row.cells[j].style.font == null) {
-          row.cells[j].style.font = font;
-        }
+        row.cells[j].style.font ??= (j == 5 ? boldFont : font);
       }
     }
 
-    grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
+    final availableHeight = page.getClientSize().height - currentY - 50;
+    grid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, currentY, pageWidth, availableHeight),
+      format: PdfLayoutFormat(layoutType: PdfLayoutType.paginate),
+    );
 
-    // Footer Signature Line
     final footerY = page.getClientSize().height - 40;
-    graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
-    graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
-    
+    graphics.drawString(
+      'Sprawdzil/zatwierdzil: .................................................',
+      boldFont,
+      bounds: Rect.fromLTWH(0, footerY, 400, 20),
+    );
+    graphics.drawString(
+      '(Data/podpis)',
+      font,
+      bounds: Rect.fromLTWH(200, footerY + 15, 100, 20),
+    );
+
     final List<int> bytes = await document.save();
     document.dispose();
     return Uint8List.fromList(bytes);
@@ -659,16 +727,18 @@ class PdfService {
     return await compute(_generateCcp3PdfIsolate, params);
   }
 
-  static Future<Uint8List> _generateCcp3PdfIsolate(_Ccp3ReportParams params) async {
-    debugPrint('🔵 _generateCcp3PdfIsolate: Start');
+  static Future<Uint8List> _generateCcp3PdfIsolate(
+    _Ccp3ReportParams params,
+  ) async {
+    debugPrint('đź”µ _generateCcp3PdfIsolate: Start');
     final document = PdfDocument();
-    
+
     // Set margins to match a standard printable sheet (approx 1 cm/0.5 inch)
     document.pageSettings.margins.all = 20;
 
     final page = document.pages.add();
     final graphics = page.graphics;
-    
+
     // Fonts
     final font = _createRegularFont(params.fontBytes, 9);
     final boldFont = _createBoldFont(params.boldFontBytes, 10);
@@ -677,42 +747,55 @@ class PdfService {
     // 1. Header Grid (Restaurant Info, Title, Responsible)
     final topGrid = PdfGrid();
     topGrid.columns.add(count: 3);
-    
+
     // Safety check for page width
     double pageWidth = page.getClientSize().width;
     if (pageWidth <= 0) {
-      debugPrint('⚠️ Page width is <= 0 ($pageWidth), defaulting to 500');
+      debugPrint('âš ď¸Ź Page width is <= 0 ($pageWidth), defaulting to 500');
       pageWidth = 500;
     }
-    
-    debugPrint('🔵 _generateCcp3PdfIsolate: Page Width = $pageWidth');
-    
+
+    debugPrint('đź”µ _generateCcp3PdfIsolate: Page Width = $pageWidth');
+
     topGrid.columns[0].width = pageWidth * 0.35;
     topGrid.columns[1].width = pageWidth * 0.35;
     topGrid.columns[2].width = pageWidth * 0.30;
 
     final topRow = topGrid.rows.add();
-    
+
     // Cell 1: Restaurant Info
-    topRow.cells[0].value = 'Restauracja „Mięso i Piana”\nul. Energetyków 18A,\n37-450 Stalowa Wola';
+    topRow.cells[0].value =
+        'Restauracja â€žMiÄ™so i Pianaâ€ť\nul. EnergetykĂłw 18A,\n37-450 Stalowa Wola';
     topRow.cells[0].style.font = boldFont;
-    topRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
-    
+    topRow.cells[0].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+
     // Cell 2: Title
     topRow.cells[1].value = 'Arkusz monitorowania CCP-3';
     topRow.cells[1].style.font = titleFont;
-    topRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    topRow.cells[1].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
     // Cell 3: Responsible
-    topRow.cells[2].value = 'Odpowiedzialny:\nUpoważniony pracownik';
+    topRow.cells[2].value = 'Odpowiedzialny:\nUpowaĹĽniony pracownik';
     topRow.cells[2].style.font = font;
-    topRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    topRow.cells[2].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
     // Set height for consistency
     topRow.height = 50;
 
-    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing header...');
-    final topLayout = topGrid.draw(page: page, bounds: Rect.fromLTWH(0, 0, pageWidth, 0));
+    debugPrint('đź”µ _generateCcp3PdfIsolate: Drawing header...');
+    final topLayout = topGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, 0, pageWidth, 0),
+    );
     var currentY = topLayout!.bounds.bottom;
 
     // 2. Limits Grid
@@ -723,33 +806,48 @@ class PdfService {
     limitGrid.columns[2].width = pageWidth * 0.30; // Critical
 
     final limitRow = limitGrid.rows.add();
-    
+
     // Limit 1: Target
-    limitRow.cells[0].value = 'Wartość docelowa\n20°C w 2 godz.';
-    limitRow.cells[0].style.backgroundBrush = PdfBrushes.white; // Explicit white (or light green if requested)
+    limitRow.cells[0].value = 'WartoĹ›Ä‡ docelowa\n20Â°C w 2 godz.';
+    limitRow.cells[0].style.backgroundBrush =
+        PdfBrushes.white; // Explicit white (or light green if requested)
     limitRow.cells[0].style.font = boldFont;
-    limitRow.cells[0].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    limitRow.cells[0].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
     // Limit 2: Tolerance
-    limitRow.cells[1].value = 'Tolerancja\n+ 10°C';
+    limitRow.cells[1].value = 'Tolerancja\n+ 10Â°C';
     limitRow.cells[1].style.font = boldFont;
-    limitRow.cells[1].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    limitRow.cells[1].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
     // Limit 3: Critical
-    limitRow.cells[2].value = 'Wartość krytyczna\n30°C';
+    limitRow.cells[2].value = 'WartoĹ›Ä‡ krytyczna\n30Â°C';
     limitRow.cells[2].style.font = boldFont;
-    limitRow.cells[2].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+    limitRow.cells[2].stringFormat = PdfStringFormat(
+      alignment: PdfTextAlignment.center,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
 
     limitRow.height = 35; // Compact height
 
-    final limitLayout = limitGrid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
+    final limitLayout = limitGrid.draw(
+      page: page,
+      bounds: Rect.fromLTWH(0, currentY, pageWidth, 0),
+    );
     currentY = limitLayout!.bounds.bottom;
 
     // --- Data Grid ---
-    debugPrint('🔵 _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs');
+    debugPrint(
+      'đź”µ _generateCcp3PdfIsolate: Preparing data grid for ${params.logs.length} logs',
+    );
     final grid = PdfGrid();
     grid.columns.add(count: 7);
-    
+
     // Column Mapping & Widths
     grid.columns[0].width = pageWidth * 0.14;
     grid.columns[1].width = pageWidth * 0.22;
@@ -762,37 +860,43 @@ class PdfService {
     // Header Row
     final header = grid.headers.add(1)[0];
     header.height = 40; // Taller header for multi-line text
-    
+
     final headers = [
-      'Data/godz\nrozpoczęcia\nschładzania',
-      'Rodzaj\npierogów',
-      'Godz.\nzakończenia\nschładzania',
-      'Wartość\ntemperatury',
-      'Zgodność z\nustaleniami',
-      'Działania\nkorygujące',
-      'Podpis'
+      'Data/godz\nrozpoczÄ™cia\nschĹ‚adzania',
+      'Rodzaj\npierogĂłw',
+      'Godz.\nzakoĹ„czenia\nschĹ‚adzania',
+      'WartoĹ›Ä‡\ntemperatury',
+      'ZgodnoĹ›Ä‡ z\nustaleniami',
+      'DziaĹ‚ania\nkorygujÄ…ce',
+      'Podpis',
     ];
 
-    for(int i=0; i<headers.length; i++) {
+    for (int i = 0; i < headers.length; i++) {
       header.cells[i].value = headers[i];
-      header.cells[i].style.backgroundBrush = PdfSolidBrush(PdfColor(229, 229, 229)); // Light gray like Excel
+      header.cells[i].style.backgroundBrush = PdfSolidBrush(
+        PdfColor(229, 229, 229),
+      ); // Light gray like Excel
       header.cells[i].style.font = boldFont;
-      header.cells[i].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+      header.cells[i].stringFormat = PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        lineAlignment: PdfVerticalAlignment.middle,
+      );
     }
 
     // Data Rows
     for (var log in params.logs) {
       final data = log['data'] as Map<String, dynamic>;
       final row = grid.rows.add();
-      
+
       // 1. Start Date/Time
       final prepDate = data['prep_date']?.toString() ?? '-';
       final startTime = data['start_time']?.toString() ?? '-';
-      String dateStr = prepDate; 
+      String dateStr = prepDate;
       try {
-         final dt = DateTime.parse(prepDate);
-         dateStr = '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}';
-      } catch(_) {}
+        final dt = DateTime.parse(prepDate);
+        dateStr =
+            '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}';
+      } catch (_) {}
       row.cells[0].value = '$dateStr\n$startTime';
 
       // 2. Product
@@ -802,22 +906,28 @@ class PdfService {
       row.cells[2].value = data['end_time']?.toString() ?? '-';
 
       // 4. Temp (New 'temperature' or fallback to 'temp_2h'/'end_temp')
-      final tempVal = data['temperature'] ?? data['temp_2h'] ?? data['end_temp'];
-      row.cells[3].value = tempVal != null ? '$tempVal' : '-'; 
+      final tempVal =
+          data['temperature'] ?? data['temp_2h'] ?? data['end_temp'];
+      row.cells[3].value = tempVal != null ? '$tempVal' : '-';
       // Ensure text is centered
-      row.cells[3].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+      row.cells[3].stringFormat = PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        lineAlignment: PdfVerticalAlignment.middle,
+      );
 
       // 5. Compliance
       bool isCompliant = false;
       if (data.containsKey('compliance')) {
-         isCompliant = data['compliance'] == true;
+        isCompliant = data['compliance'] == true;
       } else {
-         if (tempVal != null) {
-            final t = double.tryParse(tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-            if (t != null) isCompliant = t <= 30.0;
-         }
+        if (tempVal != null) {
+          final t = double.tryParse(
+            tempVal.toString().replaceAll(RegExp(r'[^0-9.]'), ''),
+          );
+          if (t != null) isCompliant = t <= 30.0;
+        }
       }
-      
+
       row.cells[4].value = isCompliant ? 'TAK' : 'NIE';
       if (!isCompliant) {
         row.cells[4].style.textBrush = PdfBrushes.red;
@@ -829,26 +939,37 @@ class PdfService {
       row.cells[5].value = comments?.toString() ?? '';
 
       // 7. Signature (Initials)
-      row.cells[6].value = ''; 
+      row.cells[6].value = '';
     }
-    
+
     // Add empty rows
-    for(int i=0; i<15; i++) {
-       final row = grid.rows.add();
-       for(int j=0; j<7; j++) row.cells[j].value = '';
-       row.height = 20;
+    for (int i = 0; i < 15; i++) {
+      final row = grid.rows.add();
+      for (int j = 0; j < 7; j++) row.cells[j].value = '';
+      row.height = 20;
     }
 
     // Set Cell Style for all rows
-    for(int i=0; i<grid.rows.count; i++) {
+    for (int i = 0; i < grid.rows.count; i++) {
       final row = grid.rows[i];
-      for(int j=0; j<row.cells.count; j++) {
+      for (int j = 0; j < row.cells.count; j++) {
         // Center align everything except maybe Product Name (1) and Actions (5)
         if (j != 1 && j != 5) {
-           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.center, lineAlignment: PdfVerticalAlignment.middle);
+          row.cells[j].stringFormat = PdfStringFormat(
+            alignment: PdfTextAlignment.center,
+            lineAlignment: PdfVerticalAlignment.middle,
+          );
         } else {
-           row.cells[j].stringFormat = PdfStringFormat(alignment: PdfTextAlignment.left, lineAlignment: PdfVerticalAlignment.middle);
-           row.cells[j].style.cellPadding = PdfPaddings(left: 4, right: 2, top: 2, bottom: 2);
+          row.cells[j].stringFormat = PdfStringFormat(
+            alignment: PdfTextAlignment.left,
+            lineAlignment: PdfVerticalAlignment.middle,
+          );
+          row.cells[j].style.cellPadding = PdfPaddings(
+            left: 4,
+            right: 2,
+            top: 2,
+            bottom: 2,
+          );
         }
         // Explicitly set font for cells if not already set (compliance warning sets it)
         if (row.cells[j].style.font == null) {
@@ -857,18 +978,28 @@ class PdfService {
       }
     }
 
-    debugPrint('🔵 _generateCcp3PdfIsolate: Drawing data grid...');
+    debugPrint('đź”µ _generateCcp3PdfIsolate: Drawing data grid...');
     grid.draw(page: page, bounds: Rect.fromLTWH(0, currentY, pageWidth, 0));
 
     // Footer Signature Line
     final footerY = page.getClientSize().height - 40;
-    graphics.drawString('Sprawdził/zatwierdził: .................................................', boldFont, bounds: Rect.fromLTWH(0, footerY, 400, 20));
-    graphics.drawString('(Data/podpis)', font, bounds: Rect.fromLTWH(200, footerY + 15, 100, 20));
-    
-    debugPrint('🔵 _generateCcp3PdfIsolate: Saving document...');
+    graphics.drawString(
+      'SprawdziĹ‚/zatwierdziĹ‚: .................................................',
+      boldFont,
+      bounds: Rect.fromLTWH(0, footerY, 400, 20),
+    );
+    graphics.drawString(
+      '(Data/podpis)',
+      font,
+      bounds: Rect.fromLTWH(200, footerY + 15, 100, 20),
+    );
+
+    debugPrint('đź”µ _generateCcp3PdfIsolate: Saving document...');
     final List<int> bytes = await document.save();
     document.dispose();
-    debugPrint('🟢 _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.');
+    debugPrint(
+      'đźź˘ _generateCcp3PdfIsolate: Done! ${bytes.length} bytes generated.',
+    );
     return Uint8List.fromList(bytes);
   }
 
@@ -895,24 +1026,24 @@ class PdfService {
   // Fallback text sanitizer for cases where engine falls back to non-Unicode font.
   static String _toPdfSafeText(String input) {
     const replacements = <String, String>{
-      '\u0105': 'a', // ą
-      '\u0107': 'c', // ć
-      '\u0119': 'e', // ę
-      '\u0142': 'l', // ł
-      '\u0144': 'n', // ń
-      '\u00F3': 'o', // ó
-      '\u015B': 's', // ś
-      '\u017C': 'z', // ż
-      '\u017A': 'z', // ź
-      '\u0104': 'A', // Ą
-      '\u0106': 'C', // Ć
-      '\u0118': 'E', // Ę
-      '\u0141': 'L', // Ł
-      '\u0143': 'N', // Ń
-      '\u00D3': 'O', // Ó
-      '\u015A': 'S', // Ś
-      '\u017B': 'Z', // Ż
-      '\u0179': 'Z', // Ź
+      '\u0105': 'a', // Ä…
+      '\u0107': 'c', // Ä‡
+      '\u0119': 'e', // Ä™
+      '\u0142': 'l', // Ĺ‚
+      '\u0144': 'n', // Ĺ„
+      '\u00F3': 'o', // Ăł
+      '\u015B': 's', // Ĺ›
+      '\u017C': 'z', // ĹĽ
+      '\u017A': 'z', // Ĺş
+      '\u0104': 'A', // Ä„
+      '\u0106': 'C', // Ä†
+      '\u0118': 'E', // Ä
+      '\u0141': 'L', // Ĺ
+      '\u0143': 'N', // Ĺ
+      '\u00D3': 'O', // Ă“
+      '\u015A': 'S', // Ĺš
+      '\u017B': 'Z', // Ĺ»
+      '\u0179': 'Z', // Ĺą
     };
     var out = input;
     replacements.forEach((from, to) {
@@ -941,17 +1072,21 @@ class _Ccp3ReportParams {
 }
 
 class _Ccp2ReportParams {
-  final List<Map<String, dynamic>> logs;
+  final List<Ccp2ReportRow> rows;
   final String userName;
-  final String date;
+  final String monthLabel;
+  final String venueName;
+  final String? venueAddress;
   final Uint8List? venueLogo;
   final Uint8List fontBytes;
   final Uint8List boldFontBytes;
 
   _Ccp2ReportParams({
-    required this.logs,
+    required this.rows,
     required this.userName,
-    required this.date,
+    required this.monthLabel,
+    required this.venueName,
+    this.venueAddress,
     this.venueLogo,
     required this.fontBytes,
     required this.boldFontBytes,
@@ -1017,4 +1152,3 @@ class _PdfTableParams {
     required this.boldFontBytes,
   });
 }
-

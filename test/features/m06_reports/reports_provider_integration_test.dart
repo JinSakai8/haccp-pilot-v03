@@ -27,7 +27,8 @@ class _FakeReportsRepository extends ReportsRepository {
     ],
   );
 
-  String? uploadedPathResult = 'venue-1/2026/02/ccp1_temperature_sensor-1_2026-02.pdf';
+  String? uploadedPathResult =
+      'venue-1/2026/02/ccp1_temperature_sensor-1_2026-02.pdf';
   bool throwOnSaveMetadata = false;
 
   String? lastUploadPath;
@@ -58,6 +59,10 @@ class _FakeReportsRepository extends ReportsRepository {
     required DateTime generationDate,
     required String storagePath,
     required String userId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    String? templateVersion,
+    String? sourceFormId,
     Map<String, dynamic>? metadata,
   }) async {
     if (throwOnSaveMetadata) {
@@ -102,7 +107,9 @@ void main() {
         ],
       );
 
-      container.read(currentUserProvider.notifier).set(
+      container
+          .read(currentUserProvider.notifier)
+          .set(
             Employee(
               id: 'user-1',
               fullName: 'Tester',
@@ -110,9 +117,9 @@ void main() {
               isActive: true,
             ),
           );
-      container.read(currentZoneProvider.notifier).set(
-            Zone(id: 'zone-1', name: 'Kuchnia', venueId: 'venue-1'),
-          );
+      container
+          .read(currentZoneProvider.notifier)
+          .set(Zone(id: 'zone-1', name: 'Kuchnia', venueId: 'venue-1'));
     });
 
     tearDown(() {
@@ -120,7 +127,9 @@ void main() {
     });
 
     test('success: generates pdf and archives ccp1 metadata', () async {
-      await container.read(reportsProvider.notifier).generateReport(
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(
             reportType: 'temperature',
             month: DateTime(2026, 2, 1),
             sensorId: 'sensor-1',
@@ -136,11 +145,16 @@ void main() {
       expect(fakeRepo.lastSavedMetadata?['sensor_id'], equals('sensor-1'));
       expect(fakeRepo.lastSavedMetadata?['sensor_name'], equals('Sensor 1'));
       expect(fakeRepo.lastSavedMetadata?['month'], equals('2026-02'));
-      expect(fakeRepo.lastSavedMetadata?['template_version'], equals('ccp1_csv_v1'));
+      expect(
+        fakeRepo.lastSavedMetadata?['template_version'],
+        equals('ccp1_csv_v1'),
+      );
     });
 
     test('missing sensor: returns error', () async {
-      await container.read(reportsProvider.notifier).generateReport(
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(
             reportType: 'temperature',
             month: DateTime(2026, 2, 1),
             sensorId: null,
@@ -158,7 +172,9 @@ void main() {
         rows: const <Ccp1TemperatureReportRow>[],
       );
 
-      await container.read(reportsProvider.notifier).generateReport(
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(
             reportType: 'temperature',
             month: DateTime(2026, 2, 1),
             sensorId: 'sensor-1',
@@ -171,7 +187,9 @@ void main() {
     test('upload error: returns error', () async {
       fakeRepo.uploadedPathResult = null;
 
-      await container.read(reportsProvider.notifier).generateReport(
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(
             reportType: 'temperature',
             month: DateTime(2026, 2, 1),
             sensorId: 'sensor-1',
@@ -184,7 +202,9 @@ void main() {
     test('metadata save error: returns error', () async {
       fakeRepo.throwOnSaveMetadata = true;
 
-      await container.read(reportsProvider.notifier).generateReport(
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(
             reportType: 'temperature',
             month: DateTime(2026, 2, 1),
             sensorId: 'sensor-1',

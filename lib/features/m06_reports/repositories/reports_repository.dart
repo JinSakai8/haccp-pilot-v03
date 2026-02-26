@@ -3,6 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/core/services/supabase_service.dart';
 // import 'package:http/http.dart' as http; // Use supabase storage download instead
 
+const bool _reportsDebugLogs = bool.fromEnvironment(
+  'HACCP_REPORTS_DEBUG',
+  defaultValue: false,
+);
+
+void _reportsLog(String message) {
+  if (_reportsDebugLogs) {
+    debugPrint('[ReportsRepository] $message');
+  }
+}
+
 class Ccp1TemperatureQuerySpec {
   final DateTime start;
   final DateTime end;
@@ -53,7 +64,14 @@ class Ccp1TemperatureReportRow {
   });
 
   List<String> toPdfColumns() {
-    return <String>[date, time, temperature, compliance, correctiveActions, signature];
+    return <String>[
+      date,
+      time,
+      temperature,
+      compliance,
+      correctiveActions,
+      signature,
+    ];
   }
 }
 
@@ -126,10 +144,12 @@ CoolingLogsQuerySpec buildCoolingLogsQuerySpec(
       .add(const Duration(days: 1))
       .subtract(const Duration(milliseconds: 1));
 
-  final normalizedZoneId =
-      (zoneId != null && zoneId.trim().isNotEmpty) ? zoneId.trim() : null;
-  final normalizedVenueId =
-      (venueId != null && venueId.trim().isNotEmpty) ? venueId.trim() : null;
+  final normalizedZoneId = (zoneId != null && zoneId.trim().isNotEmpty)
+      ? zoneId.trim()
+      : null;
+  final normalizedVenueId = (venueId != null && venueId.trim().isNotEmpty)
+      ? venueId.trim()
+      : null;
 
   return CoolingLogsQuerySpec(
     start: start,
@@ -165,19 +185,23 @@ class RoastingLogsQuerySpec {
 
 @visibleForTesting
 RoastingLogsQuerySpec buildRoastingLogsQuerySpec(
-  DateTime date, {
+  DateTime month, {
   String? zoneId,
   String? venueId,
 }) {
-  final start = DateTime(date.year, date.month, date.day);
-  final end = start
-      .add(const Duration(days: 1))
-      .subtract(const Duration(milliseconds: 1));
+  final start = DateTime(month.year, month.month, 1);
+  final end = DateTime(
+    month.year,
+    month.month + 1,
+    1,
+  ).subtract(const Duration(milliseconds: 1));
 
-  final normalizedZoneId =
-      (zoneId != null && zoneId.trim().isNotEmpty) ? zoneId.trim() : null;
-  final normalizedVenueId =
-      (venueId != null && venueId.trim().isNotEmpty) ? venueId.trim() : null;
+  final normalizedZoneId = (zoneId != null && zoneId.trim().isNotEmpty)
+      ? zoneId.trim()
+      : null;
+  final normalizedVenueId = (venueId != null && venueId.trim().isNotEmpty)
+      ? venueId.trim()
+      : null;
 
   return RoastingLogsQuerySpec(
     start: start,
@@ -234,12 +258,12 @@ class ReportsRepository {
   }
 
   Future<List<Map<String, dynamic>>> getRoastingLogs(
-    DateTime date, {
+    DateTime month, {
     String? zoneId,
     String? venueId,
   }) async {
     final spec = buildRoastingLogsQuerySpec(
-      date,
+      month,
       zoneId: zoneId,
       venueId: venueId,
     );
@@ -262,7 +286,24 @@ class ReportsRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<List<Map<String, dynamic>>> getGmpLogs(DateTime start, DateTime end) async {
+  Future<Map<String, dynamic>?> getVenueProfile(String venueId) async {
+    try {
+      final response = await SupabaseService.client
+          .from('venues')
+          .select('name, address, logo_url')
+          .eq('id', venueId)
+          .maybeSingle();
+      return response;
+    } catch (e) {
+      _reportsLog('getVenueProfile failed: $e');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getGmpLogs(
+    DateTime start,
+    DateTime end,
+  ) async {
     // CORRECTED: Read from unified 'haccp_logs' table with category filter
     final response = await SupabaseService.client
         .from('haccp_logs')
@@ -275,13 +316,19 @@ class ReportsRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<List<Map<String, dynamic>>> getMeasurements(DateTime start, DateTime end) async {
+  Future<List<Map<String, dynamic>>> getMeasurements(
+    DateTime start,
+    DateTime end,
+  ) async {
     // We join 'sensors' table to get the name.
     // The query '*, sensors(name)' fetches all measurement columns + sensor name.
     final response = await SupabaseService.client
         .from('temperature_logs')
         .select('*, sensors(name)')
-        .gte('recorded_at', start.toIso8601String()) // Note: field is recorded_at, not timestamp
+        .gte(
+          'recorded_at',
+          start.toIso8601String(),
+        ) // Note: field is recorded_at, not timestamp
         .lte('recorded_at', end.toIso8601String())
         .order('recorded_at');
 
@@ -309,10 +356,14 @@ class ReportsRepository {
     required String sensorId,
   }) async {
     final normalizedSensorId = sensorId.trim();
-    final records = await getMonthlySensorMeasurements(month, normalizedSensorId);
+    final records = await getMonthlySensorMeasurements(
+      month,
+      normalizedSensorId,
+    );
 
     final sensorName = records.isNotEmpty && records.first['sensors'] is Map
-        ? (records.first['sensors']['name']?.toString() ?? 'Sensor $normalizedSensorId')
+        ? (records.first['sensors']['name']?.toString() ??
+              'Sensor $normalizedSensorId')
         : 'Sensor $normalizedSensorId';
 
     final rows = records.map(mapTemperatureLogToCcp1Row).toList();
@@ -389,27 +440,71 @@ class ReportsRepository {
     required DateTime generationDate,
     required String storagePath,
     required String userId,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    String? templateVersion,
+    String? sourceFormId,
     Map<String, dynamic>? metadata,
   }) async {
-    await SupabaseService.client.from('generated_reports').insert({
+    final resolvedPeriodStart =
+        periodStart ??
+        DateTime(generationDate.year, generationDate.month, generationDate.day);
+    final resolvedPeriodEnd =
+        periodEnd ??
+        DateTime(
+          generationDate.year,
+          generationDate.month,
+          generationDate.day + 1,
+        ).subtract(const Duration(milliseconds: 1));
+
+    final resolvedTemplateVersion =
+        templateVersion ??
+        switch (reportType) {
+          'ccp2_roasting' => 'ccp2_pdf_v2',
+          'ccp3_cooling' => 'ccp3_pdf_v2',
+          'ccp1_temperature' => 'ccp1_csv_v1',
+          _ => 'pdf_v1',
+        };
+
+    final resolvedSourceFormId =
+        sourceFormId ??
+        switch (reportType) {
+          'ccp2_roasting' => 'meat_roasting',
+          'ccp3_cooling' => 'food_cooling',
+          'ccp1_temperature' => 'temperature_logs',
+          _ => 'unknown',
+        };
+
+    final mergedMetadata = <String, dynamic>{
+      'period_start': resolvedPeriodStart.toIso8601String().split('T')[0],
+      'period_end': resolvedPeriodEnd.toIso8601String().split('T')[0],
+      'template_version': resolvedTemplateVersion,
+      'source_form_id': resolvedSourceFormId,
+      ...?metadata,
+    };
+
+    await SupabaseService.client.from('generated_reports').upsert({
       'venue_id': venueId,
       'report_type': reportType,
       'generation_date': generationDate.toIso8601String().split('T')[0],
       'created_by': userId,
       'storage_path': storagePath,
-      'metadata': metadata ?? {},
-    });
+      'metadata': mergedMetadata,
+    }, onConflict: 'venue_id,report_type,generation_date');
   }
 
   /// Checks if a report already exists for the given date and type
-  Future<Map<String, dynamic>?> getSavedReport(DateTime date, String type) async {
+  Future<Map<String, dynamic>?> getSavedReport(
+    DateTime date,
+    String type, {
+    required String venueId,
+  }) async {
     final dateStr = date.toIso8601String().split('T')[0];
     try {
-      // We assume one report per type per day? Or latest?
-      // Let's get the latest one.
       final response = await SupabaseService.client
           .from('generated_reports')
           .select()
+          .eq('venue_id', venueId)
           .eq('generation_date', dateStr)
           .eq('report_type', type)
           .order('created_at', ascending: false)
@@ -417,7 +512,7 @@ class ReportsRepository {
           .maybeSingle();
       return response;
     } catch (e) {
-      debugPrint('Error checking saved report: $e');
+      _reportsLog('getSavedReport failed: $e');
       return null;
     }
   }
@@ -452,4 +547,3 @@ class ReportsRepository {
     }
   }
 }
-
