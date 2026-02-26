@@ -42,6 +42,28 @@ DateTime _monthEnd(DateTime date) => DateTime(
   1,
 ).subtract(const Duration(milliseconds: 1));
 
+@immutable
+class Ccp2ReportRequest {
+  final DateTime date;
+  final bool forceRegenerate;
+
+  const Ccp2ReportRequest({required this.date, this.forceRegenerate = false});
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Ccp2ReportRequest &&
+        other.date.year == date.year &&
+        other.date.month == date.month &&
+        other.date.day == date.day &&
+        other.forceRegenerate == forceRegenerate;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(date.year, date.month, date.day, forceRegenerate);
+}
+
 @visibleForTesting
 Ccp2ReportRow mapHaccpLogToCcp2ReportRow(Map<String, dynamic> raw) {
   final data = (raw['data'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -101,128 +123,143 @@ Ccp2ReportRow mapHaccpLogToCcp2ReportRow(Map<String, dynamic> raw) {
   );
 }
 
-final ccp2ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
-  ref,
-  date,
-) async {
-  try {
-    final repo = ref.read(reportsRepositoryProvider);
-    final user = ref.read(currentUserProvider);
+final ccp2ReportProvider = FutureProvider.family<Uint8List?, Ccp2ReportRequest>(
+  (ref, request) async {
+    try {
+      final repo = ref.read(reportsRepositoryProvider);
+      final user = ref.read(currentUserProvider);
+      final date = request.date;
 
-    final currentZone = ref.read(currentZoneProvider);
-    String? venueId = currentZone?.venueId;
+      final currentZone = ref.read(currentZoneProvider);
+      final zoneId = currentZone?.id;
+      String? venueId = currentZone?.venueId;
 
-    if (venueId == null) {
-      try {
-        final zones = await ref.watch(employeeZonesProvider.future);
-        venueId = zones.isNotEmpty ? zones.first.venueId : null;
-      } catch (_) {
-        // Non-fatal.
-      }
-    }
-
-    final periodStart = _monthStart(date);
-    final periodEnd = _monthEnd(date);
-    final monthLabel = _monthLabel(date);
-
-    if (venueId != null) {
-      try {
-        final savedMetadata = await repo.getSavedReport(
-          periodStart,
-          'ccp2_roasting',
-          venueId: venueId,
-        );
-        if (savedMetadata != null) {
-          final path = savedMetadata['storage_path']?.toString();
-          if (path != null && path.isNotEmpty) {
-            final bytes = await repo.downloadReport(path);
-            if (bytes != null && _looksLikePdf(bytes)) {
-              return bytes;
-            }
-            _ccp2Log('cached report is not a valid PDF, regenerate');
-          }
+      if (venueId == null) {
+        try {
+          final zones = await ref.watch(employeeZonesProvider.future);
+          venueId = zones.isNotEmpty ? zones.first.venueId : null;
+        } catch (_) {
+          // Non-fatal.
         }
-      } catch (e) {
-        _ccp2Log('cache lookup failed: $e');
       }
-    }
 
-    final logs = await repo.getRoastingLogs(
-      periodStart,
-      zoneId: null,
-      venueId: venueId,
-    );
-    if (logs.isEmpty) {
-      return null;
-    }
+      final periodStart = _monthStart(date);
+      final periodEnd = _monthEnd(date);
+      final monthLabel = _monthLabel(date);
+      _ccp2Log(
+        'query period=$periodStart..$periodEnd zoneId=$zoneId venueId=$venueId',
+      );
 
-    final rows = logs.map(mapHaccpLogToCcp2ReportRow).toList();
-    final userName = user?.fullName ?? 'Uzytkownik';
-    final venueProfile = venueId != null
-        ? await repo.getVenueProfile(venueId)
-        : null;
-    final venueName = venueProfile?['name']?.toString() ?? 'Lokal';
-    final venueAddress = venueProfile?['address']?.toString();
-    final venueLogo = venueId != null ? await repo.getVenueLogo(venueId) : null;
-
-    final pdfService = PdfService();
-    final bytes = await pdfService.generateCcp2Report(
-      rows: rows,
-      userName: userName,
-      monthLabel: monthLabel,
-      venueName: venueName,
-      venueAddress: venueAddress,
-      venueLogo: venueLogo,
-    );
-
-    if (venueId != null && user != null && bytes.isNotEmpty) {
-      try {
-        final year = date.year.toString();
-        final month = date.month.toString().padLeft(2, '0');
-        final fileName = 'ccp2_roasting_$monthLabel.pdf';
-        final storagePath = '$venueId/$year/$month/$fileName';
-        final uploadedPath = await repo.uploadReport(storagePath, bytes);
-
-        if (uploadedPath != null) {
-          await repo.saveReportMetadata(
+      if (venueId != null && !request.forceRegenerate) {
+        try {
+          final savedMetadata = await repo.getSavedReport(
+            periodStart,
+            'ccp2_roasting',
             venueId: venueId,
-            reportType: 'ccp2_roasting',
-            generationDate: periodStart,
-            storagePath: uploadedPath,
-            userId: user.id,
-            periodStart: periodStart,
-            periodEnd: periodEnd,
-            templateVersion: 'ccp2_pdf_v2',
-            sourceFormId: 'meat_roasting',
-            metadata: {'generated_automatically': true},
           );
+          if (savedMetadata != null) {
+            final path = savedMetadata['storage_path']?.toString();
+            if (path != null && path.isNotEmpty) {
+              final bytes = await repo.downloadReport(path);
+              if (bytes != null && _looksLikePdf(bytes)) {
+                return bytes;
+              }
+              _ccp2Log('cached report is not a valid PDF, regenerate');
+            }
+          }
+        } catch (e) {
+          _ccp2Log('cache lookup failed: $e');
         }
-      } catch (e) {
-        _ccp2Log('persist failed: $e');
       }
-    }
 
-    return bytes;
-  } catch (e, stackTrace) {
-    debugPrint('CCP2 Provider fatal error: $e');
-    debugPrint('CCP2 Provider stack: $stackTrace');
-    rethrow;
-  }
-});
+      final logs = await repo.getRoastingLogs(
+        periodStart,
+        zoneId: zoneId,
+        venueId: venueId,
+      );
+      if (logs.isEmpty) {
+        return null;
+      }
+
+      final rows = logs.map(mapHaccpLogToCcp2ReportRow).toList();
+      final userName = user?.fullName ?? 'Użytkownik';
+      final venueProfile = venueId != null
+          ? await repo.getVenueProfile(venueId)
+          : null;
+      final venueName = venueProfile?['name']?.toString() ?? 'Lokal';
+      final venueAddress = venueProfile?['address']?.toString();
+      final venueLogo = venueId != null
+          ? await repo.getVenueLogo(venueId)
+          : null;
+
+      final pdfService = PdfService();
+      final bytes = await pdfService.generateCcp2Report(
+        rows: rows,
+        userName: userName,
+        monthLabel: monthLabel,
+        venueName: venueName,
+        venueAddress: venueAddress,
+        venueLogo: venueLogo,
+      );
+
+      if (venueId != null && user != null && bytes.isNotEmpty) {
+        try {
+          final year = date.year.toString();
+          final month = date.month.toString().padLeft(2, '0');
+          final fileName = 'ccp2_roasting_$monthLabel.pdf';
+          final storagePath = '$venueId/$year/$month/$fileName';
+          final uploadedPath = await repo.uploadReport(storagePath, bytes);
+
+          if (uploadedPath != null) {
+            await repo.saveReportMetadata(
+              venueId: venueId,
+              reportType: 'ccp2_roasting',
+              generationDate: periodStart,
+              storagePath: uploadedPath,
+              userId: user.id,
+              periodStart: periodStart,
+              periodEnd: periodEnd,
+              templateVersion: 'ccp2_pdf_v2',
+              sourceFormId: 'meat_roasting',
+              metadata: {'generated_automatically': true},
+            );
+          }
+        } catch (e) {
+          _ccp2Log('persist failed: $e');
+        }
+      }
+
+      return bytes;
+    } catch (e, stackTrace) {
+      debugPrint('CCP2 Provider fatal error: $e');
+      debugPrint('CCP2 Provider stack: $stackTrace');
+      rethrow;
+    }
+  },
+);
 
 class Ccp2PreviewScreen extends ConsumerWidget {
   final DateTime date;
+  final bool forceRegenerate;
 
-  const Ccp2PreviewScreen({super.key, required this.date});
+  const Ccp2PreviewScreen({
+    super.key,
+    required this.date,
+    this.forceRegenerate = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pdfAsync = ref.watch(ccp2ReportProvider(date));
+    final pdfAsync = ref.watch(
+      ccp2ReportProvider(
+        Ccp2ReportRequest(date: date, forceRegenerate: forceRegenerate),
+      ),
+    );
     final monthLabel = _monthLabel(date);
 
     return Scaffold(
       appBar: HaccpTopBar(
-        title: 'Podglad Raportu CCP-2',
+        title: 'Podgląd Raportu CCP-2',
         actions: [
           pdfAsync.when(
             data: (bytes) => IconButton(
@@ -260,13 +297,13 @@ class Ccp2PreviewScreen extends ConsumerWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'Brak raportow pieczenia\ndla wybranego miesiaca',
+                    'Brak raportów pieczenia\ndla wybranego miesiąca',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Wypelnij formularz Pieczenia Mies,\naby wygenerowac raport.',
+                    'Wypełnij formularz Pieczenia Mięs,\naby wygenerować raport.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white38, fontSize: 13),
                   ),
@@ -291,7 +328,7 @@ class Ccp2PreviewScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'PDF zaladowany: ${bytes.length} bajtow',
+                      'PDF załadowany: ${bytes.length} bajtów',
                       style: const TextStyle(color: Colors.green, fontSize: 12),
                     ),
                     const Spacer(),
@@ -340,7 +377,7 @@ class Ccp2PreviewScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Blad generowania raportu',
+                    'Błąd generowania raportu',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -356,7 +393,7 @@ class Ccp2PreviewScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   OutlinedButton(
                     onPressed: () => context.pop(),
-                    child: const Text('Wroc'),
+                    child: const Text('Wróć'),
                   ),
                 ],
               ),

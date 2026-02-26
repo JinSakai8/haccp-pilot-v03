@@ -63,7 +63,10 @@ void main() {
       final spec = buildRoastingLogsQuerySpec(DateTime(2026, 2, 22, 15, 40));
 
       expect(spec.category, equals('gmp'));
-      expect(spec.formId, equals('meat_roasting'));
+      expect(
+        spec.formIds,
+        equals(<String>['meat_roasting', 'meat_roasting_daily']),
+      );
       expect(spec.start, equals(DateTime(2026, 2, 1)));
       expect(
         spec.end,
@@ -82,6 +85,45 @@ void main() {
       expect(spec.usesVenueFallback, isFalse);
       expect(spec.zoneId, equals('zone-1'));
       expect(spec.venueId, equals('venue-1'));
+    });
+
+    test('business date prefers prep_date over created_at', () {
+      final resolved = resolveRoastingLogBusinessDate({
+        'created_at': '2026-03-01T08:00:00Z',
+        'data': {'prep_date': '2026-02-28'},
+      });
+
+      expect(resolved, equals(DateTime(2026, 2, 28)));
+    });
+
+    test('business date falls back to created_at for legacy rows', () {
+      final resolved = resolveRoastingLogBusinessDate({
+        'created_at': '2026-02-15T08:00:00Z',
+        'data': <String, dynamic>{},
+      });
+
+      expect(resolved, equals(DateTime.parse('2026-02-15T08:00:00Z')));
+    });
+
+    test('month filter uses business date contract', () {
+      final inMonthByPrepDate = isRoastingLogInMonth({
+        'created_at': '2026-03-01T08:00:00Z',
+        'data': {'prep_date': '2026-02-28'},
+      }, DateTime(2026, 2, 1));
+
+      final outMonthByPrepDate = isRoastingLogInMonth({
+        'created_at': '2026-02-20T08:00:00Z',
+        'data': {'prep_date': '2026-03-01'},
+      }, DateTime(2026, 2, 1));
+
+      final legacyInMonth = isRoastingLogInMonth({
+        'created_at': '2026-02-20T08:00:00Z',
+        'data': <String, dynamic>{},
+      }, DateTime(2026, 2, 1));
+
+      expect(inMonthByPrepDate, isTrue);
+      expect(outMonthByPrepDate, isFalse);
+      expect(legacyInMonth, isTrue);
     });
   });
 

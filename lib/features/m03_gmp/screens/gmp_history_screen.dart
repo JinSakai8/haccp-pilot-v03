@@ -24,11 +24,13 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final historyAsync = ref.watch(gmpHistoryProvider(
-      fromDate: _fromDate,
-      toDate: _toDate,
-      formId: _selectedFormId,
-    ));
+    final historyAsync = ref.watch(
+      gmpHistoryProvider(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        formId: _selectedFormId,
+      ),
+    );
 
     return Scaffold(
       appBar: const HaccpTopBar(title: 'Historia GMP'),
@@ -45,15 +47,27 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                   child: Row(
                     children: [
                       ActionChip(
-                        label: Text(_fromDate == null ? 'Od: Kiedykolwiek' : 'Od: ${DateFormat('MM-dd').format(_fromDate!)}'),
+                        label: Text(
+                          _fromDate == null
+                              ? 'Od: Kiedykolwiek'
+                              : 'Od: ${DateFormat('MM-dd').format(_fromDate!)}',
+                        ),
                         onPressed: () => _pickDate(true),
-                        backgroundColor: _fromDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
+                        backgroundColor: _fromDate != null
+                            ? HaccpDesignTokens.primary.withOpacity(0.2)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       ActionChip(
-                        label: Text(_toDate == null ? 'Do: Dzisiaj' : 'Do: ${DateFormat('MM-dd').format(_toDate!)}'),
+                        label: Text(
+                          _toDate == null
+                              ? 'Do: Dzisiaj'
+                              : 'Do: ${DateFormat('MM-dd').format(_toDate!)}',
+                        ),
                         onPressed: () => _pickDate(false),
-                        backgroundColor: _toDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
+                        backgroundColor: _toDate != null
+                            ? HaccpDesignTokens.primary.withOpacity(0.2)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       if (_fromDate != null || _toDate != null)
@@ -112,20 +126,33 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       itemBuilder: (context, index) {
                         final log = logs[index];
                         final date = DateTime.parse(log['created_at']);
-                        final logData = log['data'] as Map<String, dynamic>? ?? {};
+                        final logData =
+                            log['data'] as Map<String, dynamic>? ?? {};
                         final rawFormId = log['form_id'] as String;
                         final normalizedFormId = normalizeGmpFormId(rawFormId);
-                        final label = _processTypes[normalizedFormId] ?? normalizedFormId.toUpperCase();
-                        
+                        final label =
+                            _processTypes[normalizedFormId] ??
+                            normalizedFormId.toUpperCase();
+
                         // Parse status for list UI
                         Widget statusIcon = const SizedBox.shrink();
-                        if (logData.containsKey('is_compliant') || logData.containsKey('compliance')) {
-                           final isCompliant = logData['is_compliant'] ?? logData['compliance'];
-                           if (isCompliant == true) {
-                             statusIcon = const Icon(Icons.check_circle, color: HaccpDesignTokens.success, size: 20);
-                           } else if (isCompliant == false) {
-                             statusIcon = const Icon(Icons.warning, color: HaccpDesignTokens.warning, size: 20);
-                           }
+                        if (logData.containsKey('is_compliant') ||
+                            logData.containsKey('compliance')) {
+                          final isCompliant =
+                              logData['is_compliant'] ?? logData['compliance'];
+                          if (isCompliant == true) {
+                            statusIcon = const Icon(
+                              Icons.check_circle,
+                              color: HaccpDesignTokens.success,
+                              size: 20,
+                            );
+                          } else if (isCompliant == false) {
+                            statusIcon = const Icon(
+                              Icons.warning,
+                              color: HaccpDesignTokens.warning,
+                              size: 20,
+                            );
+                          }
                         }
 
                         return Card(
@@ -139,15 +166,25 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                                 statusIcon,
                               ],
                             ),
-                            subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
+                            subtitle: Text(
+                              DateFormat('yyyy-MM-dd HH:mm').format(date),
+                            ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
                               if (normalizedFormId == gmpFoodCoolingFormId) {
-                                final dateStr = DateFormat('yyyy-MM-dd').format(date);
-                                context.push('/reports/preview/ccp3?date=$dateStr');
+                                final dateStr = DateFormat(
+                                  'yyyy-MM-dd',
+                                ).format(date);
+                                context.push(
+                                  '/reports/preview/ccp3?date=$dateStr',
+                                );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Podgląd szczegółów dostępny wkrótce')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Podgląd szczegółów dostępny wkrótce',
+                                    ),
+                                  ),
                                 );
                               }
                             },
@@ -156,7 +193,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       },
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Blad: $err')),
+              error: (err, stack) => Center(child: Text('Błąd: $err')),
             ),
           ),
         ],

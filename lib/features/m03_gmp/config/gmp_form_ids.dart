@@ -17,8 +17,8 @@ const Map<String, String> gmpLegacyToCanonicalFormIds = <String, String>{
 };
 
 const Map<String, String> gmpProcessLabels = <String, String>{
-  gmpMeatRoastingFormId: 'Pieczenie Mięs',
-  gmpFoodCoolingFormId: 'Schładzanie Żywności',
+  gmpMeatRoastingFormId: 'Pieczenie Mięsa',
+  gmpFoodCoolingFormId: 'Schładzanie żywności',
   gmpDeliveryControlFormId: 'Kontrola Dostaw',
 };
 

@@ -31,7 +31,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            tooltip: 'Archiwum Raportow',
+            tooltip: 'Archiwum raportów',
             onPressed: () => context.push('/reports/history'),
           ),
         ],
@@ -45,7 +45,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
               children: [
                 Expanded(
                   child: _buildSelector(
-                    label: 'Typ Raportu',
+                    label: 'Typ raportu',
                     value: _getReportLabel(_selectedReportType),
                     onTap: _showTypeSelector,
                   ),
@@ -53,7 +53,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildSelector(
-                    label: 'Miesiac',
+                    label: 'Miesiąc',
                     value:
                         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}',
                     onTap: _showMonthSelector,
@@ -64,8 +64,8 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
             const SizedBox(height: 16),
             if (_selectedReportType == 'temperature') ...[
               _buildSelector(
-                label: 'Urzadzenie',
-                value: _selectedSensorName ?? 'Wybierz urzadzenie',
+                label: 'Urządzenie',
+                value: _selectedSensorName ?? 'Wybierz urządzenie',
                 onTap: _showSensorSelector,
               ),
               const SizedBox(height: 16),
@@ -88,7 +88,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Wybierz urzadzenie przed generowaniem raportu CCP-1.',
+                                'Wybierz urządzenie przed generowaniem raportu CCP-1.',
                               ),
                             ),
                           );
@@ -96,24 +96,24 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                         }
 
                         if (_selectedReportType == 'ccp3_cooling') {
-                          final dateStr =
-                              _selectedDate.toIso8601String().split('T')[0];
-                          context.push(
-                            '/reports/preview/ccp3?date=$dateStr',
-                          );
+                          final dateStr = _selectedDate.toIso8601String().split(
+                            'T',
+                          )[0];
+                          context.push('/reports/preview/ccp3?date=$dateStr');
                           return;
                         }
 
                         if (_selectedReportType == 'ccp2_roasting') {
-                          final dateStr =
-                              _selectedDate.toIso8601String().split('T')[0];
-                          context.push(
-                            '/reports/preview/ccp2?date=$dateStr',
-                          );
+                          final dateStr = _selectedDate.toIso8601String().split(
+                            'T',
+                          )[0];
+                          context.push('/reports/preview/ccp2?date=$dateStr');
                           return;
                         }
 
-                        ref.read(reportsProvider.notifier).generateReport(
+                        ref
+                            .read(reportsProvider.notifier)
+                            .generateReport(
                               reportType: _selectedReportType,
                               month: _selectedDate,
                               sensorId: _selectedSensorId,
@@ -129,9 +129,10 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 label: Text(
                   reportsState.isLoading
                       ? 'GENEROWANIE...'
-                      : _selectedReportType.startsWith('ccp') && _selectedReportType != 'ccp1_temperature' 
-                          ? 'PODGLĄD RAPORTU' 
-                          : 'GENERUJ RAPORT (PDF)',
+                      : _selectedReportType.startsWith('ccp') &&
+                            _selectedReportType != 'ccp1_temperature'
+                      ? 'PODGLĄD RAPORTU'
+                      : 'GENERUJ RAPORT (PDF)',
                 ),
               ),
             ),
@@ -144,7 +145,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                 padding: const EdgeInsets.all(16),
                 color: AppTheme.error.withValues(alpha: 0.1),
                 child: Text(
-                  'Blad: ${reportsState.error}',
+                  'Błąd: ${reportsState.error}',
                   style: const TextStyle(color: AppTheme.error),
                 ),
               ),
@@ -174,17 +175,16 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Raport wygenerowany pomyslnie!',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: AppTheme.onSurface),
+                      'Raport wygenerowany pomyślnie!',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.onSurface,
+                      ),
                     ),
                     Text(
                       reportData.fileName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.onSurfaceVariant,
-                          ),
+                        color: AppTheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -213,11 +213,13 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     foregroundColor: AppTheme.onSecondary,
                   ),
                   onPressed: () async {
-                    await ref.read(reportsProvider.notifier).uploadCurrentReport();
+                    await ref
+                        .read(reportsProvider.notifier)
+                        .uploadCurrentReport();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Raport wyslany na Google Drive!'),
+                          content: Text('Raport wysłany na Google Drive!'),
                         ),
                       );
                     }
@@ -253,8 +255,10 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
           children: [
             Text(
               label,
-              style:
-                  const TextStyle(color: AppTheme.onSurfaceVariant, fontSize: 12),
+              style: const TextStyle(
+                color: AppTheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -356,7 +360,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Wybierz strefe w menu glownym (na gorze)'),
+          content: Text('Wybierz strefę w menu głównym (na górze)'),
         ),
       );
       return;
@@ -378,7 +382,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Text(
-                        'Wybierz urzadzenie (${sensors.length})',
+                        'Wybierz urządzenie (${sensors.length})',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.onSurfaceVariant,
@@ -394,7 +398,10 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      leading: Icon(Icons.info_outline, color: AppTheme.primary),
+                      leading: Icon(
+                        Icons.info_outline,
+                        color: AppTheme.primary,
+                      ),
                     ),
                     if (sensors.isEmpty)
                       ListTile(
@@ -403,7 +410,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                           style: const TextStyle(color: AppTheme.error),
                         ),
                         subtitle: const Text(
-                          'Upewnij sie, ze sensory sa przypisane do tej strefy i aktywne.',
+                          'Upewnij się, że sensory są przypisane do tej strefy i aktywne.',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),
@@ -442,7 +449,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
               height: 200,
               child: Center(
                 child: Text(
-                  'Blad: $e',
+                  'Błąd: $e',
                   style: const TextStyle(color: AppTheme.error),
                 ),
               ),
@@ -458,7 +465,10 @@ class _MonthYearPicker extends StatefulWidget {
   final DateTime initialDate;
   final ValueChanged<DateTime> onDateSelected;
 
-  const _MonthYearPicker({required this.initialDate, required this.onDateSelected});
+  const _MonthYearPicker({
+    required this.initialDate,
+    required this.onDateSelected,
+  });
 
   @override
   State<_MonthYearPicker> createState() => _MonthYearPickerState();
@@ -485,7 +495,7 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-            'Wybierz miesiac',
+            'Wybierz miesiąc',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -534,15 +544,16 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
               final isCurrent =
                   _year == DateTime.now().year && month == DateTime.now().month;
               final isSelected =
-                  _year == widget.initialDate.year && month == widget.initialDate.month;
+                  _year == widget.initialDate.year &&
+                  month == widget.initialDate.month;
               final isFuture =
                   _year == DateTime.now().year && month > DateTime.now().month;
 
               const months = [
-                'Styczen',
+                'Styczeń',
                 'Luty',
                 'Marzec',
-                'Kwiecien',
+                'Kwiecień',
                 'Maj',
                 'Czerwiec',
                 'Lipiec',
@@ -566,8 +577,8 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     color: isSelected
                         ? AppTheme.primary
                         : (isFuture
-                            ? Colors.transparent
-                            : AppTheme.surface.withValues(alpha: 0.5)),
+                              ? Colors.transparent
+                              : AppTheme.surface.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(8),
                     border: isCurrent
                         ? Border.all(color: AppTheme.primary)
@@ -579,10 +590,11 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                       color: isFuture
                           ? Colors.grey
                           : (isSelected
-                              ? AppTheme.onPrimary
-                              : AppTheme.onSurface),
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                                ? AppTheme.onPrimary
+                                : AppTheme.onSurface),
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ),

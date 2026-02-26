@@ -13,8 +13,13 @@ import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository
 
 final savedReportsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-      final zones = await ref.watch(employeeZonesProvider.future);
-      final venueId = zones.isNotEmpty ? zones.first.venueId : null;
+      final currentZone = ref.watch(currentZoneProvider);
+      String? venueId = currentZone?.venueId;
+
+      if (venueId == null || venueId.isEmpty) {
+        final zones = await ref.watch(employeeZonesProvider.future);
+        venueId = zones.isNotEmpty ? zones.first.venueId : null;
+      }
 
       if (venueId == null) return [];
 
@@ -156,7 +161,7 @@ class _ReportTile extends ConsumerWidget {
               if (type == 'ccp2_roasting') {
                 final date = DateTime.tryParse(dateStr);
                 if (date != null) {
-                  context.push('/reports/preview/ccp2?date=$dateStr');
+                  context.push('/reports/preview/ccp2?date=$dateStr&force=1');
                 }
               }
             }

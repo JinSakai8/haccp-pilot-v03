@@ -62,7 +62,7 @@ final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
       return null;
     }
 
-    final userName = user?.fullName ?? 'Uzytkownik';
+    final userName = user?.fullName ?? 'Użytkownik';
 
     final pdfService = PdfService();
     final bytes = await pdfService.generateCcp3Report(

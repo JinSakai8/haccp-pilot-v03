@@ -13,7 +13,7 @@ void main() {
 
       expect(find.text('Raportowanie'), findsOneWidget);
 
-      await tester.tap(find.text('Typ Raportu'));
+      await tester.tap(find.text('Typ raportu'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Rejestr Temperatur').last);
       await tester.pumpAndSettle();
@@ -22,7 +22,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Wybierz urzadzenie przed generowaniem raportu CCP-1.'),
+        find.text('Wybierz urządzenie przed generowaniem raportu CCP-1.'),
         findsOneWidget,
       );
     },

@@ -16,7 +16,7 @@ class GmpFormSubmission extends _$GmpFormSubmission {
     required Map<String, dynamic> data,
   }) async {
     state = const AsyncLoading();
-    
+
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) {
       state = AsyncError('Brak zalogowanego użytkownika', StackTrace.current);
@@ -25,7 +25,10 @@ class GmpFormSubmission extends _$GmpFormSubmission {
 
     final currentZone = ref.read(currentZoneProvider);
     if (currentZone == null) {
-      state = AsyncError('Brak aktywnej strefy. Wybierz strefe ponownie.', StackTrace.current);
+      state = AsyncError(
+        'Brak aktywnej strefy. Wybierz strefę ponownie.',
+        StackTrace.current,
+      );
       return false;
     }
 
@@ -57,7 +60,9 @@ Future<List<Map<String, dynamic>>> gmpHistory(
   final currentZone = ref.watch(currentZoneProvider);
   if (currentZone == null) return Future.value([]);
 
-  return ref.watch(gmpRepositoryProvider).getHistory(
+  return ref
+      .watch(gmpRepositoryProvider)
+      .getHistory(
         currentZone.id,
         fromDate: fromDate,
         toDate: toDate,

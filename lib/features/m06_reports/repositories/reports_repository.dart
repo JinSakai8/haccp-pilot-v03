@@ -165,7 +165,7 @@ class RoastingLogsQuerySpec {
   final DateTime start;
   final DateTime end;
   final String category;
-  final String formId;
+  final List<String> formIds;
   final String? zoneId;
   final String? venueId;
 
@@ -173,7 +173,7 @@ class RoastingLogsQuerySpec {
     required this.start,
     required this.end,
     required this.category,
-    required this.formId,
+    required this.formIds,
     this.zoneId,
     this.venueId,
   });
@@ -181,6 +181,33 @@ class RoastingLogsQuerySpec {
   bool get usesZoneFilter => zoneId != null && zoneId!.isNotEmpty;
   bool get usesVenueFallback =>
       !usesZoneFilter && venueId != null && venueId!.isNotEmpty;
+}
+
+@visibleForTesting
+DateTime? resolveRoastingLogBusinessDate(Map<String, dynamic> raw) {
+  final data = (raw['data'] as Map?)?.cast<String, dynamic>();
+  final prepDateRaw = data?['prep_date']?.toString();
+  if (prepDateRaw != null && prepDateRaw.isNotEmpty) {
+    final parsedPrepDate = DateTime.tryParse(prepDateRaw);
+    if (parsedPrepDate != null) {
+      return DateTime(
+        parsedPrepDate.year,
+        parsedPrepDate.month,
+        parsedPrepDate.day,
+      );
+    }
+  }
+
+  final createdAtRaw = raw['created_at']?.toString();
+  if (createdAtRaw == null || createdAtRaw.isEmpty) return null;
+  return DateTime.tryParse(createdAtRaw);
+}
+
+@visibleForTesting
+bool isRoastingLogInMonth(Map<String, dynamic> raw, DateTime month) {
+  final businessDate = resolveRoastingLogBusinessDate(raw);
+  if (businessDate == null) return false;
+  return businessDate.year == month.year && businessDate.month == month.month;
 }
 
 @visibleForTesting
@@ -207,7 +234,7 @@ RoastingLogsQuerySpec buildRoastingLogsQuerySpec(
     start: start,
     end: end,
     category: 'gmp',
-    formId: 'meat_roasting',
+    formIds: const <String>['meat_roasting', 'meat_roasting_daily'],
     zoneId: normalizedZoneId,
     venueId: normalizedVenueId,
   );
@@ -268,22 +295,72 @@ class ReportsRepository {
       venueId: venueId,
     );
 
-    var query = SupabaseService.client
+    final prepDateStart = spec.start.toIso8601String().split('T')[0];
+    final prepDateEnd = spec.end.toIso8601String().split('T')[0];
+    _reportsLog(
+      'getRoastingLogs spec: month=${month.toIso8601String()} '
+      'range=${spec.start.toIso8601String()}..${spec.end.toIso8601String()} '
+      'zoneId=${spec.zoneId} venueId=${spec.venueId} formIds=${spec.formIds}',
+    );
+
+    var prepDateQuery = SupabaseService.client
         .from('haccp_logs')
         .select()
         .eq('category', spec.category)
-        .eq('form_id', spec.formId)
+        .inFilter('form_id', spec.formIds)
+        .gte('data->>prep_date', prepDateStart)
+        .lte('data->>prep_date', prepDateEnd);
+
+    var legacyQuery = SupabaseService.client
+        .from('haccp_logs')
+        .select()
+        .eq('category', spec.category)
+        .inFilter('form_id', spec.formIds)
+        .isFilter('data->>prep_date', null)
         .gte('created_at', spec.start.toIso8601String())
         .lte('created_at', spec.end.toIso8601String());
 
     if (spec.usesZoneFilter) {
-      query = query.eq('zone_id', spec.zoneId!);
+      prepDateQuery = prepDateQuery.eq('zone_id', spec.zoneId!);
+      legacyQuery = legacyQuery.eq('zone_id', spec.zoneId!);
     } else if (spec.usesVenueFallback) {
-      query = query.eq('venue_id', spec.venueId!);
+      prepDateQuery = prepDateQuery.eq('venue_id', spec.venueId!);
+      legacyQuery = legacyQuery.eq('venue_id', spec.venueId!);
     }
 
-    final response = await query.order('created_at');
-    return List<Map<String, dynamic>>.from(response);
+    final prepDateResponse = await prepDateQuery.order('created_at');
+    final legacyResponse = await legacyQuery.order('created_at');
+    _reportsLog(
+      'getRoastingLogs raw counts: prep_date=${prepDateResponse.length} '
+      'legacy=${legacyResponse.length}',
+    );
+
+    final mergedById = <String, Map<String, dynamic>>{};
+    for (final row in [
+      ...List<Map<String, dynamic>>.from(prepDateResponse),
+      ...List<Map<String, dynamic>>.from(legacyResponse),
+    ]) {
+      final key =
+          row['id']?.toString() ??
+          '${row['created_at']}_${row['form_id']}_${row['user_id']}';
+      mergedById[key] = row;
+    }
+
+    final merged =
+        mergedById.values
+            .where((row) => isRoastingLogInMonth(row, month))
+            .toList()
+          ..sort((a, b) {
+            final left = resolveRoastingLogBusinessDate(a);
+            final right = resolveRoastingLogBusinessDate(b);
+            if (left == null && right == null) return 0;
+            if (left == null) return 1;
+            if (right == null) return -1;
+            return left.compareTo(right);
+          });
+    _reportsLog('getRoastingLogs final count=${merged.length}');
+
+    return merged;
   }
 
   Future<Map<String, dynamic>?> getVenueProfile(String venueId) async {
@@ -500,6 +577,9 @@ class ReportsRepository {
     required String venueId,
   }) async {
     final dateStr = date.toIso8601String().split('T')[0];
+    _reportsLog(
+      'getSavedReport lookup: venue=$venueId type=$type date=$dateStr',
+    );
     try {
       final response = await SupabaseService.client
           .from('generated_reports')
@@ -510,6 +590,9 @@ class ReportsRepository {
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
+      _reportsLog(
+        'getSavedReport result: ${response == null ? 'miss' : 'hit'}',
+      );
       return response;
     } catch (e) {
       _reportsLog('getSavedReport failed: $e');
@@ -523,9 +606,12 @@ class ReportsRepository {
       final normalizedPath = path.startsWith('reports/')
           ? path.substring('reports/'.length)
           : path;
-      return await SupabaseService.client.storage
+      _reportsLog('downloadReport path=$normalizedPath');
+      final bytes = await SupabaseService.client.storage
           .from('reports')
           .download(normalizedPath);
+      _reportsLog('downloadReport bytes=${bytes.length}');
+      return bytes;
     } catch (e) {
       debugPrint('Error downloading report: $e');
       return null;
