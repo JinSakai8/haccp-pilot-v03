@@ -192,8 +192,12 @@ GoRouter appRouter(Ref ref) {
           final dateStr =
               state.uri.queryParameters['date'] ??
               DateTime.now().toIso8601String().split('T')[0];
+          final forceRegenerate =
+              state.uri.queryParameters['force'] == '1' ||
+              state.uri.queryParameters['force']?.toLowerCase() == 'true';
           return Ccp3PreviewScreen(
             date: DateTime.tryParse(dateStr) ?? DateTime.now(),
+            forceRegenerate: forceRegenerate,
           );
         },
       ),

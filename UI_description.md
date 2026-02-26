@@ -1409,3 +1409,38 @@ Zmiany UX/UI dla przeplywu CCP2:
 - Dla formularza pieczenia, gdy Zgodnosc z ustaleniami = NIE, pole Dzialania korygujace jest traktowane jako wymagane i blokuje zapis do czasu uzupelnienia.
 - Podglad PDF CCP2 wykorzystuje dane lokalu pobrane z DB (nazwa/adres), co usuwa hardcoded naglowek.
 
+
+---
+
+## Aktualizacja UI CCP2+CCP3 Unification (2026-02-26)
+
+### M03 GMP Historia
+
+Plik: `lib/features/m03_gmp/screens/gmp_history_screen.dart`
+
+Zmiany UX:
+- klik wpisu `Schladzanie` (CCP3) otwiera bezposrednio preview CCP3,
+- klik wpisu `Pieczenie` (CCP2) otwiera bezposrednio preview CCP2,
+- wpisy legacy `meat_roasting_daily` sa mapowane do flow CCP2,
+- komunikat fallback dla nieobslugiwanych wpisow jest ujednolicony.
+
+### M06 Raporty i Archiwum
+
+Pliki:
+- `lib/features/m06_reports/screens/ccp2_preview_screen.dart`
+- `lib/features/m06_reports/screens/ccp3_preview_screen.dart`
+- `lib/features/m06_reports/screens/saved_reports_screen.dart`
+- `lib/core/router/app_router.dart`
+
+Zmiany UX/UI:
+- CCP2 i CCP3 sa traktowane konsekwentnie jako raporty miesieczne,
+- preview obsluguje wymuszenie regeneracji przez query param `force=1`,
+- z Archiwum przy uszkodzonym PDF nastêpuje automatyczne przekierowanie do preview z `force=1`,
+- zachowane sa komunikaty empty-state per miesiac dla CCP2/CCP3.
+
+### Walidacja UI
+
+Testy powiazane:
+- `test/features/m03_gmp/gmp_history_navigation_smoke_test.dart`,
+- `test/features/m06_reports/ccp_monthly_request_contract_test.dart`,
+- `test/features/m06_reports/reports_panel_validation_test.dart`.

@@ -397,3 +397,43 @@ Wdrozone usprawnienia dla ccp2_roasting:
   - migracja hardening generated_reports (RLS + indeksy + unikalnosc),
   - skrypt walidacyjny SQL kontraktu CCP2.
 
+
+---
+
+## 15. Aktualizacja kodu CCP2+CCP3 Unification (2026-02-26)
+
+### 15.1 M03 GMP Historia (Sprint 2)
+
+Pliki:
+- `lib/features/m03_gmp/config/gmp_form_ids.dart`
+- `lib/features/m03_gmp/screens/gmp_history_screen.dart`
+
+Zmiany:
+- dodano centralny resolver nawigacji historii GMP (`gmpHistoryPreviewRoute(...)`),
+- klik wpisu `food_cooling` prowadzi do `/reports/preview/ccp3?date=YYYY-MM-DD`,
+- klik wpisu `meat_roasting` oraz legacy `meat_roasting_daily` prowadzi do `/reports/preview/ccp2?date=YYYY-MM-DD`,
+- fallback dla nieobslugiwanych typow wpisow zostal ujednolicony.
+
+Nowy test:
+- `test/features/m03_gmp/gmp_history_navigation_smoke_test.dart`.
+
+### 15.2 M06 Monthly Contract Domkniecie (Sprint 3)
+
+Pliki:
+- `lib/features/m06_reports/screens/ccp2_preview_screen.dart`
+- `lib/features/m06_reports/screens/ccp3_preview_screen.dart`
+
+Zmiany:
+- request DTO dla preview CCP2/CCP3 zostal domkniety do kontraktu miesiecznego,
+- porownywanie requestow cache ignoruje dzien i opiera sie na `year+month+forceRegenerate`,
+- utrzymano miesieczny lifecycle generacji/pobrania raportu i fallback `force=1`.
+
+Nowy test:
+- `test/features/m06_reports/ccp_monthly_request_contract_test.dart`.
+
+### 15.3 Walidacja testowa (Sprint 5)
+
+Wyniki:
+- `flutter test --reporter compact` -> **62 passed, 1 skipped, 0 failed**,
+- `flutter test test/features/m03_gmp --reporter compact` -> **12 passed, 0 failed**,
+- `flutter test test/features/m06_reports --reporter compact` -> **30 passed, 0 failed**.

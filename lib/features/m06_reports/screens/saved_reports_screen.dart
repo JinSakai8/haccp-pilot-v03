@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,19 +117,13 @@ class _ReportTile extends ConsumerWidget {
         ),
         title: Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(
-              'Okres: $dateStr',
-              style: const TextStyle(color: Colors.white70),
-            ),
+            Text('Okres: $dateStr', style: const TextStyle(color: Colors.white70)),
             Text(
               'Utworzono: ${DateFormat('yyyy-MM-dd HH:mm').format(createdAt)}',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -141,9 +135,7 @@ class _ReportTile extends ConsumerWidget {
           final path = report['storage_path']?.toString();
           if (path == null || path.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Brak ścieżki storage dla raportu.'),
-              ),
+              const SnackBar(content: Text('Brak ścieżki storage dla raportu.')),
             );
             return;
           }
@@ -153,16 +145,14 @@ class _ReportTile extends ConsumerWidget {
           if (bytes == null || bytes.isEmpty || !_looksLikePdf(bytes)) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Raport jest uszkodzony lub nie jest PDF.'),
-                ),
+                const SnackBar(content: Text('Raport jest uszkodzony lub nie jest PDF.')),
               );
 
-              if (type == 'ccp2_roasting') {
-                final date = DateTime.tryParse(dateStr);
-                if (date != null) {
-                  context.push('/reports/preview/ccp2?date=$dateStr&force=1');
-                }
+              final date = DateTime.tryParse(dateStr);
+              if (date != null && type == 'ccp2_roasting') {
+                context.push('/reports/preview/ccp2?date=$dateStr&force=1');
+              } else if (date != null && type == 'ccp3_cooling') {
+                context.push('/reports/preview/ccp3?date=$dateStr&force=1');
               }
             }
             return;

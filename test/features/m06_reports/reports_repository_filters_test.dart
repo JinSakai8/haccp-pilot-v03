@@ -2,16 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
 
 void main() {
-  group('CoolingLogsQuerySpec', () {
-    test('contains fixed GMP cooling filters and day range', () {
+group('CoolingLogsQuerySpec', () {
+    test('contains fixed GMP cooling filters and month range', () {
       final spec = buildCoolingLogsQuerySpec(DateTime(2026, 2, 22, 15, 40));
 
       expect(spec.category, equals('gmp'));
       expect(spec.formId, equals('food_cooling'));
-      expect(spec.start, equals(DateTime(2026, 2, 22)));
+      expect(spec.start, equals(DateTime(2026, 2, 1)));
       expect(
         spec.end,
-        equals(DateTime(2026, 2, 23).subtract(const Duration(milliseconds: 1))),
+        equals(DateTime(2026, 3, 1).subtract(const Duration(milliseconds: 1))),
       );
     });
 

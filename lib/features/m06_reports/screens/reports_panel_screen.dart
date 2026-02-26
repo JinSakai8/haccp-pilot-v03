@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:haccp_pilot/core/theme/app_theme.dart';
-import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
-import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/core/theme/app_theme.dart';
+import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
+import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 
 class ReportsPanelScreen extends ConsumerStatefulWidget {
   const ReportsPanelScreen({super.key});
@@ -83,8 +83,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     ? null
                     : () {
                         if (_selectedReportType == 'temperature' &&
-                            (_selectedSensorId == null ||
-                                _selectedSensorId!.isEmpty)) {
+                            (_selectedSensorId == null || _selectedSensorId!.isEmpty)) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
@@ -96,24 +95,18 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                         }
 
                         if (_selectedReportType == 'ccp3_cooling') {
-                          final dateStr = _selectedDate.toIso8601String().split(
-                            'T',
-                          )[0];
+                          final dateStr = _selectedDate.toIso8601String().split('T')[0];
                           context.push('/reports/preview/ccp3?date=$dateStr');
                           return;
                         }
 
                         if (_selectedReportType == 'ccp2_roasting') {
-                          final dateStr = _selectedDate.toIso8601String().split(
-                            'T',
-                          )[0];
+                          final dateStr = _selectedDate.toIso8601String().split('T')[0];
                           context.push('/reports/preview/ccp2?date=$dateStr');
                           return;
                         }
 
-                        ref
-                            .read(reportsProvider.notifier)
-                            .generateReport(
+                        ref.read(reportsProvider.notifier).generateReport(
                               reportType: _selectedReportType,
                               month: _selectedDate,
                               sensorId: _selectedSensorId,
@@ -130,9 +123,9 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                   reportsState.isLoading
                       ? 'GENEROWANIE...'
                       : _selectedReportType.startsWith('ccp') &&
-                            _selectedReportType != 'ccp1_temperature'
-                      ? 'PODGLĄD RAPORTU'
-                      : 'GENERUJ RAPORT (PDF)',
+                              _selectedReportType != 'ccp1_temperature'
+                          ? 'PODGLĄD RAPORTU'
+                          : 'GENERUJ RAPORT (PDF)',
                 ),
               ),
             ),
@@ -177,14 +170,14 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     Text(
                       'Raport wygenerowany pomyślnie!',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.onSurface,
-                      ),
+                            color: AppTheme.onSurface,
+                          ),
                     ),
                     Text(
                       reportData.fileName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.onSurfaceVariant,
-                      ),
+                            color: AppTheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -197,9 +190,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ref
-                        .read(pdfServiceProvider)
-                        .openFile(reportData.bytes, reportData.fileName);
+                    ref.read(pdfServiceProvider).openFile(reportData.bytes, reportData.fileName);
                   },
                   icon: const Icon(Icons.download),
                   label: const Text('POBIERZ PDF'),
@@ -213,19 +204,15 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     foregroundColor: AppTheme.onSecondary,
                   ),
                   onPressed: () async {
-                    await ref
-                        .read(reportsProvider.notifier)
-                        .uploadCurrentReport();
+                    await ref.read(reportsProvider.notifier).uploadCurrentReport();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Raport wysłany na Google Drive!'),
-                        ),
+                        const SnackBar(content: Text('Raport wysłany na Google Drive!')),
                       );
                     }
                   },
                   icon: const Icon(Icons.cloud_upload),
-                  label: const Text('WYSLIJ NA DRIVE'),
+                  label: const Text('WYŚLIJ NA DRIVE'),
                 ),
               ),
             ],
@@ -359,9 +346,7 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
     final zone = ref.read(currentZoneProvider);
     if (zone == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wybierz strefę w menu głównym (na górze)'),
-        ),
+        const SnackBar(content: Text('Wybierz strefę w menu głównym (na górze)')),
       );
       return;
     }
@@ -392,21 +377,18 @@ class _ReportsPanelScreenState extends ConsumerState<ReportsPanelScreen> {
                     const Divider(),
                     const ListTile(
                       title: Text(
-                        'Wymagany wybor 1 urzadzenia',
+                        'Wymagany wybór 1 urządzenia',
                         style: TextStyle(
                           color: AppTheme.onSurface,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      leading: Icon(
-                        Icons.info_outline,
-                        color: AppTheme.primary,
-                      ),
+                      leading: Icon(Icons.info_outline, color: AppTheme.primary),
                     ),
                     if (sensors.isEmpty)
                       ListTile(
                         title: Text(
-                          'Brak czujnikow w strefie "${zone.name}"',
+                          'Brak czujników w strefie "${zone.name}"',
                           style: const TextStyle(color: AppTheme.error),
                         ),
                         subtitle: const Text(
@@ -524,9 +506,7 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     : () => setState(() => _year++),
                 icon: Icon(
                   Icons.chevron_right,
-                  color: _year >= DateTime.now().year
-                      ? Colors.grey
-                      : AppTheme.onSurface,
+                  color: _year >= DateTime.now().year ? Colors.grey : AppTheme.onSurface,
                 ),
               ),
             ],
@@ -544,8 +524,7 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
               final isCurrent =
                   _year == DateTime.now().year && month == DateTime.now().month;
               final isSelected =
-                  _year == widget.initialDate.year &&
-                  month == widget.initialDate.month;
+                  _year == widget.initialDate.year && month == widget.initialDate.month;
               final isFuture =
                   _year == DateTime.now().year && month > DateTime.now().month;
 
@@ -577,8 +556,8 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     color: isSelected
                         ? AppTheme.primary
                         : (isFuture
-                              ? Colors.transparent
-                              : AppTheme.surface.withValues(alpha: 0.5)),
+                            ? Colors.transparent
+                            : AppTheme.surface.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(8),
                     border: isCurrent
                         ? Border.all(color: AppTheme.primary)
@@ -589,12 +568,8 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     style: TextStyle(
                       color: isFuture
                           ? Colors.grey
-                          : (isSelected
-                                ? AppTheme.onPrimary
-                                : AppTheme.onSurface),
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                          : (isSelected ? AppTheme.onPrimary : AppTheme.onSurface),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),

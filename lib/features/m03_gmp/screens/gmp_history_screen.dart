@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/constants/design_tokens.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/haccp_top_bar.dart';
@@ -38,7 +39,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -54,7 +55,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                         ),
                         onPressed: () => _pickDate(true),
                         backgroundColor: _fromDate != null
-                            ? HaccpDesignTokens.primary.withOpacity(0.2)
+                            ? HaccpDesignTokens.primary.withValues(alpha: 0.2)
                             : null,
                       ),
                       const SizedBox(width: 8),
@@ -66,7 +67,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                         ),
                         onPressed: () => _pickDate(false),
                         backgroundColor: _toDate != null
-                            ? HaccpDesignTokens.primary.withOpacity(0.2)
+                            ? HaccpDesignTokens.primary.withValues(alpha: 0.2)
                             : null,
                       ),
                       const SizedBox(width: 8),
@@ -116,8 +117,8 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
             child: historyAsync.when(
               data: (logs) => logs.isEmpty
                   ? const HaccpEmptyState(
-                      headline: 'Brak wynikow',
-                      subtext: 'Nie znaleziono wpisow dla wybranych filtrow.',
+                      headline: 'Brak wyników',
+                      subtext: 'Nie znaleziono wpisów dla wybranych filtrów.',
                       icon: Icons.filter_list_off,
                     )
                   : ListView.builder(
@@ -125,16 +126,13 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       itemCount: logs.length,
                       itemBuilder: (context, index) {
                         final log = logs[index];
-                        final date = DateTime.parse(log['created_at']);
-                        final logData =
-                            log['data'] as Map<String, dynamic>? ?? {};
+                        final date = DateTime.parse(log['created_at'] as String);
+                        final logData = log['data'] as Map<String, dynamic>? ?? {};
                         final rawFormId = log['form_id'] as String;
                         final normalizedFormId = normalizeGmpFormId(rawFormId);
                         final label =
-                            _processTypes[normalizedFormId] ??
-                            normalizedFormId.toUpperCase();
+                            _processTypes[normalizedFormId] ?? normalizedFormId.toUpperCase();
 
-                        // Parse status for list UI
                         Widget statusIcon = const SizedBox.shrink();
                         if (logData.containsKey('is_compliant') ||
                             logData.containsKey('compliance')) {
@@ -166,27 +164,23 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                                 statusIcon,
                               ],
                             ),
-                            subtitle: Text(
-                              DateFormat('yyyy-MM-dd HH:mm').format(date),
-                            ),
+                            subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
-                              if (normalizedFormId == gmpFoodCoolingFormId) {
-                                final dateStr = DateFormat(
-                                  'yyyy-MM-dd',
-                                ).format(date);
-                                context.push(
-                                  '/reports/preview/ccp3?date=$dateStr',
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Podgląd szczegółów dostępny wkrótce',
-                                    ),
-                                  ),
-                                );
+                              final previewRoute = gmpHistoryPreviewRoute(
+                                rawFormId: rawFormId,
+                                anchorDate: date,
+                              );
+                              if (previewRoute != null) {
+                                context.push(previewRoute);
+                                return;
                               }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(gmpHistoryPreviewUnavailableMessage),
+                                ),
+                              );
                             },
                           ),
                         );

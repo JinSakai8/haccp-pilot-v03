@@ -135,14 +135,16 @@ class CoolingLogsQuerySpec {
 
 @visibleForTesting
 CoolingLogsQuerySpec buildCoolingLogsQuerySpec(
-  DateTime date, {
+  DateTime month, {
   String? zoneId,
   String? venueId,
 }) {
-  final start = DateTime(date.year, date.month, date.day);
-  final end = start
-      .add(const Duration(days: 1))
-      .subtract(const Duration(milliseconds: 1));
+  final start = DateTime(month.year, month.month, 1);
+  final end = DateTime(
+    month.year,
+    month.month + 1,
+    1,
+  ).subtract(const Duration(milliseconds: 1));
 
   final normalizedZoneId = (zoneId != null && zoneId.trim().isNotEmpty)
       ? zoneId.trim()

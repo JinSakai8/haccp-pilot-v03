@@ -581,3 +581,42 @@ Migracje zostaly wypchniete na remote przez `supabase db push` dnia **2026-02-24
 - Zakres:
   - pozytywne i negatywne scenariusze walidacji `venues`,
   - scenariusze RLS allow/deny dla `venues` i `products`.
+
+---
+
+## 17. Aktualizacja po CCP2+CCP3 Unification Sprint 4-6 (2026-02-26)
+
+### 17.1 Nowa migracja DB (CCP3 generated_reports venue backfill)
+
+Wdrozona migracja:
+- `supabase/migrations/20260226200000_sprint4_ccp3_generated_reports_venue_backfill.sql`
+
+Zakres:
+- idempotentny backfill `generated_reports.venue_id` dla `report_type='ccp3_cooling'` na podstawie `storage_path`,
+- backup rekordow dotknietych migracja do:
+  - `public.generated_reports_ccp3_backfill_20260226_backup`,
+- oznaczenie rekordow nierozwiazywalnych w `metadata`:
+  - `ccp3_backfill_status='unresolved'`,
+  - `ccp3_backfill_reason=<powod>`.
+
+### 17.2 Bezpieczenstwo i operacyjnosc
+
+- Backfill nie stosuje fallback cross-tenant.
+- Rekordy prowadzace do konfliktu unikalnosci `(venue_id, report_type, generation_date)`
+  nie sa ustawiane automatycznie i sa klasyfikowane jako `unresolved`.
+- Zachowana zgodnosc z istniejacym hardeningiem RLS `generated_reports`.
+
+### 17.3 Status wdrozenia
+
+- `supabase db push` wykonany dnia **2026-02-26**.
+- `supabase migration list` potwierdza `Local=Remote` dla:
+  - `20260226200000`.
+
+### 17.4 Artefakty walidacyjne i rollback
+
+Dodane pliki:
+- `supabase/ccp3_04_generated_reports_backfill_validation.sql` (walidacja post-migration),
+- `directives/22_CCP2_CCP3_Unification/22_Sprint_4_Rollback_Runbook.md` (procedura rollback).
+
+Uwaga:
+- walidacja SQL post-backfill wymaga uruchomienia przez SQL Editor lub klienta DB.

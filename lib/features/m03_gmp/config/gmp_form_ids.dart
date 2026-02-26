@@ -1,4 +1,4 @@
-const String gmpFoodCoolingFormId = 'food_cooling';
+﻿const String gmpFoodCoolingFormId = 'food_cooling';
 const String gmpMeatRoastingFormId = 'meat_roasting';
 const String gmpDeliveryControlFormId = 'delivery_control';
 
@@ -22,6 +22,9 @@ const Map<String, String> gmpProcessLabels = <String, String>{
   gmpDeliveryControlFormId: 'Kontrola Dostaw',
 };
 
+const String gmpHistoryPreviewUnavailableMessage =
+    'Podgląd dla tego typu wpisu nie jest dostępny.';
+
 String normalizeGmpFormId(String formId) {
   return gmpLegacyToCanonicalFormIds[formId] ?? formId;
 }
@@ -36,4 +39,25 @@ List<String> gmpHistoryCompatibleFormIds(String formId) {
     default:
       return <String>[normalized];
   }
+}
+
+String? gmpHistoryPreviewRoute({
+  required String rawFormId,
+  required DateTime anchorDate,
+}) {
+  final normalized = normalizeGmpFormId(rawFormId);
+  final year = anchorDate.year.toString().padLeft(4, '0');
+  final month = anchorDate.month.toString().padLeft(2, '0');
+  final day = anchorDate.day.toString().padLeft(2, '0');
+  final dateStr = '$year-$month-$day';
+
+  if (normalized == gmpFoodCoolingFormId) {
+    return '/reports/preview/ccp3?date=$dateStr';
+  }
+
+  if (normalized == gmpMeatRoastingFormId) {
+    return '/reports/preview/ccp2?date=$dateStr';
+  }
+
+  return null;
 }

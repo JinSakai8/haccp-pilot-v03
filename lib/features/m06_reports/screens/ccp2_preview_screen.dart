@@ -55,13 +55,11 @@ class Ccp2ReportRequest {
     return other is Ccp2ReportRequest &&
         other.date.year == date.year &&
         other.date.month == date.month &&
-        other.date.day == date.day &&
         other.forceRegenerate == forceRegenerate;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(date.year, date.month, date.day, forceRegenerate);
+  int get hashCode => Object.hash(date.year, date.month, forceRegenerate);
 }
 
 @visibleForTesting
