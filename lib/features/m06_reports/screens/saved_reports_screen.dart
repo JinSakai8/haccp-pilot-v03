@@ -38,7 +38,7 @@ class SavedReportsScreen extends ConsumerWidget {
     final reportsAsync = ref.watch(savedReportsProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Archiwum Raportów'),
+      appBar: const HaccpTopBar(title: 'Archiwum raportów'),
       backgroundColor: AppTheme.background,
       body: reportsAsync.when(
         data: (reports) {
@@ -89,7 +89,7 @@ class _ReportTile extends ConsumerWidget {
     } else if (type == 'ccp2_roasting') {
       label = 'Pieczenie (CCP-2)';
     } else if (type == 'waste_monthly') {
-      label = 'Odpady (Miesięczny)';
+      label = 'Odpady (miesięczny)';
     } else if (type == 'ccp1_temperature') {
       label = 'Temperatura (CCP-1)';
     }

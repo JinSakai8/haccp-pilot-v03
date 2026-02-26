@@ -581,7 +581,7 @@ class PdfService {
     limitsRow.cells[0].value =
         'Okres raportu\n${_toPdfSafeText(params.monthLabel)}';
     limitsRow.cells[1].value = 'Cel\n> 90°C';
-    limitsRow.cells[2].value = 'Wymaganie\nDzialania korygujace dla NIE';
+    limitsRow.cells[2].value = 'Wymaganie\nDziałania korygujące dla NIE';
     for (var i = 0; i < limitsRow.cells.count; i++) {
       limitsRow.cells[i].style.font = font;
       limitsRow.cells[i].stringFormat = PdfStringFormat(
@@ -612,11 +612,11 @@ class PdfService {
     header.height = 40;
 
     final headers = [
-      'Data / Godzina',
+      'Data',
       'Rodzaj\npotrawy',
-      'Wartosc\ntemperatury',
-      'Zgodnosc z\nustaleniami',
-      'Dzialania\nkorygujace',
+      'Wartość\ntemperatury',
+      'Zgodność z\nustaleniami',
+      'Działania\nkorygujące',
       'Podpis',
     ];
 
@@ -687,7 +687,7 @@ class PdfService {
 
     final footerY = page.getClientSize().height - 40;
     graphics.drawString(
-      'Sprawdzil/zatwierdzil: .................................................',
+      'Sprawdził/zatwierdził: .................................................',
       boldFont,
       bounds: Rect.fromLTWH(0, footerY, 400, 20),
     );

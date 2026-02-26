@@ -7,10 +7,12 @@ void main() {
       final row = mapHaccpLogToCcp2ReportRow({
         'created_at': '2026-02-14T10:15:00Z',
         'data': {
+          'prep_date': '2026-02-14',
           'product_name': 'Kurczak',
-          'internal_temp': 82,
+          'temperature': 82,
           'is_compliant': false,
           'corrective_actions': 'Dopieczenie',
+          'signature': 'AB',
         },
       });
 
@@ -18,6 +20,8 @@ void main() {
       expect(row.temperature, equals('82'));
       expect(row.isCompliant, isFalse);
       expect(row.correctiveActions, equals('Dopieczenie'));
+      expect(row.signature, equals('AB'));
+      expect(row.dateTime, equals('14.02.2026'));
     });
 
     test(
@@ -36,5 +40,16 @@ void main() {
         expect(above.isCompliant, isTrue);
       },
     );
+
+    test('supports legacy records with internal_temp and created_at only', () {
+      final row = mapHaccpLogToCcp2ReportRow({
+        'created_at': '2026-02-15T11:20:00Z',
+        'data': {'internal_temp': 93, 'product_name': 'Schab'},
+      });
+
+      expect(row.temperature, equals('93'));
+      expect(row.dateTime, equals('15.02.2026'));
+      expect(row.productName, equals('Schab'));
+    });
   });
 }

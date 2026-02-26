@@ -24,7 +24,7 @@ class MeatRoastingFormScreen extends ConsumerWidget {
     final submissionState = ref.watch(gmpFormSubmissionProvider);
 
     return Scaffold(
-      appBar: const HaccpTopBar(title: 'Pieczenie Mięs'),
+      appBar: const HaccpTopBar(title: 'Pieczenie Mięsa'),
       body: Column(
         children: [
           Expanded(

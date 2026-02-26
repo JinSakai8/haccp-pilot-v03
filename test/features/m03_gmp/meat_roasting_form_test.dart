@@ -11,10 +11,10 @@ void main() {
   ProviderContainer buildContainer() => ProviderContainer();
 
   void fillBaseRequiredFields(DynamicFormNotifier notifier) {
+    notifier.updateField('prep_date', DateTime(2026, 2, 15));
     notifier.updateField('product_name', 'Kurczak');
-    notifier.updateField('batch_number', 'B123');
-    notifier.updateField('start_time', const TimeOfDay(hour: 8, minute: 0));
-    notifier.updateField('internal_temp', 95.0);
+    notifier.updateField('temperature', 95.0);
+    notifier.updateField('signature', 'JP');
   }
 
   test('CCP2 requires corrective actions when non-compliant', () {

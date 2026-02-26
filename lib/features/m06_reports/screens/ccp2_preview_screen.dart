@@ -52,18 +52,25 @@ Ccp2ReportRow mapHaccpLogToCcp2ReportRow(Map<String, dynamic> raw) {
     createdAt = DateTime.tryParse(createdAtRaw);
   }
 
-  String dateTimeLabel = '-';
-  if (createdAt != null) {
+  String dateLabel = '-';
+  final prepDateRaw = data['prep_date']?.toString();
+  if (prepDateRaw != null && prepDateRaw.isNotEmpty) {
+    final prepDate = DateTime.tryParse(prepDateRaw);
+    if (prepDate != null) {
+      final day = prepDate.day.toString().padLeft(2, '0');
+      final month = prepDate.month.toString().padLeft(2, '0');
+      final year = prepDate.year.toString();
+      dateLabel = '$day.$month.$year';
+    }
+  } else if (createdAt != null) {
     final day = createdAt.day.toString().padLeft(2, '0');
     final month = createdAt.month.toString().padLeft(2, '0');
     final year = createdAt.year.toString();
-    final hour = createdAt.hour.toString().padLeft(2, '0');
-    final minute = createdAt.minute.toString().padLeft(2, '0');
-    dateTimeLabel = '$day.$month.$year\n$hour:$minute';
+    dateLabel = '$day.$month.$year';
   }
 
   final productName = data['product_name']?.toString() ?? '-';
-  final tempRaw = data['internal_temp'] ?? data['temperature'];
+  final tempRaw = data['temperature'] ?? data['internal_temp'];
   final temperature = tempRaw?.toString() ?? '-';
 
   bool isCompliant;
@@ -82,13 +89,15 @@ Ccp2ReportRow mapHaccpLogToCcp2ReportRow(Map<String, dynamic> raw) {
       data['corrective_actions']?.toString() ??
       data['comments']?.toString() ??
       '';
+  final signature = data['signature']?.toString() ?? '';
 
   return Ccp2ReportRow(
-    dateTime: dateTimeLabel,
+    dateTime: dateLabel,
     productName: productName,
     temperature: temperature,
     isCompliant: isCompliant,
     correctiveActions: correctiveActions,
+    signature: signature,
   );
 }
 
@@ -101,7 +110,6 @@ final ccp2ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
     final user = ref.read(currentUserProvider);
 
     final currentZone = ref.read(currentZoneProvider);
-    final zoneId = currentZone?.id;
     String? venueId = currentZone?.venueId;
 
     if (venueId == null) {
@@ -141,7 +149,7 @@ final ccp2ReportProvider = FutureProvider.family<Uint8List?, DateTime>((
 
     final logs = await repo.getRoastingLogs(
       periodStart,
-      zoneId: zoneId,
+      zoneId: null,
       venueId: venueId,
     );
     if (logs.isEmpty) {
