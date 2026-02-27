@@ -23,7 +23,12 @@ DriveService driveService(Ref ref) => DriveService();
 class ReportData {
   final Uint8List bytes;
   final String fileName;
-  ReportData({required this.bytes, required this.fileName});
+  final String? archiveWarning;
+  ReportData({
+    required this.bytes,
+    required this.fileName,
+    this.archiveWarning,
+  });
 }
 
 @riverpod
@@ -39,7 +44,9 @@ class ReportsNotifier extends _$ReportsNotifier {
     required DateTime month,
     String? sensorId,
   }) async {
-    debugPrint('M06: Generating report: $reportType, Month: $month, Sensor: $sensorId');
+    debugPrint(
+      'M06: Generating report: $reportType, Month: $month, Sensor: $sensorId',
+    );
     state = const AsyncLoading();
     try {
       final start = DateTime(month.year, month.month, 1);
@@ -50,21 +57,33 @@ class ReportsNotifier extends _$ReportsNotifier {
 
       List<int> pdfBytes;
       String fileName;
+      String? archiveWarning;
 
       if (reportType == 'waste') {
         final records = await repo.getWasteRecords(start, end);
         if (records.isEmpty) {
           throw Exception('Brak danych o odpadach w tym miesiacu');
         }
-        final columns = ['Data', 'Rodzaj', 'Kod', 'Masa (kg)', 'Odbiorca', 'KPO'];
-        final rows = records.map((r) => [
-          (r['created_at'] as String).substring(0, 10),
-          r['waste_type'].toString(),
-          r['waste_code'].toString(),
-          r['mass_kg'].toString(),
-          r['recipient_company'].toString(),
-          r['kpo_number']?.toString() ?? '-',
-        ]).toList();
+        final columns = [
+          'Data',
+          'Rodzaj',
+          'Kod',
+          'Masa (kg)',
+          'Odbiorca',
+          'KPO',
+        ];
+        final rows = records
+            .map(
+              (r) => [
+                (r['created_at'] as String).substring(0, 10),
+                r['waste_type'].toString(),
+                r['waste_code'].toString(),
+                r['mass_kg'].toString(),
+                r['recipient_company'].toString(),
+                r['kpo_number']?.toString() ?? '-',
+              ],
+            )
+            .toList();
 
         fileName = 'Karta_Odpadow_${month.year}_${month.month}.pdf';
         pdfBytes = await pdf.generateTableReport(
@@ -103,11 +122,20 @@ class ReportsNotifier extends _$ReportsNotifier {
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
       } else if (reportType == 'ghp') {
-        throw Exception('Raport GHP jest w trakcie przygotowania. Uzyj GMP lub Temperatur.');
+        throw Exception(
+          'Raport GHP jest w trakcie przygotowania. Uzyj GMP lub Temperatur.',
+        );
       } else if (reportType == 'temperature') {
         if (sensorId == null || sensorId.trim().isEmpty) {
           throw Exception('Wybierz urzadzenie dla raportu CCP-1 temperatur.');
         }
+
+        final periodStart = DateTime(month.year, month.month, 1);
+        final periodEnd = DateTime(
+          month.year,
+          month.month + 1,
+          1,
+        ).subtract(const Duration(milliseconds: 1));
 
         final dataset = await repo.getCcp1TemperatureDataset(
           month: month,
@@ -115,11 +143,14 @@ class ReportsNotifier extends _$ReportsNotifier {
         );
 
         if (dataset.rows.isEmpty) {
-          throw Exception('Brak pomiarow temperatur dla wybranego urzadzenia w tym miesiacu');
+          throw Exception(
+            'Brak pomiarow temperatur dla wybranego urzadzenia w tym miesiacu',
+          );
         }
 
         final rows = dataset.rows.map((row) => row.toPdfColumns()).toList();
-        final monthStr = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+        final monthStr =
+            '${month.year}-${month.month.toString().padLeft(2, '0')}';
 
         pdfBytes = await pdf.generateCcp1TemperatureReport(
           sensorName: dataset.sensorName,
@@ -131,43 +162,57 @@ class ReportsNotifier extends _$ReportsNotifier {
 
         final venueId = await _resolveVenueId();
         if (venueId == null || venueId.isEmpty) {
-          throw Exception('Brak venue_id do archiwizacji raportu CCP-1.');
+          archiveWarning =
+              'Raport wygenerowano, ale brak venue_id do archiwizacji CCP-1.';
+        } else if (user == null) {
+          archiveWarning =
+              'Raport wygenerowano, ale brak zalogowanego uzytkownika do archiwizacji CCP-1.';
+        } else {
+          try {
+            final storagePathInBucket =
+                '$venueId/${month.year}/${month.month.toString().padLeft(2, '0')}/$fileName';
+            final uploadedPath = await repo.uploadReport(
+              storagePathInBucket,
+              Uint8List.fromList(pdfBytes),
+            );
+            if (uploadedPath == null) {
+              archiveWarning =
+                  'Raport wygenerowano, ale nie udalo sie zapisac pliku CCP-1 w storage.';
+            } else {
+              await repo.saveReportMetadata(
+                venueId: venueId,
+                reportType: 'ccp1_temperature',
+                generationDate: periodStart,
+                storagePath: 'reports/$uploadedPath',
+                userId: user.id,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                metadata: {
+                  'sensor_id': dataset.sensorId,
+                  'sensor_name': dataset.sensorName,
+                  'month': monthStr,
+                  'template_version': 'ccp1_csv_v1',
+                },
+              );
+            }
+          } catch (_) {
+            archiveWarning =
+                'Raport wygenerowano, ale nie udalo sie zapisac metadanych archiwum CCP-1.';
+          }
         }
-        if (user == null) {
-          throw Exception('Brak zalogowanego uzytkownika do zapisu archiwum.');
-        }
-
-        final storagePathInBucket =
-            '$venueId/${month.year}/${month.month.toString().padLeft(2, '0')}/$fileName';
-        final uploadedPath = await repo.uploadReport(
-          storagePathInBucket,
-          Uint8List.fromList(pdfBytes),
-        );
-        if (uploadedPath == null) {
-          throw Exception('Nie udalo sie zapisac raportu CCP-1 w storage.');
-        }
-
-        await repo.saveReportMetadata(
-          venueId: venueId,
-          reportType: 'ccp1_temperature',
-          generationDate: DateTime.now(),
-          storagePath: 'reports/$uploadedPath',
-          userId: user.id,
-          metadata: {
-            'sensor_id': dataset.sensorId,
-            'sensor_name': dataset.sensorName,
-            'month': monthStr,
-            'template_version': 'ccp1_csv_v1',
-          },
-        );
       } else {
-        throw UnimplementedError('Raport $reportType nie jest jeszcze zaimplementowany');
+        throw UnimplementedError(
+          'Raport $reportType nie jest jeszcze zaimplementowany',
+        );
       }
 
-      state = AsyncData(ReportData(
-        bytes: Uint8List.fromList(pdfBytes),
-        fileName: fileName,
-      ));
+      state = AsyncData(
+        ReportData(
+          bytes: Uint8List.fromList(pdfBytes),
+          fileName: fileName,
+          archiveWarning: archiveWarning,
+        ),
+      );
     } catch (e, st) {
       state = AsyncError(e, st);
     }

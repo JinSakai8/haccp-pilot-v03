@@ -37,6 +37,9 @@ class _FakeReportsRepository extends ReportsRepository {
   String? lastSavedStoragePath;
   String? lastSavedVenueId;
   String? lastSavedUserId;
+  DateTime? lastSavedGenerationDate;
+  DateTime? lastSavedPeriodStart;
+  DateTime? lastSavedPeriodEnd;
 
   @override
   Future<Ccp1TemperatureDataset> getCcp1TemperatureDataset({
@@ -73,6 +76,9 @@ class _FakeReportsRepository extends ReportsRepository {
     lastSavedStoragePath = storagePath;
     lastSavedUserId = userId;
     lastSavedMetadata = metadata;
+    lastSavedGenerationDate = generationDate;
+    lastSavedPeriodStart = periodStart;
+    lastSavedPeriodEnd = periodEnd;
   }
 }
 
@@ -149,6 +155,12 @@ void main() {
         fakeRepo.lastSavedMetadata?['template_version'],
         equals('ccp1_csv_v1'),
       );
+      expect(fakeRepo.lastSavedGenerationDate, equals(DateTime(2026, 2, 1)));
+      expect(fakeRepo.lastSavedPeriodStart, equals(DateTime(2026, 2, 1)));
+      expect(
+        fakeRepo.lastSavedPeriodEnd,
+        equals(DateTime(2026, 3, 1).subtract(const Duration(milliseconds: 1))),
+      );
     });
 
     test('missing sensor: returns error', () async {
@@ -184,34 +196,46 @@ void main() {
       expect(state.hasError, isTrue);
     });
 
-    test('upload error: returns error', () async {
-      fakeRepo.uploadedPathResult = null;
+    test(
+      'upload error: keeps pdf success and exposes archive warning',
+      () async {
+        fakeRepo.uploadedPathResult = null;
 
-      await container
-          .read(reportsProvider.notifier)
-          .generateReport(
-            reportType: 'temperature',
-            month: DateTime(2026, 2, 1),
-            sensorId: 'sensor-1',
-          );
+        await container
+            .read(reportsProvider.notifier)
+            .generateReport(
+              reportType: 'temperature',
+              month: DateTime(2026, 2, 1),
+              sensorId: 'sensor-1',
+            );
 
-      final state = container.read(reportsProvider);
-      expect(state.hasError, isTrue);
-    });
+        final state = container.read(reportsProvider);
+        expect(state.hasValue, isTrue);
+        expect(state.value, isNotNull);
+        expect(state.value!.archiveWarning, isNotNull);
+        expect(state.value!.archiveWarning, contains('storage'));
+      },
+    );
 
-    test('metadata save error: returns error', () async {
-      fakeRepo.throwOnSaveMetadata = true;
+    test(
+      'metadata save error: keeps pdf success and exposes archive warning',
+      () async {
+        fakeRepo.throwOnSaveMetadata = true;
 
-      await container
-          .read(reportsProvider.notifier)
-          .generateReport(
-            reportType: 'temperature',
-            month: DateTime(2026, 2, 1),
-            sensorId: 'sensor-1',
-          );
+        await container
+            .read(reportsProvider.notifier)
+            .generateReport(
+              reportType: 'temperature',
+              month: DateTime(2026, 2, 1),
+              sensorId: 'sensor-1',
+            );
 
-      final state = container.read(reportsProvider);
-      expect(state.hasError, isTrue);
-    });
+        final state = container.read(reportsProvider);
+        expect(state.hasValue, isTrue);
+        expect(state.value, isNotNull);
+        expect(state.value!.archiveWarning, isNotNull);
+        expect(state.value!.archiveWarning, contains('metadanych'));
+      },
+    );
   });
 }
