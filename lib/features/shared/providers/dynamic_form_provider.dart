@@ -7,23 +7,22 @@ class DynamicFormState {
   final Map<String, DynamicFieldState> fields;
   final bool isSubmitting;
 
-  DynamicFormState({
-    required this.fields,
-    this.isSubmitting = false,
-  });
+  DynamicFormState({required this.fields, this.isSubmitting = false});
 
   bool get isValid {
     return fields.values.every((f) {
       if (!f.isVisible) return true;
       if (f.error != null) return false;
       // If there's a warning, a comment is mandatory
-      if (f.warning != null && (f.comment == null || f.comment!.isEmpty)) return false;
+      if (f.warning != null && (f.comment == null || f.comment!.isEmpty))
+        return false;
       return true;
     });
   }
 
   /// Helper to get simple Map<id, value>
-  Map<String, dynamic> get values => fields.map((key, state) => MapEntry(key, state.value));
+  Map<String, dynamic> get values =>
+      fields.map((key, state) => MapEntry(key, state.value));
 
   DynamicFormState copyWith({
     Map<String, DynamicFieldState>? fields,
@@ -41,13 +40,13 @@ class DynamicFormNotifier extends _$DynamicFormNotifier {
   @override
   DynamicFormState build(String formId, FormDefinition definition) {
     final initialFields = <String, DynamicFieldState>{};
-    
+
     for (final config in definition.fields) {
       initialFields[config.id] = DynamicFieldState(
         value: _getInitialValue(config),
       );
     }
-    
+
     // Update initial visibility
     for (final config in definition.fields) {
       initialFields[config.id] = initialFields[config.id]!.copyWith(
@@ -75,25 +74,50 @@ class DynamicFormNotifier extends _$DynamicFormNotifier {
     }
   }
 
-  bool _calculateVisibility(FormFieldConfig config, Map<String, DynamicFieldState> currentFields) {
+  bool _calculateVisibility(
+    FormFieldConfig config,
+    Map<String, DynamicFieldState> currentFields,
+  ) {
     if (config.visibleIf == null) return true;
-    final parentId = config.visibleIf!['field'];
-    final expectedValue = config.visibleIf!['value'];
+    return _matchesCondition(config.visibleIf!, currentFields);
+  }
+
+  bool _matchesCondition(
+    Map<String, dynamic> condition,
+    Map<String, DynamicFieldState> currentFields,
+  ) {
+    final parentId = condition['field']?.toString();
+    if (parentId == null || parentId.isEmpty) return false;
+    final expectedValue = condition['value'];
     final parentState = currentFields[parentId];
-    // Simple equality check; might need adjustment for types
     return parentState?.value == expectedValue;
+  }
+
+  bool _isMissingValue(dynamic value) {
+    return value == null ||
+        (value is String && value.trim().isEmpty) ||
+        (value is List && value.isEmpty);
+  }
+
+  bool _isConditionallyRequired(
+    FormFieldConfig config,
+    Map<String, DynamicFieldState> currentFields,
+  ) {
+    if (config.requiredIf == null) return false;
+    return _matchesCondition(config.requiredIf!, currentFields);
   }
 
   void updateField(String fieldId, dynamic newValue) {
     // Re-read definition to get config (this is safe as it's passed to build)
     final config = definition.fields.firstWhere((f) => f.id == fieldId);
-    
+
     final updatedFields = Map<String, DynamicFieldState>.from(state.fields);
     final fieldState = updatedFields[fieldId]!;
-    
+
     // Validation
     String? error;
-    if (config.required && (newValue == null || (newValue is String && newValue.isEmpty) || (newValue is List && newValue.isEmpty))) {
+    if ((config.required || _isConditionallyRequired(config, updatedFields)) &&
+        _isMissingValue(newValue)) {
       error = "Pole wymagane";
     }
 
@@ -110,14 +134,30 @@ class DynamicFormNotifier extends _$DynamicFormNotifier {
       value: newValue,
       error: error,
       warning: warning,
-      comment: warning == null ? null : fieldState.comment, // Clear comment if warning resolved
+      comment: warning == null
+          ? null
+          : fieldState.comment, // Clear comment if warning resolved
     );
 
     // Update visibility of dependent fields
     for (final cfg in definition.fields) {
       final isVisible = _calculateVisibility(cfg, updatedFields);
       if (updatedFields[cfg.id]!.isVisible != isVisible) {
-        updatedFields[cfg.id] = updatedFields[cfg.id]!.copyWith(isVisible: isVisible);
+        updatedFields[cfg.id] = updatedFields[cfg.id]!.copyWith(
+          isVisible: isVisible,
+        );
+      }
+
+      if (isVisible && _isConditionallyRequired(cfg, updatedFields)) {
+        final dependentState = updatedFields[cfg.id]!;
+        final needsError = _isMissingValue(dependentState.value);
+        if (needsError && dependentState.error == null) {
+          updatedFields[cfg.id] = dependentState.copyWith(
+            error: "Pole wymagane",
+          );
+        } else if (!needsError && dependentState.error == "Pole wymagane") {
+          updatedFields[cfg.id] = dependentState.copyWith(error: null);
+        }
       }
     }
 

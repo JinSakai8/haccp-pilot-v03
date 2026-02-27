@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/widgets/haccp_top_bar.dart';
-import '../../../../core/widgets/haccp_date_picker.dart';
-import '../../../../core/widgets/empty_state_widget.dart';
+import 'package:intl/intl.dart';
+
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/haccp_top_bar.dart';
+import '../config/gmp_form_ids.dart';
 import '../providers/gmp_provider.dart';
 
 class GmpHistoryScreen extends ConsumerStatefulWidget {
@@ -20,29 +21,25 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
   DateTime? _toDate;
   String? _selectedFormId;
 
-  // Manual list of processes for filtering
-  final Map<String, String> _processTypes = {
-    'meat_roasting': 'Obróbka Termiczna',
-    'food_cooling': 'Schładzanie',
-    'delivery_control': 'Dostawa',
-  };
+  final Map<String, String> _processTypes = gmpProcessLabels;
 
   @override
   Widget build(BuildContext context) {
-    final historyAsync = ref.watch(gmpHistoryProvider(
-      fromDate: _fromDate,
-      toDate: _toDate,
-      formId: _selectedFormId,
-    ));
+    final historyAsync = ref.watch(
+      gmpHistoryProvider(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        formId: _selectedFormId,
+      ),
+    );
 
     return Scaffold(
       appBar: const HaccpTopBar(title: 'Historia GMP'),
       body: Column(
         children: [
-          // Filters Header
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -51,24 +48,39 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                   child: Row(
                     children: [
                       ActionChip(
-                        label: Text(_fromDate == null ? 'Od: Kiedykolwiek' : 'Od: ${DateFormat('MM-dd').format(_fromDate!)}'),
+                        label: Text(
+                          _fromDate == null
+                              ? 'Od: Kiedykolwiek'
+                              : 'Od: ${DateFormat('MM-dd').format(_fromDate!)}',
+                        ),
                         onPressed: () => _pickDate(true),
-                        backgroundColor: _fromDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
+                        backgroundColor: _fromDate != null
+                            ? HaccpDesignTokens.primary.withValues(alpha: 0.2)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       ActionChip(
-                        label: Text(_toDate == null ? 'Do: Dzisiaj' : 'Do: ${DateFormat('MM-dd').format(_toDate!)}'),
+                        label: Text(
+                          _toDate == null
+                              ? 'Do: Dzisiaj'
+                              : 'Do: ${DateFormat('MM-dd').format(_toDate!)}',
+                        ),
                         onPressed: () => _pickDate(false),
-                         backgroundColor: _toDate != null ? HaccpDesignTokens.primary.withOpacity(0.2) : null,
+                        backgroundColor: _toDate != null
+                            ? HaccpDesignTokens.primary.withValues(alpha: 0.2)
+                            : null,
                       ),
                       const SizedBox(width: 8),
                       if (_fromDate != null || _toDate != null)
-                        IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () {
-                          setState(() {
-                            _fromDate = null;
-                            _toDate = null;
-                          });
-                        }),
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _fromDate = null;
+                              _toDate = null;
+                            });
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -101,13 +113,12 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
               ],
             ),
           ),
-          
           Expanded(
             child: historyAsync.when(
               data: (logs) => logs.isEmpty
                   ? const HaccpEmptyState(
-                      headline: "Brak wyników",
-                      subtext: "Nie znaleziono wpisów dla wybranych filtrów.",
+                      headline: 'Brak wyników',
+                      subtext: 'Nie znaleziono wpisów dla wybranych filtrów.',
                       icon: Icons.filter_list_off,
                     )
                   : ListView.builder(
@@ -115,26 +126,61 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
                       itemCount: logs.length,
                       itemBuilder: (context, index) {
                         final log = logs[index];
-                        final date = DateTime.parse(log['created_at']);
-                        final formId = log['form_id'] as String;
-                        final label = _processTypes[formId] ?? formId.toUpperCase();
+                        final date = DateTime.parse(log['created_at'] as String);
+                        final logData = log['data'] as Map<String, dynamic>? ?? {};
+                        final rawFormId = log['form_id'] as String;
+                        final normalizedFormId = normalizeGmpFormId(rawFormId);
+                        final label =
+                            _processTypes[normalizedFormId] ?? normalizedFormId.toUpperCase();
+
+                        Widget statusIcon = const SizedBox.shrink();
+                        if (logData.containsKey('is_compliant') ||
+                            logData.containsKey('compliance')) {
+                          final isCompliant =
+                              logData['is_compliant'] ?? logData['compliance'];
+                          if (isCompliant == true) {
+                            statusIcon = const Icon(
+                              Icons.check_circle,
+                              color: HaccpDesignTokens.success,
+                              size: 20,
+                            );
+                          } else if (isCompliant == false) {
+                            statusIcon = const Icon(
+                              Icons.warning,
+                              color: HaccpDesignTokens.warning,
+                              size: 20,
+                            );
+                          }
+                        }
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: const Icon(Icons.history),
-                            title: Text(label),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(label)),
+                                const SizedBox(width: 8),
+                                statusIcon,
+                              ],
+                            ),
                             subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(date)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
-                              if (formId == 'food_cooling') {
-                                final dateStr = DateFormat('yyyy-MM-dd').format(date);
-                                context.push('/reports/preview/ccp3?date=$dateStr');
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Podgląd szczegółów dostępny wkrótce')),
-                                );
+                              final previewRoute = gmpHistoryPreviewRoute(
+                                rawFormId: rawFormId,
+                                anchorDate: date,
+                              );
+                              if (previewRoute != null) {
+                                context.push(previewRoute);
+                                return;
                               }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(gmpHistoryPreviewUnavailableMessage),
+                                ),
+                              );
                             },
                           ),
                         );
@@ -170,7 +216,7 @@ class _GmpHistoryScreenState extends ConsumerState<GmpHistoryScreen> {
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isFrom) {

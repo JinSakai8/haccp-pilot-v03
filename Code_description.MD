@@ -1,169 +1,190 @@
-# Code Description: HACCP Pilot v04.0 (Live)
+﻿# Code Description - HACCP Pilot (Code Architecture)
+## Kiedy Dolaczac Ten Plik Do Konwersacji
+- Gdy prosisz o implementacje/refaktor kodu aplikacji.
+- Gdy analizujesz flow `screen -> provider -> repository`.
+- Gdy weryfikujesz runtime routing i kontrakty modulow.
+- Gdy potrzebujesz mapy testow i notatek developerskich.
+- Nie dolaczaj do deep-dive ERD/RLS ani do specyfikacji pixel-level UI.
 
-Dokumentacja techniczna projektu HACCP Pilot. Opisuje architekturę, strukturę bazy danych oraz logikę poszczególnych modułów. Służy jako "mapa" dla deweloperów.
+## 1. Zakres Dokumentu
+Ten dokument opisuje architekture kodu aplikacji.
 
----
+Zakres:
+- Struktura kodu i konwencje.
+- Routing runtime.
+- State management, repository contracts i logika modulow.
+- Integracje techniczne z perspektywy kodu.
+- Testability map i notatki operacyjne.
 
-## 1. Filozofia Projektu
+Poza zakresem:
+- Szczegoly ERD/RLS/DDL (patrz `supabase.md`).
+- Szczegoly layoutow i specyfikacji UX (patrz `UI_description.md`).
+- Big-picture decyzje domenowe (patrz `directives/00_Architecture_Master_Plan.md`).
 
-- **Glove-Friendly UX:** Wszystkie elementy interaktywne muszą mieć min. **60x60dp**. Unikamy klawiatury systemowej (korzystamy z `HaccpNumPad` lub gotowych opcji).
-- **Dark Mode Only:** Aplikacja działa tylko w trybie ciemnym (kuchennym).
-- **Offline-First:** Dane są zbierane lokalnie, a synchronizacja następuje przy dostępności sieci.
-- **Bezpieczeństwo:** Rygorystyczne zasady RLS i brak przechowywania wrażliwych danych (hash PIN) na kliencie w sposób jawny.
+## 2. Struktura Kodu (`lib/`) i Konwencje
+### 2.1 Top-level
+- `core/`: infrastruktura aplikacji, router, auth state, serwisy, widgety wspolne.
+- `features/`: moduly domenowe M01-M08 + `dashboard`.
+- `features/shared/`: wspolne definicje formularzy, dynamic form renderer, shared repositories.
 
-## 2. Struktura Folderów (`lib/`)
+### 2.2 Konwencje warstwowe
+- `screens/`: prezentacja i interakcje.
+- `providers/`: stan i orkiestracja flow.
+- `repositories/`: dostep do danych i mapowanie bledow.
+- `models/`: DTO/domain models.
+- `config/`: slowniki i kontrakty definicyjne.
 
-Projekt podzielony jest na **Features** (funkcjonalności) i **Core** (wspólne utilities).
+### 2.3 Reguly implementacyjne
+1. Ekrany nie wywoluja Supabase bezposrednio.
+2. Reuzywalne logiki cross-feature trafiaja do `core` lub `shared`.
+3. Zmiany kontraktow danych sa prowadzone przez migracje i repository contract updates.
 
-```
-lib/
-├── core/                  # Fundamenty aplikacji
-│   ├── config/            # Env, stałe konfiguracyjne
-│   ├── constants/         # Design Tokens (kolory, wymiary)
-│   ├── router/            # GoRouter (nawigacja)
-│   ├── services/          # Serwisy (PDF, Drive, Storage)
-│   ├── theme/             # Motyw Fluttera (Dark Theme)
-│   └── widgets/           # Globalne widgety (TopBar, Tile)
-│
-├── features/              # Moduły biznesowe (M01, M02, ...)
-│   ├── m01_auth/          # Logowanie (PIN Pad)
-│   ├── m02_monitoring/    # IoT (Dashboard temperatur)
-│   ├── m03_gmp/           # Procesy produkcyjne (Formularze)
-│   ├── m04_ghp/           # Higiena (Checklisty)
-│   ├── m05_waste/         # Odpady (Kamera)
-│   ├── m06_reports/       # Raportowanie (Generowanie PDF, Archiwum)
-│   ├── m07_hr/            # Kadry (Pracownicy, Sanepid)
-│   ├── m08_settings/      # Ustawienia (Lokal, Produkty)
-│   └── shared/            # Moduł Wspólny (Silnik Formularzy, Repozytoria Produktów)
-```
+## 3. Routing Runtime (Faktyczny Stan)
+Zrodlo prawdy: `lib/core/router/app_router.dart`.
 
-## 3. Architektura Systemu
+### 3.1 Trasy
+- `/`, `/login`, `/zone-select`, `/hub`
+- `/monitoring`, `/monitoring/alarms`, `/monitoring/chart/:deviceId`
+- `/gmp`, `/gmp/roasting`, `/gmp/cooling`, `/gmp/delivery`, `/gmp/history`
+- `/ghp`, `/ghp/checklist`, `/ghp/history`, `/ghp/chemicals`
+- `/waste`, `/waste/register`, `/waste/camera`, `/waste/history`
+- `/settings`, `/settings/products`
+- `/reports`, `/reports/preview/local`, `/reports/preview/ccp2`, `/reports/preview/ccp3`, `/reports/history`, `/reports/drive`
+- `/hr`, `/hr/list`, `/hr/add`, `/hr/employee/:id`
 
-Stosujemy architekturę **Layered Architecture** z **Riverpod** do zarządzania stanem.
+### 3.2 Guardy
+- Auth guard: niezalogowany user wraca na `/login`.
+- Anti-auth loop: zalogowany user nie zostaje na `/` lub `/login`.
+- Role guard: `/hr*` i `/settings*` tylko dla manager/owner.
 
-1. **Repository (`repositories/`)**:
-    - Jedyny punkt styku z Supabase.
-    - Odpowiada za CRUD i logikę biznesową danych.
-    - *Zasada:* Jedno repozytorium na domenę (np. `ProductsRepository`, `GmpRepository`).
+## 4. State Management (Riverpod): Provider Topology
+### 4.1 Global providers (`core/providers/auth_provider.dart`)
+- `currentUserProvider`: aktualny pracownik.
+- `currentZoneProvider`: aktualna strefa pracy.
+- `pinLoginProvider`: state machine logowania (idle/loading/success/error/locked).
+- `employeeZonesProvider`: lista stref przypisanych do pracownika.
 
-2. **Provider (`providers/`)**:
-    - Zarządza stanem aplikacji (`AsyncNotifier`, `FutureProvider`).
-    - Pośredniczy między UI a Repozytorium.
-    - Obsługuje cache'owanie i odświeżanie danych.
+### 4.2 Feature providers
+- M02: sensory, strumienie pomiarow, alarmy, akcje ACK/edycji/adnotacji.
+- M03/M04/M06/M07/M08: oddzielne provider scopes i notifiery na operacje domenowe.
+- Dashboard: dedykowany provider badge dla kart nawigacyjnych.
 
-3. **Screen/Widget**:
-    - Warstwa prezentacji.
-    - Nasłuchuje zmian w Providerach (`ref.watch`).
-    - Nie wykonuje bezpośrednich zapytań do bazy.
+### 4.3 Wzorzec aktualizacji
+- Provider wywoluje repository.
+- Po mutacji provider invaliduje tylko dotkniete read paths.
+- Komunikaty bledow sa mapowane do komunikatow domenowych wyzej niz warstwa UI atomow.
 
----
+## 5. Repository Contracts i Error Mapping
+| Modul | Repository | Kluczowe kontrakty |
+|:--|:--|:--|
+| M01 | `core/repositories/auth_repository.dart` | `loginWithPin`, `getZonesForEmployee`, `setKioskContext`, `clearKioskContext` |
+| M02 | `m02_monitoring/repositories/measurements_repository.dart` | sensory, historia, tabela 7d, alarm RPC, ACK RPC, edit RPC, annotations insert |
+| M03 | `m03_gmp/repositories/gmp_repository.dart` | insert/get history dla `category=gmp`, legacy form-id compatibility w historii |
+| M04 | `m04_ghp/repositories/ghp_repository.dart` | insert/get history dla `category=ghp`, kontrakt `data.execution_date` + `data.execution_time`, snapshot mapping `answers.selected_employee/selected_room` |
+| M05 | `m05_waste/repositories/waste_repository.dart` | insert i historia odpadow |
+| M06 | `m06_reports/repositories/reports_repository.dart` | query logow (w tym GHP), generacja datasetow raportow, upload/download storage, metadata upsert (`ghp_checklist_monthly`) |
+| M07 | `m07_hr/repositories/hr_repository.dart` | create/toggle/update pin/sanepid przez RPC + mapowanie kodow bledow M07 |
+| M08 | `m08_settings/repositories/venue_repository.dart` + `shared/repositories/products_repository.dart` | venue settings update + branding upload + produkty CRUD scoped by venue |
 
-## 4. Baza Danych (Supabase)
+Error mapping:
+- M07: `M07_PIN_DUPLICATE`, `M07_ZONE_REQUIRED`, `M07_ZONE_NOT_FOUND`, `M07_ZONE_MULTI_VENUE`, `M07_EMPLOYEE_NOT_FOUND`, `M07_PIN_REQUIRED`.
+- M08: kategorie `dbConstraint`, `dbRlsDeny`, `storageDenyOrNotFound`, `unknown` mapowane na komunikaty domenowe.
 
-System opiera się na relacyjnej bazie PostgreSQL. Poniżej aktualny schemat tabel.
+## 6. Moduly M01-M08: Logika Domenowa
+### M01 Auth
+- PIN hash po stronie klienta.
+- Login przez RPC i ustawienie session context.
+- Wybor strefy jako warunek poprawnego scope dalszych modulow.
 
-### 4.1 Główne Tabele
+### M02 Monitoring
+- Realtime stream po `temperature_logs` scoped do aktywnych sensorow.
+- Read model alarmow przez RPC `get_temperature_alarms`.
+- ACK i edit temperatur przez dedykowane RPC.
+- Edycja 7d wymusza invalidacje wielu read modeli.
 
-| Tabela | Opis | Kluczowe Kolumny |
-|:---|:---|:---|
-| **`venues`** | Lokale gastronomiczne | `id`, `name`, `address`, `nip`, `logo_url` |
-| **`employees`** | Pracownicy | `id`, `venue_id`, `full_name`, `pin_hash`, `role` (owner/manager/cook), `sanepid_expiry` |
-| **`zones`** | Strefy w lokalu (np. Kuchnia) | `id`, `venue_id`, `name` |
-| **`employee_zones`** | Przypisanie pracownika do strefy | `employee_id`, `zone_id` |
-| **`products`** | Produkty/Potrawy (Menu) | `id`, `venue_id` (nullable), `name`, `type` (cooling/roasting), `created_at` |
-| **`haccp_logs`** | Logi procesów (GMP/GHP) | `id`, `venue_id`, `form_id`, `data` (JSONB), `created_by`, `created_at` |
-| **`temperature_logs`** | Pomiary IoT | `id`, `sensor_id`, `temperature`, `timestamp` |
-| **`sensors`** | Urządzenia IoT | `id`, `zone_id`, `name`, `mac_address` |
-| **`waste_records`** | Rejestr odpadów | `id`, `venue_id`, `waste_type`, `mass_kg`, `photo_url` |
-| **`generated_reports`** | Archiwum PDF | `id`, `venue_id`, `report_type`, `generation_date`, `storage_path` |
+### M03 GMP
+- Formularze dynamiczne bazowane na definicjach z `shared/config`.
+- Zapis do unified `haccp_logs` (`category=gmp`).
+- Historia z kompatybilnoscia legacy form IDs.
 
-### 4.2 Kluczowe Relacje i Bezpieczeństwo (RLS)
+### M04 GHP
+- Checklists i chemikalia w tej samej tabeli logow (`haccp_logs`, `category=ghp`).
+- Kanoniczne `form_id` dla nowych zapisow: `ghp_personnel`, `ghp_rooms`, `ghp_maintenance`, `ghp_chemicals`.
+- Kontrakt payload GHP: `data.execution_date`, `data.execution_time`, `data.answers`, `data.notes?`.
+- Checklista personelu korzysta z dynamicznego dropdown `source=employees_table` (M07).
+- Checklista pomieszczen korzysta z dynamicznego dropdown `source=products_table,type=rooms` (M08).
+- Provider M04 mapuje wybor referencji do snapshotow `{id,name}` przed zapisem logu.
+- Odczyt i zapis scoped po `zone_id`.
+- Historia GHP wspiera filtracje (data/kategoria) i widok szczegolow wpisu.
+- Lista chemii korzysta ze zrodla konfiguracyjnego (`shared/config/checklist_definitions.dart`), bez hardcoded mock w ekranie.
 
-- **Multi-tenancy:** Większość tabel posiada kolumnę `venue_id`. RLS zapewnia, że pracownik widzi dane tylko ze swojego lokalu.
-- **Produkty:** Tabela `products` obsługuje produkty globalne (`venue_id` IS NULL) dostępne dla wszystkich oraz lokalne (`venue_id` = X) widoczne tylko w danym lokalu.
-- **Logowanie:** Wykorzystuje mechanizm **RPC** (`login_with_pin`) do bezpiecznej weryfikacji hasha PIN po stronie serwera, omijając ograniczenia RLS dla użytkownika anonimowego.
+### M05 Waste
+- Rejestracja odpadown + foto flow.
+- Historia i panel operuja na `waste_records`.
 
----
+### M06 Reports
+- Raporty CCP1/CCP2/CCP3 i waste z miesiecznym lifecycle; kontrakt gotowy pod GHP monthly.
+- Archiwizacja: upload do storage + upsert metadata w `generated_reports`.
+- Kontrakt metadanych GHP: `report_type=ghp_checklist_monthly`, `template_version=ghp_pdf_v1`, `source_form_id=ghp_all`.
+- Fallback download path i obsluga force regenerate dla preview.
+- Archiwum raportow udostepnia akcje podgladu/pobrania dla wpisow GHP i pozostalych typow.
 
-## 5. Opis Modułów
+### M07 HR
+- Zarzadzanie personelem tylko manager/owner.
+- Krytyczne operacje przez RPC.
+- Wydzielona klasyfikacja alertow dat sanepidu.
 
-### M01: Autoryzacja
+### M08 Settings
+- `GlobalSettingsScreen`: venue profile + walidacje + logo upload.
+- `ManageProductsScreen`: CRUD produktow z kontekstem venue (`cooling`, `roasting`, `general`, `rooms`).
+- Brak fallbackowych danych maskujacych problemy runtime.
 
-- **Ekran:** `PinPadScreen`.
-- **Logika:** Weryfikacja PIN -> Pobranie Profilu Pracownika -> Pobranie Stref.
-- **Bezpieczeństwo:** Blokada czasowa po 5 nieudanych próbach (Brute-force protection).
+## 7. Integracje Aplikacyjne (PDF, Storage, Drive)
+### PDF
+- `core/services/pdf_service.dart` generuje raporty tabelaryczne i formularzowe.
+- M06 orchestruje pipeline dataset -> PDF bytes -> preview/upload.
 
-### M02: Monitoring IoT
+### Storage
+- Raporty: bucket `reports`.
+- Branding (logo): bucket `branding`.
+- Odpady (zdjecia): bucket `waste-docs`.
 
-- **Cel:** Podgląd temperatur w czasie rzeczywistym.
-- **Logika:** Subskrypcja `Supabase Realtime` na tabelę `temperature_logs`.
-- **Alerty:** Lokalne wykrywanie przekroczeń progów (zdefiniowanych w ustawieniach). Kafelki zmieniają kolor (Zielony/Pomarańczowy/Czerwony).
+### Drive
+- `core/services/drive_service.dart` obsluguje upload raportow jako funkcje opcjonalna.
 
-### M03: Procesy GMP (Formularze Dynamiczne)
+## 8. Testability Map
+| Poziom | Lokalizacja | Zakres |
+|:--|:--|:--|
+| Unit | `test/features/**` | reguly domenowe, mapowania, kontrakty requestow |
+| Widget | `test/features/**` | zachowania ekranow, stany i interakcje |
+| Integration/contract | `test/db_consistency_test.dart`, repo tests | spojnosc danych i kontrakty repozytorium |
+| SQL smoke | `supabase/*_smoke_tests.sql` | walidacja kontraktow DB po migracjach |
 
-- **Cel:** Rejestracja procesów (Chłodzenie, Obróbka, Dostawy).
-- **Silnik:** `DynamicFormRenderer` generuje UI na podstawie definicji JSON (`FormDefinition`).
-- **Produkty:** Pola typu "produkt" pobierają listę z `ProductsRepository` (tabela `products`), uwzględniając menu lokalu.
-- **Zapis:** Dane trafiają do `haccp_logs` jako JSONB.
-- **Integracja:** Historia GMP (`GmpHistoryScreen`) umożliwia podgląd wygenerowanego raportu PDF (`PdfPreviewScreen`).
+M04/M06 coverage po wdrozeniu GHP:
+- unit: normalizacja payload GHP, mapowanie GHP rows, fallback route dla archiwum,
+- provider/integration: generacja i archiwizacja raportu GHP + scenariusze bledow storage/metadata,
+- widget: checklista GHP (wymagane pola wykonania), historia + detal, archiwum podglad/pobranie.
 
-### M04: Higiena GHP
+Minimalny scope regresji przy zmianie kontraktu:
+1. tests modułu dotknietego.
+2. tests raportowania jesli zmiana dotyka logow/storage.
+3. smoke SQL jesli zmiana dotyka RLS/RPC.
 
-- **Cel:** Listy kontrolne (Sprzątanie, Higiena osobista).
-- **UI:** Interfejs oparty na dużych przyciskach TAK/NIE (`HaccpToggle`).
-- **Logika:** Zapis do `haccp_logs` z `category='ghp'`.
+## 9. Operational Notes dla Dewelopera
+1. Zrodla prawdy:
+- runtime routes: `lib/core/router/app_router.dart`
+- provider topology: `lib/core/providers`, `lib/features/*/providers`
+- kontrakty DB: `supabase.md` + `supabase/migrations/*`
 
-### M05: Odpady (Waste)
+2. Lokalne ograniczenia:
+- Czesci testow PDF moze miec ograniczenia srodowiska renderera.
+- Debug logs raportow sa kontrolowane flaga `HACCP_REPORTS_DEBUG`.
 
-- **Cel:** Rejestracja utylizacji żywności.
-- **Kamera:** Własna implementacja `HaccpCameraScreen` (duży spust migawki, brak UI systemowego).
-- **Storage:** Zdjęcia są kompresowane i wysyłane do bucketu `waste-docs`. URL zapisywany w bazie.
+3. Rekomendowany workflow przy zmianach:
+- Aktualizacja kodu -> testy modulu -> aktualizacja odpowiedniego dokumentu warstwy.
+- Bez dopisywania SQL/UI detali do `Code_description.MD`.
 
-### M06: Raportowanie (Reports)
+## 10. Local Toolchain (Windows)
+- Flutter SDK path: `C:\scr\flutter\bin`
+- Preferred command form: `C:\scr\flutter\bin\flutter.bat <args>`
 
-- **Generowanie:**
-  - **CCP-3 (Chłodzenie):** Pobiera logi z `haccp_logs` (agregacja dzienna), generuje PDF (pixel-perfect z oryginałem). Obsługuje limity (20°C/2h, 30°C krytyczne) i kolorowanie niezgodności.
-  - **Temperatury:** Agregacja pomiarów (Min/Max/Avg) -> HTML -> PDF.
-- **Persistence (Trwałość):**
-  - Każdy wygenerowany raport jest automatycznie:
-        1. Wysyłany do Supabase Storage (`reports/`).
-        2. Rejestrowany w tabeli `generated_reports` (metadata).
-- **Historia:** Ekran "Archiwum" (`SavedReportsScreen`) pozwala przeglądać i pobierać wcześniejsze raporty.
-- **Podgląd:**
-  - `Ccp3PreviewScreen` wyświetla PDF z pamięci (`SfPdfViewer.memory`).
-  - Posiada fallback do pobierania pliku (`file_opener_web`) w razie problemów z renderowaniem w przeglądarce.
-
-### M07: Kadry (HR)
-
-- **Dostęp:** Tylko dla `manager` / `owner`.
-- **Funkcje:** Zarządzanie pracownikami, przypisywanie stref, monitoring dat ważności badań Sanepid.
-
-### M08: Ustawienia (Settings)
-
-- **Konfiguracja Lokalu:** Nazwa, Adres, NIP, Logo (upload).
-- **Zarządzanie Produktami:** CRUD dla tabeli `products`. Umożliwia dodawanie własnych pozycji do list wyboru w formularzach GMP.
-- **Konfiguracja IoT:** Interwały pomiarowe, progi alarmowe.
-
----
-
-## 6. Serwisy Zewnętrzne i Integracje
-
-1. **PDF Service (`PdfService`)**:
-    - Generuje dokumenty PDF (Syncfusion).
-    - Obsługuje tabele, nagłówki z logo lokalu, łączenie komórek.
-
-2. **Supabase Storage**:
-    - Buckety: `waste-docs` (zdjęcia odpadów), `reports` (archiwalne PDF), `branding` (logo lokali).
-
-3. **Google Drive Integration**:
-    - Opcjonalny eksport raportów na dysk Google (Service Account).
-
----
-
-## 7. Wdrażanie (Build & Deploy)
-
-Aplikacja jest budowana jako **Flutter Web** (PWA).
-
-- **Komenda:** `flutter build web --release --no-tree-shake-icons`.
-- **Hosting:** Vercel (automatyczny deploy z GitHub).
-- **Konfiguracja:** Zmienne środowiskowe (Supabase URL/Key) są wstrzykiwane podczas builda (`--dart-define`).

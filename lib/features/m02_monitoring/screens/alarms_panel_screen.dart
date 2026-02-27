@@ -1,28 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/widgets/haccp_top_bar.dart';
-import '../../../../core/widgets/empty_state_widget.dart';
-import '../../../../core/constants/design_tokens.dart';
-import '../../../../core/providers/auth_provider.dart';
-import '../providers/monitoring_provider.dart';
-import '../models/temperature_log.dart';
+import 'package:haccp_pilot/core/constants/design_tokens.dart';
+import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/core/widgets/empty_state_widget.dart';
+import 'package:haccp_pilot/core/widgets/haccp_long_press_button.dart';
+import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
+import 'package:haccp_pilot/features/m02_monitoring/models/alarm_list_item.dart';
+import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
 
-class AlarmsPanelScreen extends ConsumerWidget {
+class AlarmsPanelScreen extends ConsumerStatefulWidget {
   const AlarmsPanelScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlarmsPanelScreen> createState() => _AlarmsPanelScreenState();
+}
+
+class _AlarmsPanelScreenState extends ConsumerState<AlarmsPanelScreen> {
+  final Set<String> _pendingAcks = <String>{};
+
+  Future<void> _acknowledge(String logId) async {
+    if (_pendingAcks.contains(logId)) {
+      return;
+    }
+
+    setState(() {
+      _pendingAcks.add(logId);
+    });
+
+    try {
+      await ref.read(alarmActionProvider.notifier).acknowledge(logId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alarm potwierdzony')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Blad potwierdzenia alarmu: $error')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _pendingAcks.remove(logId);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final zone = ref.watch(currentZoneProvider);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: HaccpTopBar(
-          title: 'Alarmy Temperatur',
-          actions: [
-            // Potentially filters
-          ],
+          title: 'Alarmy',
+          onBackPressed: () => context.pop(),
         ),
         body: Column(
           children: [
@@ -31,17 +66,26 @@ class AlarmsPanelScreen extends ConsumerWidget {
               labelColor: HaccpDesignTokens.primary,
               unselectedLabelColor: Colors.white60,
               tabs: [
-                Tab(text: "AKTYWNE"),
-                Tab(text: "HISTORIA"),
+                Tab(text: 'AKTYWNE'),
+                Tab(text: 'HISTORIA'),
               ],
             ),
             Expanded(
               child: zone == null
-                  ? const Center(child: Text("Brak wybranej strefy"))
+                  ? const Center(child: Text('Brak wybranej strefy'))
                   : TabBarView(
                       children: [
-                        _AlarmsList(zoneId: zone.id, isActive: true),
-                        _AlarmsList(zoneId: zone.id, isActive: false),
+                        _AlarmsList(
+                          zoneId: zone.id,
+                          isActive: true,
+                          pendingAcks: _pendingAcks,
+                          onAcknowledge: _acknowledge,
+                        ),
+                        _AlarmsList(
+                          zoneId: zone.id,
+                          isActive: false,
+                          pendingAcks: _pendingAcks,
+                        ),
                       ],
                     ),
             ),
@@ -55,103 +99,232 @@ class AlarmsPanelScreen extends ConsumerWidget {
 class _AlarmsList extends ConsumerWidget {
   final String zoneId;
   final bool isActive;
+  final Set<String> pendingAcks;
+  final Future<void> Function(String logId)? onAcknowledge;
 
-  const _AlarmsList({required this.zoneId, required this.isActive});
+  const _AlarmsList({
+    required this.zoneId,
+    required this.isActive,
+    required this.pendingAcks,
+    this.onAcknowledge,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alarmsAsync = ref.watch(alarmsProvider(zoneId, activeOnly: isActive));
-    final sensorsAsync = ref.watch(activeSensorsProvider(zoneId));
 
     return alarmsAsync.when(
       data: (alarms) {
-        return sensorsAsync.when(
-          data: (sensors) {
-             if (alarms.isEmpty) {
-              return HaccpEmptyState(
-                headline: isActive ? "Brak aktywnych alarmów" : "Brak historii alarmów",
-                subtext: isActive ? "Wszystkie parametry w normie." : "",
-                icon: isActive ? Icons.check_circle_outline : Icons.history,
-              );
-            }
+        if (alarms.isEmpty) {
+          return HaccpEmptyState(
+            headline: isActive
+                ? 'Brak aktywnych alarmow'
+                : 'Brak historii alarmow',
+            subtext: isActive ? 'Wszystkie parametry sa w normie.' : '',
+            icon: isActive ? Icons.check_circle_outline : Icons.history,
+          );
+        }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: alarms.length,
-              itemBuilder: (context, index) {
-                final log = alarms[index];
-                final sensor = sensors.where((s) => s.id == log.sensorId).firstOrNull;
-                final sensorName = sensor?.name ?? 'Sensor ${log.sensorId.substring(0, 4)}...';
-                
-                return _AlarmCard(log: log, isActive: isActive, sensorName: sensorName);
-              },
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: alarms.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final alarm = alarms[index];
+            final isAckPending = pendingAcks.contains(alarm.logId);
+
+            return _AlarmCard(
+              alarm: alarm,
+              isActive: isActive,
+              isAckPending: isAckPending,
+              onAcknowledge: isActive && onAcknowledge != null
+                  ? () => onAcknowledge!(alarm.logId)
+                  : null,
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(child: Text('Błąd sensorów: $e')),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Błąd: $err')),
+      error: (error, _) => Center(child: Text('Blad alarmow: $error')),
     );
   }
 }
 
-class _AlarmCard extends ConsumerWidget {
-  final TemperatureLog log;
+class _AlarmCard extends StatelessWidget {
+  final AlarmListItem alarm;
   final bool isActive;
-  final String sensorName;
+  final bool isAckPending;
+  final VoidCallback? onAcknowledge;
 
-  const _AlarmCard({required this.log, required this.isActive, required this.sensorName});
+  const _AlarmCard({
+    required this.alarm,
+    required this.isActive,
+    required this.isAckPending,
+    this.onAcknowledge,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final recordedAtText = DateFormat('HH:mm').format(alarm.startedAt);
+    final lastSeenText = DateFormat('yyyy-MM-dd HH:mm').format(alarm.lastSeenAt);
+    final temperatureColor = isActive ? HaccpDesignTokens.error : Colors.white;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isActive ? HaccpDesignTokens.error : Colors.white12,
+          color: isActive ? HaccpDesignTokens.error : Colors.white24,
           width: 1,
         ),
-        borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isActive ? HaccpDesignTokens.error.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
-          child: Icon(
-            Icons.warning_amber_rounded,
-            color: isActive ? HaccpDesignTokens.error : Colors.grey,
-          ),
-        ),
-        title: Text(
-          "${log.temperature.toStringAsFixed(1)}°C - $sensorName", 
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(DateFormat('yyyy-MM-dd HH:mm').format(log.recordedAt)),
-            if (!isActive)
-              Text("Potwierdzone", style: TextStyle(color: Colors.green.shade300, fontSize: 12)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alarm.sensorName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Od: $recordedAtText (${_formatDuration(alarm.durationMinutes)})',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Ostatni odczyt: $lastSeenText',
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${alarm.temperature.toStringAsFixed(1)}°C',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: temperatureColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isActive)
+              IgnorePointer(
+                ignoring: isAckPending,
+                child: Opacity(
+                  opacity: isAckPending ? 0.6 : 1,
+                  child: HaccpLongPressButton(
+                    label: isAckPending
+                        ? 'Przetwarzanie...'
+                        : 'Przyjalem do wiadomosci',
+                    color: HaccpDesignTokens.error,
+                    onCompleted: onAcknowledge ?? () {},
+                  ),
+                ),
+              )
+            else
+              _HistoryMeta(alarm: alarm),
           ],
         ),
-        trailing: isActive
-            ? ElevatedButton(
-                onPressed: () {},
-                onLongPress: () {
-                   ref.read(alarmActionProvider.notifier).acknowledge(log.id);
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text('Alarm potwierdzony')),
-                   );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: HaccpDesignTokens.error,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text("Przytrzymaj"),
-              )
-            : const Icon(Icons.check, color: Colors.green),
       ),
     );
   }
+}
+
+class _HistoryMeta extends StatelessWidget {
+  final AlarmListItem alarm;
+
+  const _HistoryMeta({required this.alarm});
+
+  @override
+  Widget build(BuildContext context) {
+    final acknowledgedText = alarm.acknowledgedAt == null
+        ? 'Potwierdzono'
+        : 'Potwierdzono: ${DateFormat('yyyy-MM-dd HH:mm').format(alarm.acknowledgedAt!)}';
+
+    final acknowledgedBy = alarm.acknowledgedBy == null
+        ? null
+        : 'Przez: ${_shortId(alarm.acknowledgedBy!)}';
+
+    return Wrap(
+      runSpacing: 4,
+      spacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.green.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.check_circle, size: 16, color: Colors.green),
+              SizedBox(width: 6),
+              Text(
+                'Potwierdzono',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          acknowledgedText,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        if (acknowledgedBy != null)
+          Text(
+            acknowledgedBy,
+            style: const TextStyle(color: Colors.white54),
+          ),
+      ],
+    );
+  }
+
+  static String _shortId(String id) {
+    if (id.length <= 8) return id;
+    return '${id.substring(0, 8)}...';
+  }
+}
+
+String _formatDuration(int minutes) {
+  if (minutes <= 0) {
+    return '0 min';
+  }
+
+  final hours = minutes ~/ 60;
+  final remainingMinutes = minutes % 60;
+
+  if (hours == 0) {
+    return '$remainingMinutes min';
+  }
+  if (remainingMinutes == 0) {
+    return '${hours}h';
+  }
+
+  return '${hours}h ${remainingMinutes} min';
 }

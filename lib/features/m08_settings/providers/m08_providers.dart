@@ -19,7 +19,7 @@ class VenueSettingsController extends _$VenueSettingsController {
 
   Future<void> updateSettings({
     required String name,
-    required String nip,
+    required String? nip,
     required String address,
     String? logoUrl,
     int? tempInterval,
@@ -41,7 +41,7 @@ class VenueSettingsController extends _$VenueSettingsController {
     });
   }
 
-  Future<String?> uploadLogoBytes(Uint8List bytes, String extension) async {
+  Future<String> uploadLogoBytes(Uint8List bytes, String extension) async {
     final repository = ref.read(venueRepositoryProvider);
     return await repository.uploadLogoBytes(bytes, venueId, extension);
   }

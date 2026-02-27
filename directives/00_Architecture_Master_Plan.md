@@ -1,479 +1,310 @@
-# 00 — Architecture Master Plan: HACCP Pilot v03-00
+﻿# 00 - Architecture Master Plan (Source of Truth)
+## Kiedy Dolaczac Ten Plik Do Konwersacji
+- Gdy ustalasz kierunek architektury i scope prac.
+- Gdy potrzebujesz mapy zaleznosci miedzy modulami.
+- Gdy analizujesz ryzyka, trade-offy i niefunkcjonalne wymagania.
+- Gdy chcesz zweryfikowac routing na poziomie architektury.
+- Nie dolaczaj do pytan o szczegoly SQL lub pixel-level UI.
 
-> **Autor:** Lead System Architect (AI)
-> **Data:** 2026-02-15
-> **Status:** ACTIVE — Po wdrożeniu M06 (Raporty)
-> **Deadline:** 2 tygodnie (do 2026-02-27)
-> **Źródła:** [Code_description.MD](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/Code_description.MD), [UI_description.md](file:///c:/Users/HP/OneDrive - flowsforge.com/Projekty/HACCP Mięso i Piana/Up to date/UI_description.md)
+## 1. Cel i Zakres Architektury
+Ten dokument jest glownym Source of Truth dla architektury HACCP Pilot.
 
----
+Zakres:
+- Big picture systemu i granice domen.
+- Zaleznosci miedzy modulami i warstwami.
+- Decyzje architektoniczne i trade-offy.
+- Niefunkcjonalne wymagania.
 
-## 1. Decyzja Architektoniczna: Struktura Katalogów `lib/`
+Poza zakresem:
+- Szczegoly implementacji kodu, sygnatury metod, szczegoly testow.
+- SQL DDL/DML, szczegoly polityk RLS i definicje RPC.
+- Szczegolowe layouty UI i stany ekranow.
 
-Stosujemy **Feature-First Architecture** z wyodrębnionym rdzeniem (`core/`). Każdy moduł M01–M09 jest autonomiczną domeną. Warstwa `core/` zawiera współdzieloną logikę, serwisy, widgety i konfigurację.
+## 2. Kontekst Systemu i Bounded Contexts
+Aplikacja jest systemem kioskowym opartym o Flutter + Supabase. Konteksty biznesowe:
 
-```
+| Kontekst | Moduly | Odpowiedzialnosc |
+|:--|:--|:--|
+| Access & Session | M01 + core auth | PIN login, kontekst kiosku (uzytkownik/strefa), guardy roli |
+| Monitoring | M02 | Odczyty temperatur, alarmy, adnotacje, edycja ograniczona regułami |
+| HACCP Operations | M03 + M04 + M05 | GMP, GHP, odpady, rejestracje operacyjne |
+| Reporting | M06 | Generacja preview/PDF, archiwum raportow |
+| Workforce | M07 | Kadry, statusy pracownikow, zarzadzanie PIN i danymi personelu |
+| Venue Configuration | M08 | Ustawienia lokalu, branding, produkty |
+| Shared Platform | shared + core | Routing, providers, komponenty wspolne, uslugi techniczne |
+
+## 3. Warstwy i Przeplywy Miedzy Warstwami
+Model warstwowy (feature-first, clean-lite):
+
+1. Presentation
+2. State
+3. Data Access
+4. Infra
+
+Przeplyw standardowy:
+- `Screen/Widget -> Provider/Notifier -> Repository -> SupabaseService -> Supabase`
+
+Reguly:
+- Brak bezposrednich wywolan Supabase z warstwy ekranow.
+- Feature boundaries: modul ma wlasne repo/provider/screen, a cross-cutting trafia do `core` albo `shared`.
+- Error propagation: mapowanie bledow na poziomie repository/provider, nie w komponentach niskopoziomowych UI.
+
+## 4. Mapa Modulow i Zaleznosci Miedzy Modulami
+Stabilne zaleznosci:
+
+- `core` jest zaleznoscia dla wszystkich modulow.
+- `shared` dostarcza silnik dynamicznych formularzy i wspolne repozytoria/definicje.
+- `dashboard` agreguje badge i nawiguje do M02-M08.
+- M06 konsumuje dane operacyjne z M02/M03/M05 do raportowania.
+- M06 konsumuje rowniez dane M04 (`haccp_logs`, `category=ghp`) do miesiecznego raportu GHP i archiwizacji.
+- M08 dostarcza konfiguracje runtime (branding/produkty/parametry lokalu) wykorzystywana przez inne moduly.
+- M04 konsumuje dane referencyjne cross-module: pracownicy z M07 oraz slownik pomieszczen z M08.
+
+Zaleznosci, ktorych unikamy:
+- Bezposrednie wywolania miedzy ekranami modulow.
+- Kopiowanie logiki domenowej miedzy modulami zamiast reuse przez shared/core.
+
+## 5. Globalne Decyzje Architektoniczne (Zamrozone)
+1. Feature-first jako glowna organizacja kodu.
+2. Riverpod jako jednolity model stanu.
+3. GoRouter jako centralny routing i guard layer.
+4. Multi-tenant scope przez kontekst kiosku + RLS po stronie danych.
+5. Kiosk UX constraints: glove-friendly, minimal keyboard usage, czytelne stany krytyczne.
+6. Archiwizacja raportow: storage + metadata table jako kontrakt trwalosci.
+
+## 6. Mapa Routingu na Poziomie Architektury
+Routing podzielony domenowo:
+
+- Access:
+  - `/`, `/login`, `/zone-select`
+- Hub:
+  - `/hub`
+- Monitoring:
+  - `/monitoring`, `/monitoring/alarms`, `/monitoring/chart/:deviceId`
+- GMP:
+  - `/gmp`, `/gmp/roasting`, `/gmp/cooling`, `/gmp/delivery`, `/gmp/history`
+- GHP:
+  - `/ghp`, `/ghp/checklist`, `/ghp/history`, `/ghp/chemicals`
+- Waste:
+  - `/waste`, `/waste/register`, `/waste/camera`, `/waste/history`
+- Reports:
+  - `/reports`, `/reports/preview/local`, `/reports/preview/ccp2`, `/reports/preview/ccp3`, `/reports/history`, `/reports/drive`
+- HR:
+  - `/hr`, `/hr/list`, `/hr/add`, `/hr/employee/:id`
+- Settings:
+  - `/settings`, `/settings/products`
+
+Guardy architektoniczne:
+- Niezalogowany nie wchodzi do tras aplikacyjnych.
+- Uzytkownik zalogowany nie wraca na trasy logowania.
+- Trasy HR/Settings tylko dla manager/owner.
+
+## 7. Niefunkcjonalne Wymagania
+Security:
+- Tenant isolation i role-based access.
+- Brak przechowywania surowych PIN po stronie klienta.
+- Krytyczne akcje domenowe przez kontrolowane kontrakty backendowe.
+
+Offline/Resilience:
+- Czytelny stan offline i degradacja funkcji zaleznych od sieci.
+- Brak ukrytego fallbacku maskujacego bledy krytyczne.
+
+Performance:
+- Selektywne odswiezanie stanu (Riverpod granularity).
+- Query scoping i indeksowanie po stronie danych.
+- Ograniczanie kosztu renderu dla ekranow listowych/raportowych.
+
+Maintainability:
+- Jednoznaczny podzial odpowiedzialnosci dokumentow i kodu.
+- Kontrakty miedzy warstwami utrzymywane przez testy.
+
+## 8. Ryzyka i Trade-offs
+| Obszar | Ryzyko | Trade-off | Mitigacja |
+|:--|:--|:--|:--|
+| Sessionless kiosk auth | Rozjazd sesji i scope danych | Prostszy flow logowania vs wyzsza wrazliwosc na konfiguracje auth | Guardrails na poziomie RPC + RLS + runbook incydentowy |
+| Dynamic forms | Roznica miedzy definicja a implementacja raportow | Szybkosc rozwoju vs zlozonosc kontraktow | Versioning definicji i testy kontraktowe |
+| Reporting persistence | Rozjazd storage i metadata | Elastycznosc archiwizacji vs koniecznosc spojnosc i rollback | Upsert contract + walidacje post-migration |
+| Scope dokumentacji | Dryf miedzy warstwami | Wysoka szczegolowosc vs czytelnosc i modularnosc | Scope lint i ownership per plik |
+
+## 9. Do Weryfikacji / Legacy
+Sekcja celowo zachowuje dane o niepewnym statusie. Nie sa one usuwane, dopoki nie zostana potwierdzone.
+
+1. Dawne nazwy encji/tabel uzywane historycznie w dokumentacji:
+- `profiles` vs `employees`
+- `measurements/devices` vs `temperature_logs/sensors`
+
+2. Historyczne zalozenia architektoniczne do potwierdzenia:
+- Wczesniejszy opis nested navigation przez `ShellRoute` (obecnie routing jest flat i jawny).
+- Starsze opisy komponentow/plikow, np. `settings_repository.dart` (aktualnie `venue_repository.dart`).
+
+3. Historyczne dane sprintowe i wyniki testow:
+- Szczegolowe logi wdrozen i wyniki `xx passed` zostaly celowo usuniete z glownej narracji.
+- W razie potrzeby audytu nalezy je czerpac z historii git, runbookow i artefaktow `directives/`.
+
+4. Legacy kontrakty raportowe/form_id:
+- Obsluga wpisow legacy typu `meat_roasting_daily` w nawigacji i raportowaniu pozostaje w kodzie.
+- Docelowa decyzja o pelnej deprecjacji wymaga osobnego ticketu migracyjnego.
+
+## 10. Zweryfikowany Snapshot Implementacyjny (2026-02-27)
+Poniższy snapshot został zweryfikowany względem aktualnego stanu repo i jest kanoniczny na dzień 2026-02-27.
+
+### 10.1 Struktura `lib/` (aktualna)
+```text
 lib/
-├── main.dart                          # Entry point, Supabase.initialize()
-├── app.dart                           # MaterialApp.router, theme, GoRouter
-│
+├── main.dart
 ├── core/
-│   ├── config/
-│   │   └── env_config.dart            # Wrapper na flutter_dotenv
-│   ├── theme/
-│   │   └── app_theme.dart             # Material 3 theme, Glove-Friendly tokens
-│   ├── constants/
-│   │   └── design_tokens.dart         # Kolory, rozmiary, paddingi
+│   ├── config/env_config.dart
+│   ├── constants/design_tokens.dart
+│   ├── models/{employee.dart,zone.dart}
+│   ├── providers/{auth_provider.dart,connectivity_provider.dart}
+│   ├── repositories/auth_repository.dart
+│   ├── router/{app_router.dart,route_names.dart}
 │   ├── services/
-│   │   └── supabase_service.dart      # Singleton accessor do Supabase.instance.client
-│   ├── repositories/
-│   │   └── auth_repository.dart       # loginWithPin() — Directive 02
-│   ├── models/
-│   │   ├── employee.dart              # Employee (z tabeli employees)
-│   │   └── zone.dart                  # Zone (z tabeli zones)
-│   ├── providers/
-│   │   ├── auth_provider.dart         # Riverpod: stan zalogowanego usera + zona
-│   │   └── connectivity_provider.dart # Riverpod: stan sieci (online/offline)
-│   ├── router/
-│   │   ├── app_router.dart            # GoRouter config — centralny plik routingu
-│   │   └── route_names.dart           # Stałe nazwowe dla ścieżek
-│   └── widgets/                       # Moduł M09 — współdzielone komponenty
+│   │   ├── supabase_service.dart
+│   │   ├── pdf_service.dart
+│   │   ├── drive_service.dart
+│   │   ├── storage_service.dart
+│   │   ├── connectivity_service.dart
+│   │   └── file_opener_{web,stub}.dart (+ file_opener.dart)
+│   ├── theme/app_theme.dart
+│   └── widgets/
 │       ├── haccp_top_bar.dart
 │       ├── haccp_stepper.dart
-│       ├── haccp_toggle.dart
 │       ├── haccp_tile.dart
 │       ├── haccp_long_press_button.dart
 │       ├── haccp_time_picker.dart
 │       ├── haccp_date_picker.dart
 │       ├── haccp_num_pad.dart
-│       ├── success_overlay.dart       # Ekran 9.1
-│       ├── empty_state_widget.dart    # Ekran 9.2
-│       └── offline_banner.dart        # Ekran 9.3
-│
+│       ├── success_overlay.dart
+│       ├── empty_state_widget.dart
+│       └── offline_banner.dart
 ├── features/
-│   ├── m01_auth/
-│   │   ├── screens/
-│   │   │   ├── splash_screen.dart          # Ekran 1.1
-│   │   │   ├── pin_pad_screen.dart         # Ekran 1.2
-│   │   │   └── zone_selection_screen.dart  # Ekran 1.3
-│   │   └── providers/
-│   │       └── pin_pad_provider.dart       # Lokalny stan PIN Pad
-│   │
 │   ├── dashboard/
-│   │   └── screens/
-│   │       └── dashboard_hub_screen.dart   # Dashboard Hub
-│   │
+│   │   ├── screens/dashboard_hub_screen.dart
+│   │   └── providers/dashboard_badges_provider.dart
+│   ├── m01_auth/screens/{splash_screen.dart,pin_pad_screen.dart,zone_selection_screen.dart}
 │   ├── m02_monitoring/
-│   │   ├── screens/
-│   │   │   ├── temperature_dashboard_screen.dart  # Ekran 2.1
-│   │   │   ├── sensor_chart_screen.dart            # Ekran 2.2
-│   │   │   └── alarms_panel_screen.dart            # Ekran 2.3
-│   │   ├── repositories/
-│   │   │   └── measurements_repository.dart
-│   │   ├── models/
-│   │   │   └── measurement.dart
-│   │   └── providers/
-│   │       └── monitoring_provider.dart
-│   │
+│   │   ├── screens/{temperature_dashboard_screen.dart,sensor_chart_screen.dart,alarms_panel_screen.dart}
+│   │   ├── repositories/measurements_repository.dart
+│   │   ├── models/{sensor.dart,temperature_log.dart,alarm_list_item.dart}
+│   │   └── providers/monitoring_provider.dart
 │   ├── m03_gmp/
-│   │   ├── screens/
-│   │   │   ├── gmp_process_selector_screen.dart    # Ekran 3.1
-│   │   │   ├── meat_roasting_form_screen.dart      # Ekran 3.2
-│   │   │   ├── food_cooling_form_screen.dart       # Ekran 3.3
-│   │   │   ├── delivery_control_form_screen.dart   # Ekran 3.4
-│   │   │   └── gmp_history_screen.dart             # Ekran 3.5
-│   │   ├── repositories/
-│   │   │   └── gmp_repository.dart
-│   │   ├── models/
-│   │   │   └── gmp_log.dart
-│   │   └── providers/
-│   │       └── gmp_provider.dart
-│   │
+│   │   ├── screens/{gmp_process_selector_screen.dart,meat_roasting_form_screen.dart,food_cooling_form_screen.dart,delivery_control_form_screen.dart,gmp_history_screen.dart}
+│   │   ├── repositories/gmp_repository.dart
+│   │   ├── providers/gmp_provider.dart
+│   │   └── config/gmp_form_ids.dart
 │   ├── m04_ghp/
-│   │   ├── screens/
-│   │   │   ├── ghp_category_selector_screen.dart       # Ekran 4.1
-│   │   │   ├── ghp_personnel_checklist_screen.dart     # Ekran 4.2
-│   │   │   ├── ghp_rooms_checklist_screen.dart         # Ekran 4.3
-│   │   │   ├── ghp_maintenance_checklist_screen.dart   # Ekran 4.4
-│   │   │   ├── ghp_chemicals_registry_screen.dart      # Ekran 4.5
-│   │   │   └── ghp_history_screen.dart                 # Ekran 4.6
-│   │   ├── repositories/
-│   │   │   └── ghp_repository.dart
-│   │   ├── models/
-│   │   │   └── ghp_log.dart
-│   │   └── providers/
-│   │       └── ghp_provider.dart
-│   │
+│   │   ├── screens/{ghp_category_selector_screen.dart,ghp_checklist_screen.dart,ghp_chemicals_screen.dart,ghp_history_screen.dart}
+│   │   ├── repositories/ghp_repository.dart
+│   │   └── providers/ghp_provider.dart
 │   ├── m05_waste/
-│   │   ├── screens/
-│   │   │   ├── waste_panel_screen.dart                 # Ekran 5.1
-│   │   │   ├── waste_registration_form_screen.dart     # Ekran 5.2
-│   │   │   ├── waste_camera_screen.dart                # Ekran 5.3
-│   │   │   └── waste_history_screen.dart               # Ekran 5.4
-│   │   ├── repositories/
-│   │   │   └── waste_repository.dart
-│   │   ├── models/
-│   │   │   └── waste_record.dart
-│   │   └── providers/
-│   │       └── waste_provider.dart
-│   │
+│   │   ├── screens/{waste_panel_screen.dart,waste_registration_form_screen.dart,haccp_camera_screen.dart,waste_history_screen.dart}
+│   │   ├── repositories/waste_repository.dart
+│   │   └── models/waste_record.dart
 │   ├── m06_reports/
-│   │   ├── screens/
-│   │   │   ├── reports_panel_screen.dart    # Ekran 6.1
-│   │   │   ├── pdf_preview_screen.dart     # Ekran 6.2
-│   │   │   └── drive_status_screen.dart    # Ekran 6.3
-│   │   ├── repositories/
-│   │   │   └── reports_repository.dart
-│   │   └── providers/
-│   │       └── reports_provider.dart
-│   │
-│   ├── m07_hr/                     # [COMPLETED] Zarządzanie personelem
-│   │   ├── screens/
-│   │   │   ├── hr_dashboard_screen.dart        # Panel główny z alertami
-│   │   │   ├── employee_profile_screen.dart    # Edycja profilu + Sanepid
-│   │   │   ├── add_employee_screen.dart        # Dodawanie + Przypisywanie Stref
-│   │   │   └── employee_list_screen.dart       # Lista pracowników
-│   │   ├── repositories/
-│   │   │   └── hr_repository.dart              # Secure RPCs (Auth & Anon)
-│   │   ├── models/
-│   │   │   └── employee.dart
-│   │   └── providers/
-│   │       └── hr_provider.dart
-│   │
-│   └── m08_settings/
-│       ├── screens/
-│       │   └── global_settings_screen.dart     # Ekran 8.1
-│       ├── repositories/
-│       │   └── settings_repository.dart
-│       └── providers/
-│           └── settings_provider.dart
-│
-└── .env                               # SUPABASE_URL, SUPABASE_ANON_KEY
+│   │   ├── screens/{reports_panel_screen.dart,pdf_preview_screen.dart,ccp2_preview_screen.dart,ccp3_preview_screen.dart,saved_reports_screen.dart,drive_status_screen.dart}
+│   │   ├── repositories/reports_repository.dart
+│   │   ├── providers/reports_provider.dart
+│   │   ├── models/daily_temperature_stats.dart
+│   │   └── services/{html_report_generator.dart,temperature_aggregator_service.dart}
+│   ├── m07_hr/
+│   │   ├── screens/{hr_dashboard_screen.dart,employee_profile_screen.dart,add_employee_screen.dart,employee_list_screen.dart}
+│   │   ├── repositories/hr_repository.dart
+│   │   ├── providers/hr_provider.dart
+│   │   └── utils/hr_alerts_snapshot.dart
+│   ├── m08_settings/
+│   │   ├── screens/{global_settings_screen.dart,manage_products_screen.dart}
+│   │   ├── repositories/venue_repository.dart
+│   │   └── providers/m08_providers.dart
+│   └── shared/
+│       ├── config/{form_definitions.dart,checklist_definitions.dart}
+│       ├── models/form_definition.dart
+│       ├── providers/dynamic_form_provider.dart
+│       ├── repositories/products_repository.dart
+│       └── widgets/dynamic_form/*
+└── .env
 ```
 
-### Uzasadnienie
+### 10.2 Mapa Routingu (aktualna: 32 trasy)
+```text
+/                           -> SplashScreen
+/login                      -> PinPadScreen
+/zone-select                -> ZoneSelectionScreen
+/hub                        -> DashboardHubScreen
 
-| Decyzja | Dlaczego |
-|:--------|:---------|
-| Feature-First (nie Layer-First) | 9 modułów × 1–6 ekranów = 33 ekrany. Przy Layer-First (screens/, repositories/) pliki z różnych domen mieszałyby się. Feature-First zapewnia izolację — usunięcie M05 to usunięcie jednego folderu. |
-| `core/widgets/` dla M09 | Ekrany 9.1–9.3 to komponenty wielokrotnego użytku (overlay, widget), nie osobne strony. Trafiają do `core/`, bo korzysta z nich każdy moduł. |
-| `core/repositories/` tylko dla auth | Auth jest cross-cutting concern. Reszta repozytoriów żyje w swoich feature'ach, bo nie są współdzielone. |
+/monitoring                 -> TemperatureDashboardScreen
+/monitoring/alarms          -> AlarmsPanelScreen
+/monitoring/chart/:deviceId -> SensorChartScreen
 
----
+/gmp                        -> GmpProcessSelectorScreen
+/gmp/roasting               -> MeatRoastingFormScreen
+/gmp/cooling                -> FoodCoolingFormScreen
+/gmp/delivery               -> DeliveryControlFormScreen
+/gmp/history                -> GmpHistoryScreen
 
-## 2. Decyzja: State Management → **Riverpod** (flutter_riverpod + riverpod_annotation)
+/ghp                        -> GhpCategorySelectorScreen
+/ghp/checklist              -> GhpChecklistScreen
+/ghp/history                -> GhpHistoryScreen
+/ghp/chemicals              -> GhpChemicalsScreen
 
-### Analiza porównawcza
+/waste                      -> WastePanelScreen
+/waste/register             -> WasteRegistrationFormScreen
+/waste/camera               -> HaccpCameraScreen
+/waste/history              -> WasteHistoryScreen
 
-| Kryterium | Provider | Riverpod | **Werdykt** |
-|:----------|:---------|:---------|:------------|
-| Dependency Injection bez BuildContext | ❌ Wymaga kontekstu | ✅ Ref-based, testowalne | **Riverpod** |
-| Kiosk Mode (globalny stan usera) | Wymaga ProxyProvider/ChangeNotifier | `StateNotifierProvider` z auto-dispose | **Riverpod** |
-| Supabase Realtime (M02 streaming) | Trudna integracja ze StreamProvider | Natywny `StreamProvider` | **Riverpod** |
-| Compile-time safety | ❌ Runtime exceptions przy brakującym Provider | ✅ Compile-time z `riverpod_generator` | **Riverpod** |
-| Wiele modułów w izolacji | Ryzyko Provider Scope pollution | ProviderScope per feature, autodispose | **Riverpod** |
-| Krzywa nauki zespołu | Prosta | Umiarkowana | Provider |
-| Granularność — odświeżanie widgetów | Nasłuchuje cały ChangeNotifier | `ref.watch()` per provider, selektywne rebuildy | **Riverpod** |
+/settings                   -> GlobalSettingsScreen
+/settings/products          -> ManageProductsScreen
 
-### Werdykt: **Riverpod wygrał 6:1**
+/reports                    -> ReportsPanelScreen
+/reports/preview/local      -> PdfPreviewScreen
+/reports/preview/ccp3       -> Ccp3PreviewScreen
+/reports/preview/ccp2       -> Ccp2PreviewScreen
+/reports/history            -> SavedReportsScreen
+/reports/drive              -> DriveStatusScreen
 
-Kluczowe powody dla HACCP Pilot:
+/hr                         -> HrDashboardScreen
+/hr/list                    -> EmployeeListScreen
+/hr/add                     -> AddEmployeeScreen
+/hr/employee/:id            -> EmployeeProfileScreen
+```
 
-1. **Kiosk Mode** wymaga globalnego stanu `currentEmployee` i `currentZone` — Riverpod pozwala na `StateProvider` dostępny z każdego ekranu bez propagacji przez drzewo widgetów.
-2. **Supabase Realtime** (monitoring M02) to streamy — Riverpod ma natywny `StreamProvider`, który auto-disposuje subskrypcje przy opuszczeniu ekranu.
-3. **Role-based access** (M07/M08 tylko dla manager/owner) — `ref.watch(authProvider)` w `GoRouter redirect` daje czystą implementację guardów.
+### 10.3 Architektura Warstwowa (clean-lite)
+```text
+UI (Screens/Widgets)
+  -> State (Riverpod Notifier/Provider)
+    -> Data (Repositories)
+      -> Infra (SupabaseService / external services)
+```
 
-### Pakiety do zainstalowania
+### 10.4 Repository Contract (aktualny)
+| Modul | Repository | Glowny kontrakt danych |
+|:--|:--|:--|
+| M01 | `AuthRepository` | `employees`, `employee_zones`, `zones` + RPC auth/session |
+| M02 | `MeasurementsRepository` | `sensors`, `temperature_logs`, `annotations` + RPC alarm/edit/ack |
+| M03 | `GmpRepository` | `haccp_logs` (`category=gmp`) |
+| M04 | `GhpRepository` | `haccp_logs` (`category=ghp`, z polami wykonania w `data`) |
+| M05 | `WasteRepository` | `waste_records` |
+| M06 | `ReportsRepository` | `generated_reports`, `haccp_logs`, `temperature_logs`, `venues`, storage (w tym `ghp_checklist_monthly`) |
+| M07 | `HrRepository` | RPC HR + `public_employees`, `zones` |
+| M08 | `VenueRepository` + `ProductsRepository` | `venues`, `products`, branding storage |
 
+### 10.5 Kluczowe zaleznosci (pubspec.yaml, aktualne)
 ```yaml
 dependencies:
-  flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
-
-dev_dependencies:
-  riverpod_generator: ^2.6.3
-  build_runner: ^2.4.14
+  flutter_riverpod: ^3.2.1
+  riverpod_annotation: ^4.0.2
+  go_router: ^17.1.0
+  supabase_flutter: ^2.12.0
+  flutter_dotenv: ^6.0.0
+  google_fonts: ^8.0.1
+  connectivity_plus: ^7.0.0
+  crypto: ^3.0.7
+  fl_chart: ^1.1.1
+  syncfusion_flutter_pdfviewer: ^32.2.4
+  syncfusion_flutter_pdf: ^32.2.4
+  camera: ^0.11.3+1
+  image: ^4.7.2
+  riverpod_generator: ^4.0.3 # dev
+  build_runner: ^2.11.1      # dev
 ```
 
-### Architektura Providerów
-
-```
-┌─────────────────────────────────────────────────────┐
-│                  ProviderScope                       │
-│  (main.dart — opakowuje całą aplikację)              │
-│                                                     │
-│  ┌───────────────────────────────────────┐           │
-│  │  CORE PROVIDERS (globalny cykl życia) │           │
-│  │  • authProvider → Employee?           │           │
-│  │  • currentZoneProvider → Zone?        │           │
-│  │  • connectivityProvider → bool        │           │
-│  └───────────────────────────────────────┘           │
-│                                                     │
-│  ┌───────────────────────────────────────┐           │
-│  │  FEATURE PROVIDERS (autodispose)      │           │
-│  │  • monitoringProvider (M02)           │           │
-│  │  • gmpFormProvider (M03)              │           │
-│  │  • ghpChecklistProvider (M04)         │           │
-│  │  • wasteProvider (M05)               │           │
-│  │  • reportsProvider (M06)             │           │
-│  │  • hrProvider (M07)                  │           │
-│  │  • settingsProvider (M08)            │           │
-│  └───────────────────────────────────────┘           │
-└─────────────────────────────────────────────────────┘
-```
-
-> [!IMPORTANT]
-> **Zasada:** Core Providers (`authProvider`, `currentZoneProvider`) **NIE** używają `autoDispose`. Feature Providers **ZAWSZE** używają `autoDispose`, aby zwolnić zasoby po opuszczeniu modułu.
-
----
-
-## 3. Decyzja: Routing → **GoRouter** (go_router)
-
-### Uzasadnienie wyboru GoRouter
-
-| Powód | Szczegóły |
-|:------|:----------|
-| Deklaratywny routing | Mapowanie 33 ekranów na ścieżki URL (przyszłościowe — deep linking) |
-| Redirecty/Guards | `redirect` callback → sprawdzenie `authProvider` (czy user jest zalogowany) i `role` (guard na M07/M08) |
-| Nested navigation | ShellRoute dla Dashboard Hub z podstronami modułów |
-| Oficjalne wsparcie | Pakiet flutter.dev, aktywnie rozwijany |
-
-### Pakiet
-
-```yaml
-dependencies:
-  go_router: ^14.8.1
-```
-
-### Mapa Routingu — 33 Ekrany
-
-```
-/                           → SplashScreen (1.1) — auto-redirect po 2s
-/login                      → PinPadScreen (1.2)
-/zone-select                → ZoneSelectionScreen (1.3)
-
-/hub                        → DashboardHubScreen (Dashboard Hub)
-
-/monitoring                 → TemperatureDashboardScreen (2.1)
-/monitoring/chart/:deviceId → SensorChartScreen (2.2)
-/monitoring/alarms          → AlarmsPanelScreen (2.3)
-
-/gmp                        → GmpProcessSelectorScreen (3.1)
-/gmp/roasting               → MeatRoastingFormScreen (3.2)
-/gmp/cooling                → FoodCoolingFormScreen (3.3)
-/gmp/delivery               → DeliveryControlFormScreen (3.4)
-/gmp/history                → GmpHistoryScreen (3.5)
-
-/ghp                        → GhpCategorySelectorScreen (4.1)
-/ghp/personnel              → GhpPersonnelChecklistScreen (4.2)
-/ghp/rooms                  → GhpRoomsChecklistScreen (4.3)
-/ghp/maintenance            → GhpMaintenanceChecklistScreen (4.4)
-/ghp/chemicals              → GhpChemicalsRegistryScreen (4.5)
-/ghp/history                → GhpHistoryScreen (4.6)
-
-/waste                      → WastePanelScreen (5.1)
-/waste/register             → WasteRegistrationFormScreen (5.2)
-/waste/camera               → WasteCameraScreen (5.3)
-/waste/history              → WasteHistoryScreen (5.4)
-
-/reports                    → ReportsPanelScreen (6.1)
-/reports/preview/:reportId  → PdfPreviewScreen (6.2)
-/reports/drive              → DriveStatusScreen (6.3)
-
-/hr                         → HrDashboardScreen (7.1)
-/hr/employee/:employeeId    → EmployeeProfileScreen (7.2)
-/hr/add                     → AddEmployeeScreen (7.3)
-/hr/list                    → EmployeeListScreen (7.4)
-
-/settings                   → GlobalSettingsScreen (8.1)
-```
-
-> [!NOTE]
-> Ekrany 9.1–9.3 **nie mają ścieżek** — to overlay/widget, nie Route.
-
-### Strategia Guardów (redirect)
-
-```dart
-// Pseudokod — app_router.dart
-GoRouter(
-  initialLocation: '/',
-  redirect: (context, state) {
-    final employee = ref.read(authProvider);
-    final isLoggedIn = employee != null;
-    final isAuthRoute = state.matchedLocation == '/' 
-                     || state.matchedLocation == '/login';
-
-    // Guard 1: Niezalogowany → wymuś login
-    if (!isLoggedIn && !isAuthRoute) return '/login';
-
-    // Guard 2: Zalogowany na stronie logowania → do hub
-    if (isLoggedIn && isAuthRoute) return '/hub';
-
-    // Guard 3: Role-based (M07 HR, M08 Settings)
-    final isManagerRoute = state.matchedLocation.startsWith('/hr')
-                        || state.matchedLocation.startsWith('/settings');
-    if (isManagerRoute && employee?.role != 'manager' 
-                       && employee?.role != 'owner') {
-      return '/hub'; // Ciche przekierowanie
-    }
-
-    return null; // Brak przekierowania
-  },
-  routes: [ ... ]
-);
-```
-
-### Kluczowa decyzja: Flat Routes (nie ShellRoute)
-
-Odrzucam `ShellRoute` z `BottomNavigationBar` ponieważ:
-
-- Aplikacja działa na tabletach w trybie Kiosk — nawigacja opiera się o **Dashboard Hub** (centralny punkt powrotu), nie o dolną belkę nawigacji.
-- Każdy moduł to osobna „ścieżka" z przyciskiem Back → Hub. Prostota > złożoność.
-
----
-
-## 4. Kontrakty Integracyjne: Warstwa Supabase
-
-### 4.1 Architektura Warstwowa (Clean Architecture Lite)
-
-```
-┌──────────────────────────────────────────┐
-│            UI (Screens)                  │  ← Widgety, formularze
-│  ref.watch(provider)                     │
-├──────────────────────────────────────────┤
-│         STATE (Riverpod Providers)        │  ← Logika prezentacyjna
-│  StateNotifier / AsyncNotifier            │
-├──────────────────────────────────────────┤
-│         DATA (Repositories)               │  ← Logika dostępu do danych
-│  AuthRepository, GmpRepository, etc.      │
-├──────────────────────────────────────────┤
-│         INFRA (Supabase Client)           │  ← Singleton klient
-│  Supabase.instance.client                 │
-└──────────────────────────────────────────┘
-```
-
-### 4.2 Centralny Serwis Supabase
-
-**Plik:** `lib/core/services/supabase_service.dart`
-
-Cel: Jeden punkt dostępu do instancji Supabase. Repozytoria **nigdy** nie importują `supabase_flutter` bezpośrednio — zawsze przez ten serwis.
-
-```dart
-// Kontrakt (pseudokod)
-class SupabaseService {
-  static SupabaseClient get client => Supabase.instance.client;
-  
-  // Wygodne accessory
-  static GoTrueClient get auth => client.auth;
-  static SupabaseStorageClient get storage => client.storage;
-  static RealtimeClient get realtime => client.realtime;
-}
-```
-
-### 4.3 Wzorzec Repository — Kontrakt
-
-Każdy moduł posiada **jeden** Repository, który enkapsuluje wszystkie operacje na Supabase dla danej domeny.
-
-| Moduł | Repository | Tabele Supabase | Kluczowe metody |
-|:------|:-----------|:----------------|:----------------|
-| M01 | `AuthRepository` | `employees`, `employee_zones`, `zones` | `loginWithPin()`, `getZonesForEmployee()` |
-| M02 | `MeasurementsRepository` | `measurements`, `devices`, `temperature_logs` | `streamRealtime()`, `acknowledgeAlert()`, `getHistoricalData()` |
-| M03 | `GmpRepository` | `haccp_logs`, `products` | `insertLog()`, `getHistory()`, `getTodayCount()` |
-| M04 | `GhpRepository` | `haccp_logs` | `insertChecklist()`, `getHistory()` |
-| M05 | `WasteRepository` | `waste_records` + Storage | `insertRecord()`, `uploadPhoto()`, `getHistory()` |
-| M06 | `ReportsRepository` | `generated_reports`, `haccp_logs` + Drive API | `generatePdf()`, `syncToDrive()`, `getReportsList()` |
-| M07 | `HrRepository` | `employees` (profiles) | `getAlerts()`, `updateSanepid()`, `toggleActive()` |
-| M08 | `SettingsRepository` | `venues` | `getSettings()`, `updateSettings()` |
-
-### 4.4 Reguła Złota: Repository → Provider → Screen
-
-```
-Screen (UI)
-  └── ref.watch(gmpProvider)        // Riverpod Provider
-        └── GmpRepository.insertLog()  // Repository
-              └── SupabaseService.client.from('gmp_logs').insert(...)  // Supabase
-```
-
-> [!CAUTION]
-> **ZAKAZ:** Ekrany (`*_screen.dart`) **NIGDY** nie mogą wywoływać `Supabase.instance.client` bezpośrednio. Zawsze przez Repository → Provider. Złamanie tej zasady = Code Review Rejection.
-
----
-
-## 5. Kluczowe Zależności (pubspec.yaml) — Pełna Lista
-
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-
-  # Supabase
-  supabase_flutter: ^2.8.4
-  
-  # Env
-  flutter_dotenv: ^5.2.1
-  
-  # State Management
-  flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
-  
-  # Routing
-  go_router: ^14.8.1
-  
-  # Charts (M02)
-  fl_chart: ^0.70.2
-  
-  # PDF (M06)
-  syncfusion_flutter_pdfviewer: ^28.1.33  # lub flutter_pdfview
-  
-  # Camera (M05)
-  camera: ^0.11.0+2
-  image: ^4.5.3            # Kompresja zdjęć
-  
-  # Connectivity (M09 - offline banner)
-  connectivity_plus: ^6.1.3
-  
-  # Hashing (M01 - PIN)
-  crypto: ^3.0.6
-  
-  # Fonts
-  google_fonts: ^6.2.1
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  riverpod_generator: ^2.6.3
-  build_runner: ^2.4.14
-  flutter_lints: ^5.0.0
-```
-
----
-
-## 6. Plan Realizacji — Sprint Map (2 tygodnie)
-
-| Dzień | Sprint | Moduł | Zakres | Blokery |
-|:------|:-------|:------|:-------|:--------|
-| **1** | S0 | Setup | `flutter create`, pubspec, `.env`, theme, GoRouter skeleton, ProviderScope | Potrzebne klucze `SUPABASE_URL` i `SUPABASE_ANON_KEY` w `.env` |
-| **2** | S1 | M01 | Directive 02 (AuthRepository), SplashScreen, PinPadScreen, ZoneSelectionScreen | Directive 01 (SQL) musi być wykonana w Supabase |
-| **3** | S1 | Dashboard | DashboardHubScreen + routing do wszystkich modułów + badge queries | — |
-| **4** | S2 | M02 | TemperatureDashboard, SensorChart (fl_chart), AlarmPanel, Realtime subscription | Dane testowe w `measurements` |
-| **5** | S2 | M03 | 4 formularze GMP + historia, HaccpStepper, HaccpTimePicker | — |
-| **6** | S3 | M04 | 5 checklist GHP + historia, HaccpToggle z expand-komentarz | — |
-| **7** | S3 | M05 | Panel odpadów, formularz, Camera integration, Storage upload | Bucket `waste-docs` w Storage |
-| **8** | S4 | M06 | Panel raportów, PDF viewer, Drive status (mock) | Google Drive Service Account |
-| **9** | S4 | M07 | HR Dashboard, Profil, Dodaj Pracownika, Lista | — |
-| **10** | S4 | M08/M09 | Ustawienia, Success Overlay, Empty State, Offline Banner | — |
-| **11–12** | QA | All | Integration testing, UX polish, Glove-Friendly audit | Tablet fizyczny |
-| **13–14** | Deploy | All | APK build, instalacja na tabletach, testy Sanepid-ready | — |
-
----
-
-## 7. Decyzje Architektoniczne (Zamrożone)
-
-1. **Zmienne Środowiskowe:** Klucze `SUPABASE_URL` i `SUPABASE_ANON_KEY` są wdrożone w pliku `.env`.
-2. **Baza Danych:** Schemat SQL (M01-M08) jest wdrożony i aktywny. Kluczowe tabele: `employees`, `zones`, `products`, `haccp_logs`, `temperature_logs`, `generated_reports`.
-3. **Motyw UI:** Wymuszamy **Dark Mode** (tło Onyx/Charcoal) zgodnie z plikiem `UI_description.md`.
-4. **Synchronizacja Danych (Two-Stage Streaming):** Supabase Realtime nie obsługuje filtrów po JOINach. Wdrażamy architekturę dwuetapową: subskrypcja globalna na `venue_id` + filtrowanie strefy w warstwie Providera (`MonitoringProvider`).
-5. **Autoryzacja Usług:** Plik `credentials.json` (Google Service Account) będzie używany współdzielenie dla Google Stitch oraz do automatyzacji w Google Drive API (M06).
-6. **Enforcement "Glove-Friendly":** Wszystkie krytyczne akcje (Zapisz/Potwierdź) MUSZĄ używać `HaccpLongPressButton` (1s). Touch target min. 60x60dp jest twardym warunkiem architektonicznym.
-7. **Alarm Acknowledgement:** Logujemy potwierdzenia bezpośrednio w `temperature_logs` (kolumny `is_acknowledged`, `acknowledged_by`), eliminując potrzebę osobnej tabeli junction dla uproszczenia zapytań realtime.
-8. **Strategia RLS dla Sessionless Auth:** Ponieważ aplikacja w trybie Kiosk często korzysta z autoryzacji anonimowej (`signInAnonymously()`), polityki RLS dla tabel odczytowych (`sensors`, `temperature_logs`) muszą obejmować zarówno rolę `authenticated`, jak i `anon`, aby zapobiec blokadzie danych przy błędach sesji.

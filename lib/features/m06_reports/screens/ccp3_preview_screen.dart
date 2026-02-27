@@ -1,120 +1,170 @@
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:haccp_pilot/core/theme/app_theme.dart';
-import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
-import 'package:haccp_pilot/core/services/pdf_service.dart';
-import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
-import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/services/file_opener.dart';
+import 'package:haccp_pilot/core/services/pdf_service.dart';
+import 'package:haccp_pilot/core/theme/app_theme.dart';
+import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
+import 'package:haccp_pilot/features/m06_reports/providers/reports_provider.dart';
 
-final ccp3ReportProvider = FutureProvider.family<Uint8List?, DateTime>((ref, date) async {
-  debugPrint('🔵 CCP3 Provider: START for date=$date');
-  
-  try {
-    final repo = ref.read(reportsRepositoryProvider);
-    final user = ref.read(currentUserProvider);
-    debugPrint('🔵 CCP3 Provider: user=${user?.fullName ?? "NULL"}');
-    
-    String? venueId;
-    try {
-      final zones = await ref.watch(employeeZonesProvider.future);
-      venueId = zones.isNotEmpty ? zones.first.venueId : null;
-      debugPrint('🔵 CCP3 Provider: zones=${zones.length}, venueId=$venueId');
-    } catch (e) {
-      debugPrint('🔴 CCP3 Provider: employeeZones FAILED: $e');
-    }
+bool _looksLikePdf(Uint8List bytes) {
+  if (bytes.length < 4) return false;
+  return bytes[0] == 0x25 && // %
+      bytes[1] == 0x50 && // P
+      bytes[2] == 0x44 && // D
+      bytes[3] == 0x46; // F
+}
 
-    // 1. Try to fetch saved report first (Cache)
-    if (venueId != null) {
-      try {
-        final savedMetadata = await repo.getSavedReport(date, 'ccp3_cooling');
-        debugPrint('🔵 CCP3 Provider: savedMetadata=${savedMetadata != null ? "FOUND" : "NULL"}');
-        if (savedMetadata != null) {
-           final path = savedMetadata['storage_path'];
-           final bytes = await repo.downloadReport(path);
-           if (bytes != null) {
-             debugPrint('🟢 CCP3 Provider: Loaded from cache, ${bytes.length} bytes');
-             return bytes;
-           }
-        }
-      } catch (e) {
-        debugPrint('🟡 CCP3 Provider: Cache lookup failed (non-fatal): $e');
-      }
-    }
+String _monthLabel(DateTime date) =>
+    '${date.year}-${date.month.toString().padLeft(2, '0')}';
 
-    // 2. If not found in cache, generate new
-    debugPrint('🔵 CCP3 Provider: Fetching cooling logs...');
-    final logs = await repo.getCoolingLogs(date);
-    debugPrint('🔵 CCP3 Provider: getCoolingLogs returned ${logs.length} logs');
-    
-    if (logs.isEmpty) {
-      debugPrint('🟡 CCP3 Provider: No logs found → returning null');
-      return null;
-    }
+DateTime _monthStart(DateTime date) => DateTime(date.year, date.month, 1);
 
-    // Log first entry for debugging
-    debugPrint('🔵 CCP3 Provider: First log data keys: ${(logs.first['data'] as Map?)?.keys.toList()}');
+DateTime _monthEnd(DateTime date) =>
+    DateTime(date.year, date.month + 1, 1).subtract(const Duration(milliseconds: 1));
 
-    final userName = user?.fullName ?? 'Użytkownik';
-    
-    final pdfService = PdfService();
-    debugPrint('🔵 CCP3 Provider: Generating PDF...');
-    final bytes = await pdfService.generateCcp3Report(
-      logs: logs,
-      userName: userName,
-      date: date.toIso8601String().split('T')[0],
-      venueLogo: null, 
-    );
-    debugPrint('🟢 CCP3 Provider: PDF generated, ${bytes.length} bytes');
-    
-    // 3. Persist (Auto-save) — non-blocking, errors won't break display
-    if (venueId != null && user != null && bytes.isNotEmpty) {
-       try {
-         final dateStr = date.toIso8601String().split('T')[0];
-         final year = date.year.toString();
-         final month = date.month.toString().padLeft(2, '0');
-         final fileName = 'ccp3_cooling_$dateStr.pdf';
-         final storagePath = '$venueId/$year/$month/$fileName';
-         
-         final uploadedPath = await repo.uploadReport(storagePath, bytes);
-         
-         if (uploadedPath != null) {
-            await repo.saveReportMetadata(
-               venueId: venueId,
-               reportType: 'ccp3_cooling',
-               generationDate: date,
-               storagePath: uploadedPath,
-               userId: user.id,
-               metadata: {'generated_automatically': true},
-            );
-            debugPrint('🟢 CCP3 Provider: Report persisted to $uploadedPath');
-         }
-       } catch (e) {
-         debugPrint('🟡 CCP3 Provider: Persistence failed (non-fatal): $e');
-       }
-    }
+@immutable
+class Ccp3ReportRequest {
+  final DateTime date;
+  final bool forceRegenerate;
 
-    return bytes;
-  } catch (e, stackTrace) {
-    debugPrint('🔴 CCP3 Provider: FATAL ERROR: $e');
-    debugPrint('🔴 Stack: $stackTrace');
-    rethrow;
+  const Ccp3ReportRequest({required this.date, this.forceRegenerate = false});
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Ccp3ReportRequest &&
+        other.date.year == date.year &&
+        other.date.month == date.month &&
+        other.forceRegenerate == forceRegenerate;
   }
-});
+
+  @override
+  int get hashCode => Object.hash(date.year, date.month, forceRegenerate);
+}
+
+final ccp3ReportProvider =
+    FutureProvider.family<Uint8List?, Ccp3ReportRequest>((ref, request) async {
+      try {
+        final repo = ref.read(reportsRepositoryProvider);
+        final user = ref.read(currentUserProvider);
+        final date = request.date;
+
+        final currentZone = ref.read(currentZoneProvider);
+        final zoneId = currentZone?.id;
+        String? venueId = currentZone?.venueId;
+
+        if (venueId == null) {
+          try {
+            final zones = await ref.watch(employeeZonesProvider.future);
+            venueId = zones.isNotEmpty ? zones.first.venueId : null;
+          } catch (_) {
+            // Non-fatal.
+          }
+        }
+
+        final periodStart = _monthStart(date);
+        final periodEnd = _monthEnd(date);
+        final monthLabel = _monthLabel(date);
+
+        if (venueId != null && !request.forceRegenerate) {
+          try {
+            final savedMetadata = await repo.getSavedReport(
+              periodStart,
+              'ccp3_cooling',
+              venueId: venueId,
+            );
+            if (savedMetadata != null) {
+              final path = savedMetadata['storage_path']?.toString();
+              if (path != null && path.isNotEmpty) {
+                final bytes = await repo.downloadReport(path);
+                if (bytes != null && _looksLikePdf(bytes)) {
+                  return bytes;
+                }
+              }
+            }
+          } catch (_) {
+            // Non-fatal.
+          }
+        }
+
+        final logs = await repo.getCoolingLogs(
+          periodStart,
+          zoneId: zoneId,
+          venueId: venueId,
+        );
+
+        if (logs.isEmpty) {
+          return null;
+        }
+
+        final userName = user?.fullName ?? 'Użytkownik';
+        final pdfService = PdfService();
+        final bytes = await pdfService.generateCcp3Report(
+          logs: logs,
+          userName: userName,
+          date: monthLabel,
+          venueLogo: null,
+        );
+
+        if (venueId != null && user != null && bytes.isNotEmpty) {
+          try {
+            final year = date.year.toString();
+            final month = date.month.toString().padLeft(2, '0');
+            final fileName = 'ccp3_cooling_$monthLabel.pdf';
+            final storagePath = '$venueId/$year/$month/$fileName';
+
+            final uploadedPath = await repo.uploadReport(storagePath, bytes);
+
+            if (uploadedPath != null) {
+              await repo.saveReportMetadata(
+                venueId: venueId,
+                reportType: 'ccp3_cooling',
+                generationDate: periodStart,
+                storagePath: uploadedPath,
+                userId: user.id,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                templateVersion: 'ccp3_pdf_v2',
+                sourceFormId: 'food_cooling',
+                metadata: {'generated_automatically': true},
+              );
+            }
+          } catch (_) {
+            // Non-fatal.
+          }
+        }
+
+        return bytes;
+      } catch (e, stackTrace) {
+        debugPrint('CCP3 Provider fatal error: $e');
+        debugPrint('CCP3 Provider stack: $stackTrace');
+        rethrow;
+      }
+    });
 
 class Ccp3PreviewScreen extends ConsumerWidget {
   final DateTime date;
+  final bool forceRegenerate;
 
-  const Ccp3PreviewScreen({super.key, required this.date});
+  const Ccp3PreviewScreen({
+    super.key,
+    required this.date,
+    this.forceRegenerate = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pdfAsync = ref.watch(ccp3ReportProvider(date));
+    final pdfAsync = ref.watch(
+      ccp3ReportProvider(
+        Ccp3ReportRequest(date: date, forceRegenerate: forceRegenerate),
+      ),
+    );
+    final monthLabel = _monthLabel(date);
 
     return Scaffold(
       appBar: HaccpTopBar(
@@ -124,15 +174,18 @@ class Ccp3PreviewScreen extends ConsumerWidget {
             data: (bytes) => IconButton(
               icon: const Icon(Icons.share),
               onPressed: () async {
-                 // Share logic specific to bytes
-               if (bytes != null) {
-                 final file = XFile.fromData(bytes, name: 'CCP3_Raport.pdf', mimeType: 'application/pdf');
-                 await Share.shareXFiles([file], text: 'Raport Chłodzenia');
-               }
+                if (bytes != null) {
+                  final file = XFile.fromData(
+                    bytes,
+                    name: 'CCP3_Raport_$monthLabel.pdf',
+                    mimeType: 'application/pdf',
+                  );
+                  await Share.shareXFiles([file], text: 'Raport chłodzenia CCP-3');
+                }
               },
             ),
             loading: () => const SizedBox.shrink(),
-            error: (_,__) => const SizedBox.shrink(),
+            error: (error, stackTrace) => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -140,7 +193,6 @@ class Ccp3PreviewScreen extends ConsumerWidget {
       body: pdfAsync.when(
         data: (bytes) {
           if (bytes == null) {
-            debugPrint('🟡 CCP3 Screen: bytes == null → showing empty state');
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -148,13 +200,13 @@ class Ccp3PreviewScreen extends ConsumerWidget {
                   Icon(Icons.description_outlined, size: 64, color: Colors.white38),
                   SizedBox(height: 16),
                   Text(
-                    'Brak raportów chłodzenia\ndla wybranego dnia',
+                    'Brak raportów chłodzenia\ndla wybranego miesiąca',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Wypełnij formularz Chłodzenia Żywności,\naby wygenerować raport.',
+                    'Wypełnij formularz Chłodzenia żywności,\naby wygenerować raport.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white38, fontSize: 13),
                   ),
@@ -162,13 +214,11 @@ class Ccp3PreviewScreen extends ConsumerWidget {
               ),
             );
           }
-          debugPrint('🟢 CCP3 Screen: Rendering PDF, ${bytes.length} bytes');
           return Column(
             children: [
-              // Debug info bar (visible during development)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: Colors.green.withOpacity(0.15),
+                color: Colors.green.withValues(alpha: 0.15),
                 child: Row(
                   children: [
                     const Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -182,16 +232,13 @@ class Ccp3PreviewScreen extends ConsumerWidget {
                       icon: const Icon(Icons.download, size: 16),
                       label: const Text('Pobierz', style: TextStyle(fontSize: 12)),
                       onPressed: () {
-                        openFileFromBytes(bytes, 'CCP3_Raport.pdf');
+                        openFileFromBytes(bytes, 'CCP3_Raport_$monthLabel.pdf');
                       },
                     ),
                   ],
                 ),
               ),
-              // PDF Viewer
-              Expanded(
-                child: SfPdfViewer.memory(bytes),
-              ),
+              Expanded(child: SfPdfViewer.memory(bytes)),
             ],
           );
         },
@@ -206,7 +253,7 @@ class Ccp3PreviewScreen extends ConsumerWidget {
           ),
         ),
         error: (err, stack) {
-          debugPrint('🔴 CCP3 Screen: ERROR: $err\n$stack');
+          debugPrint('CCP3 Screen ERROR: $err\n$stack');
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -215,9 +262,13 @@ class Ccp3PreviewScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Błąd generowania raportu',
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(

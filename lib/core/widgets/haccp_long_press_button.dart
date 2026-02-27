@@ -102,12 +102,17 @@ class _HaccpLongPressButtonState extends State<HaccpLongPressButton>
                   Icon(widget.icon, color: Colors.white),
                   const SizedBox(width: 8),
                 ],
-                Text(
-                  _isPressed ? "PRZYTRZYMAJ..." : widget.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    _isPressed ? "PRZYTRZYMAJ..." : widget.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

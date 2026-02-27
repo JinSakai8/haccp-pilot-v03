@@ -20,9 +20,9 @@ class HaccpTimePicker extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white70,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
         ),
         const SizedBox(height: 8),
         InkWell(
@@ -33,7 +33,9 @@ class HaccpTimePicker extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white10,
-              borderRadius: BorderRadius.circular(HaccpDesignTokens.radiusMedium),
+              borderRadius: BorderRadius.circular(
+                HaccpDesignTokens.radiusMedium,
+              ),
               border: Border.all(color: Colors.white24),
             ),
             child: Row(
@@ -42,9 +44,9 @@ class HaccpTimePicker extends StatelessWidget {
                 Text(
                   value != null ? value!.format(context) : '--:--',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: value != null ? Colors.white : Colors.white54,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: value != null ? Colors.white : Colors.white54,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Icon(Icons.access_time, color: Colors.white54, size: 32),
               ],
@@ -66,14 +68,16 @@ class HaccpTimePicker extends StatelessWidget {
             data: Theme.of(context).copyWith(
               timePickerTheme: TimePickerThemeData(
                 backgroundColor: const Color(0xFF1E1E1E),
-                hourMinuteTextColor: MaterialStateColor.resolveWith((states) =>
-                    states.contains(MaterialState.selected)
-                        ? Colors.black
-                        : Colors.white),
-                hourMinuteColor: MaterialStateColor.resolveWith((states) =>
-                    states.contains(MaterialState.selected)
-                        ? HaccpDesignTokens.primary
-                        : Colors.white10),
+                hourMinuteTextColor: WidgetStateColor.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? Colors.black
+                      : Colors.white,
+                ),
+                hourMinuteColor: WidgetStateColor.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? HaccpDesignTokens.primary
+                      : Colors.white10,
+                ),
                 dialHandColor: HaccpDesignTokens.primary,
                 dialBackgroundColor: Colors.white10,
                 entryModeIconColor: HaccpDesignTokens.primary,

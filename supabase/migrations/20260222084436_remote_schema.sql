@@ -1,0 +1,10 @@
+-- Placeholder migration (history repair marker)
+-- Migration ID: 20260222084436
+-- Date: 2026-02-22
+--
+-- Purpose:
+-- This entry was created during `supabase migration repair --status applied`
+-- to realign local and remote migration history before running a successful
+-- `supabase db pull`.
+--
+-- No schema changes are defined in this file.
