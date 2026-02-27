@@ -17,6 +17,14 @@ void main() {
       mapSettingsErrorMessage(Exception('row-level security policy violation')),
       'Brak uprawnien do zapisu ustawien lokalu.',
     );
+    expect(
+      mapSettingsErrorMessage(Exception('M08_DB_CONSTRAINT')),
+      'Nieprawidlowe dane formularza. Sprawdz pola i sprobuj ponownie.',
+    );
+    expect(
+      mapSettingsErrorMessage(Exception('M08_STORAGE_DENY_OR_NOT_FOUND')),
+      'Blad zapisu logo. Sprawdz uprawnienia Storage i sprobuj ponownie.',
+    );
   });
 
   testWidgets('shows empty state when no products exist in category', (

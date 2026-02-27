@@ -1460,3 +1460,24 @@ Zmiany UX/UI:
 - Odœwie¿ono typografiê nag³ówka, u¿ywamy z³oto-miedzianego akcentu koloru (#D4AF37) na ikonie i nazwie lokalu.
 - Zast¹piono ikonê tarczy na bardziej autorsk¹ ikonê sztuæców restauracyjnych (estaurant_menu).
 - Zachowano pe³n¹ zgodnoœæ z wymogami "glove-friendly" (przyciski numeryczne min. 80x80 dp) oraz niezmieniono kodu weryfikacji PIN (backend zostaje ten sam).
+
+## Aktualizacja implementacyjna M08 UI (2026-02-27)
+
+### Ekran 8.1: Ustawienia Globalne (Sprint 3 - payload i persistence)
+
+Plik: lib/features/m08_settings/screens/global_settings_screen.dart
+
+Wprowadzone zmiany:
+- walidacja przed submit: name i address sa wymagane,
+- walidacja NIP: tylko 10 cyfr albo puste,
+- kontrakt payload: puste nip mapowane do NULL,
+- flow zapisu: validate -> upload_logo -> update_venues -> readback,
+- rozdzielenie bledow uploadu logo i bledow DB,
+- przy bledzie uploadu logo operator dostaje decyzje: Sprobuj ponownie albo Anuluj zapis.
+
+### Kontrakt backendowy M08 (frontend)
+
+- venues.nip: NULL albo 10 cyfr,
+- brak wysylki nip='',
+- brak silent-fail dla uploadu logo.
+

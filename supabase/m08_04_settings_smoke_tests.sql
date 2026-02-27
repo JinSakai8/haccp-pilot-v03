@@ -17,6 +17,11 @@ declare
   test_name text := 'M08_SMOKE_' || to_char(clock_timestamp(), 'YYYYMMDDHH24MISS');
   test_product_id uuid;
   rows_affected bigint;
+  readback_logo_url text;
+  readback_nip text;
+  branding_bucket_exists boolean;
+  branding_bucket_public boolean;
+  branding_policy_count integer;
 begin
   if auth_manager_id::text like '00000000-%'
      or auth_cook_id::text like '00000000-%'
@@ -47,6 +52,8 @@ begin
 
   update public.venues
   set name = test_name,
+      address = 'M08 Test Address',
+      logo_url = 'https://example.com/storage/v1/object/public/branding/logos/' || venue_id_input::text || '/smoke-test.png',
       temp_interval = 15,
       temp_threshold = 8.0,
       nip = '1234567890',
@@ -57,12 +64,70 @@ begin
     raise exception 'Manager update venues: oczekiwano 1 zmodyfikowanego wiersza, otrzymano %', rows_affected;
   end if;
 
+  select v.logo_url, v.nip
+    into readback_logo_url, readback_nip
+  from public.venues v
+  where v.id = venue_id_input;
+
+  if readback_logo_url is null
+     or position('/branding/logos/' in readback_logo_url) = 0 then
+    raise exception 'Readback logo_url niepoprawny po update.';
+  end if;
+
+  if readback_nip <> '1234567890' then
+    raise exception 'Readback NIP niepoprawny po update.';
+  end if;
+
+  update public.venues
+  set nip = null,
+      updated_at = now()
+  where id = venue_id_input;
+  get diagnostics rows_affected = row_count;
+  if rows_affected <> 1 then
+    raise exception 'Manager update venues (nip=null): oczekiwano 1 zmodyfikowanego wiersza, otrzymano %', rows_affected;
+  end if;
+
+  select v.nip into readback_nip
+  from public.venues v
+  where v.id = venue_id_input;
+  if readback_nip is not null then
+    raise exception 'Kontrakt NIP zlamany: oczekiwano NULL po zapisie pustej wartosci.';
+  end if;
+
   begin
     update public.venues set temp_threshold = 30 where id = venue_id_input;
     raise exception 'Brak expected fail dla invalid temp_threshold.';
   exception
     when check_violation then null;
   end;
+
+  select exists(select 1 from storage.buckets b where b.id = 'branding')
+    into branding_bucket_exists;
+  if not branding_bucket_exists then
+    raise exception 'Brak bucket storage.buckets.id=branding.';
+  end if;
+
+  select coalesce((select b.public from storage.buckets b where b.id = 'branding'), false)
+    into branding_bucket_public;
+  if branding_bucket_public is distinct from true then
+    raise exception 'Bucket branding musi byc public=true.';
+  end if;
+
+  select count(*)
+    into branding_policy_count
+  from pg_policies p
+  where p.schemaname = 'storage'
+    and p.tablename = 'objects'
+    and p.policyname in (
+      'branding_select_kiosk_scope',
+      'branding_insert_manager_owner_kiosk_scope',
+      'branding_update_manager_owner_kiosk_scope',
+      'branding_delete_manager_owner_kiosk_scope'
+    );
+
+  if branding_policy_count <> 4 then
+    raise exception 'Niepelna konfiguracja policies branding na storage.objects (expected=4, actual=%).', branding_policy_count;
+  end if;
 
   begin
     update public.venues set temp_interval = 10 where id = venue_id_input;

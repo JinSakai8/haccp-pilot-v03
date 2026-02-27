@@ -13,10 +13,43 @@ import '../../../../core/widgets/haccp_top_bar.dart';
 import '../../../../core/widgets/success_overlay.dart';
 import '../../shared/widgets/dynamic_form/haccp_toggle.dart';
 import '../providers/m08_providers.dart';
+import '../repositories/venue_repository.dart';
+
+String? normalizeNipOrNull(String rawNip) {
+  final normalized = rawNip.trim();
+  return normalized.isEmpty ? null : normalized;
+}
+
+String? validateM08SettingsPayload({
+  required String name,
+  required String address,
+  required String? nip,
+}) {
+  if (name.trim().isEmpty) {
+    return 'Nazwa lokalu jest wymagana.';
+  }
+  if (address.trim().isEmpty) {
+    return 'Adres lokalu jest wymagany.';
+  }
+  if (nip != null && !RegExp(r'^\d{10}$').hasMatch(nip)) {
+    return 'NIP musi zawierac dokladnie 10 cyfr.';
+  }
+  return null;
+}
 
 String mapSettingsErrorMessage(Object error) {
   final raw = error.toString().toLowerCase();
 
+  if (raw.contains('m08_storage_deny_or_not_found') ||
+      raw.contains('m08_storage_unknown')) {
+    return 'Blad zapisu logo. Sprawdz uprawnienia Storage i sprobuj ponownie.';
+  }
+  if (raw.contains('m08_db_constraint')) {
+    return 'Nieprawidlowe dane formularza. Sprawdz pola i sprobuj ponownie.';
+  }
+  if (raw.contains('m08_db_rls_deny')) {
+    return 'Brak uprawnien do zapisu ustawien lokalu.';
+  }
   if (raw.contains('venues_temp_interval_check')) {
     return 'Nieprawidlowy interwal. Dozwolone wartosci: 5, 15, 60.';
   }
@@ -90,12 +123,19 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
   }
 
   Future<void> _saveSettings(String venueId) async {
-    final normalizedNip = _nipValue.trim();
-    if (normalizedNip.isNotEmpty &&
-        !RegExp(r'^\d{10}$').hasMatch(normalizedNip)) {
+    final normalizedName = _nameController.text.trim();
+    final normalizedAddress = _addressController.text.trim();
+    final normalizedNipOrNull = normalizeNipOrNull(_nipValue);
+
+    final validationError = validateM08SettingsPayload(
+      name: normalizedName,
+      address: normalizedAddress,
+      nip: normalizedNipOrNull,
+    );
+    if (validationError != null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('NIP musi zawierac dokladnie 10 cyfr.')),
+        SnackBar(content: Text(validationError)),
       );
       return;
     }
@@ -106,9 +146,11 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
     try {
       String? uploadedUrl;
       if (_newLogoBytes != null) {
-        uploadedUrl = await ref
-            .read(venueSettingsControllerProvider(venueId).notifier)
-            .uploadLogoBytes(_newLogoBytes!, 'jpg');
+        final logoUploaded = await _uploadLogoWithRetry(venueId);
+        if (!logoUploaded) {
+          return;
+        }
+        uploadedUrl = _logoUrl;
       } else {
         uploadedUrl = _logoUrl;
       }
@@ -116,14 +158,19 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
       await ref
           .read(venueSettingsControllerProvider(venueId).notifier)
           .updateSettings(
-            name: _nameController.text.trim(),
-            nip: normalizedNip,
-            address: _addressController.text.trim(),
+            name: normalizedName,
+            nip: normalizedNipOrNull,
+            address: normalizedAddress,
             logoUrl: uploadedUrl,
             tempInterval: _measurementInterval,
             tempThreshold: _alertThreshold,
           );
 
+      if (mounted) {
+        setState(() {
+          _newLogoBytes = null;
+        });
+      }
       if (!mounted) return;
       await HaccpSuccessOverlay.show(context, message: 'USTAWIENIA ZAPISANE');
     } catch (e) {
@@ -138,6 +185,60 @@ class _GlobalSettingsScreenState extends ConsumerState<GlobalSettingsScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<bool> _uploadLogoWithRetry(String venueId) async {
+    while (mounted && _newLogoBytes != null) {
+      try {
+        final uploadedUrl = await ref
+            .read(venueSettingsControllerProvider(venueId).notifier)
+            .uploadLogoBytes(_newLogoBytes!, 'jpg');
+        if (!mounted) return false;
+        setState(() {
+          _logoUrl = uploadedUrl;
+          _newLogoBytes = null;
+        });
+        return true;
+      } on M08SettingsException catch (e) {
+        if (!mounted) return false;
+        final retry = await _showLogoUploadFailedDialog(
+          mapSettingsErrorMessage(e),
+        );
+        if (!retry) {
+          return false;
+        }
+      } catch (e) {
+        if (!mounted) return false;
+        final retry = await _showLogoUploadFailedDialog(
+          mapSettingsErrorMessage(e),
+        );
+        if (!retry) {
+          return false;
+        }
+      }
+    }
+    return _newLogoBytes == null;
+  }
+
+  Future<bool> _showLogoUploadFailedDialog(String message) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Blad zapisu logo'),
+        content: Text('$message\n\nSprobowac ponownie?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Anuluj zapis'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sprobuj ponownie'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   @override
