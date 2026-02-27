@@ -1,4 +1,4 @@
-﻿-- M08/M04 integration: add rooms dictionary entries and optional type check support.
+-- M08/M04 integration: add rooms dictionary entries and optional type check support.
 -- Date: 2026-02-27
 
 begin;
