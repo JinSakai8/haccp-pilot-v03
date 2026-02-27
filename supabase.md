@@ -1,622 +1,190 @@
-# Dokumentacja Bazy Danych (Supabase)
-
-Dokument opisuje aktualny stan bazy danych projektu HACCP Pilot, relacje między tabelami oraz powiązania z modułami aplikacji. Stan na: **Luty 2026**.
-
-> **Źródła:**
->
-> - [Code_description.MD](Code_description.MD) (Opis architektury)
-> - Pliki migracyjne SQL (`*_create_*.sql`, `*_update_*.sql`)
-
----
-
-## 1. Schemat Relacyjny (ERD)
-
-```mermaid
-erDiagram
-    VENUES ||--o{ EMPLOYEES : "zatrudnia"
-    VENUES ||--o{ ZONES : "posiada"
-    VENUES ||--o{ PRODUCTS : "menu lokalne"
-    VENUES ||--o{ WASTE_RECORDS : "generuje"
-    VENUES ||--o{ GENERATED_REPORTS : "archiwizuje"
-    
-    EMPLOYEES ||--o{ EMPLOYEE_ZONES : "przypisany"
-    ZONES ||--o{ EMPLOYEE_ZONES : "dostępna dla"
-    
-    ZONES ||--o{ SENSORS : "monitoruje"
-    SENSORS ||--o{ TEMPERATURE_LOGS : "mierzy"
-    
-    products ||--o{ HACCP_LOGS : "używany w (JSONB)"
-    
-    VENUES {
-        uuid id PK
-        string name
-        string nip
-        string address
-        string logo_url
-        int temp_interval
-        float temp_threshold
-    }
-
-    EMPLOYEES {
-        uuid id PK
-        uuid venue_id FK
-        string full_name
-        string pin_hash
-        string role "owner/manager/cook"
-        date sanepid_expiry
-    }
-
-    products {
-        uuid id PK
-        uuid venue_id FK "nullable (null=global)"
-        string name
-        string type "cooling/roasting/general"
-        timestamp created_at
-    }
-
-    HACCP_LOGS {
-        uuid id PK
-        uuid venue_id FK
-        string form_id
-        string category "gmp/ghp"
-        jsonb data
-        uuid created_by
-    }
-
-    GENERATED_REPORTS {
-        uuid id PK
-        uuid venue_id FK
-        string report_type
-        date generation_date
-        string storage_path
-        jsonb metadata
-    }
-```
-
----
-
-## 2. Szczegółowy Opis Tabel
-
-### 2.1 Konfiguracja i Struktura (`venues`, `zones`, `employees`)
-
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`venues`** | `id` | UUID (PK) | Unikalny identyfikator lokalu. |
-| | `name` | TEXT | Nazwa lokalu (np. "Restauracja U Jana"). |
-| | `nip` | TEXT | Numer NIP. |
-| | `logo_url` | TEXT | URL do logo w Storage (`branding`). |
-| | `temp_interval` | INT | Częstotliwość pomiarów IoT (minuty). |
-| | `temp_threshold` | NUMERIC | Próg alarmowy temperatury (zakres 0..15). |
-| **`employees`** | `id` | UUID (PK) | ID pracownika. |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem. |
-| | `pin_hash` | TEXT | Hash SHA-256 kodu PIN (4 cyfry). |
-| | `role` | TEXT | Rola: `owner`, `manager` lub `cook`. |
-| **`zones`** | `id` | UUID (PK) | ID strefy (np. Kuchnia, Magazyn). |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem. |
-
-### 2.2 Produkty i Procesy (`products`, `haccp_logs`)
-
-| Tabela | Kolumna | Typ | Opis |
-| :--- | :--- | :--- | :--- |
-| **`products`** | `id` | UUID (PK) | ID produktu. |
-| | `venue_id` | UUID (FK) | Jeśli `NULL` -> Produkt Globalny (widoczny wszędzie). Jeśli podane -> Produkt Lokalny (tylko dla tego `venue`). |
-| | `name` | TEXT | Nazwa potrawy/produktu. Unikalna w obrębie lokalu (`UNIQUE NULLS NOT DISTINCT (name, venue_id)`). |
-| | `type` | TEXT | Typ: `cooling`, `roasting`, `general`. |
-| **`haccp_logs`** | `id` | UUID (PK) | ID wpisu loga. |
-| | `venue_id` | UUID (FK) | Powiązanie z lokalem (kluczowe do filtracji danych i RLS). |
-| | `zone_id` | UUID (FK) | Powiązanie ze strefą (np. Kuchnia). |
-| | `category` | TEXT | `gmp` (formularze) lub `ghp` (checklisty). |
-| | `form_id` | TEXT | ID formularza, np. `food_cooling`. |
-| | `data` | JSONB | Pełne dane wpisu (dynamiczna struktura formularza). |
-| | `user_id` | UUID (FK) | ID pracownika (`employees`), który wykonał czynność. |
-| | `created_by` | UUID (FK) | ID użytkownika Supabase Auth (techniczne). |
-
-### 2.3 Monitoring IoT (`sensors`, `temperature_logs`)
-
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`sensors`** | `id` | UUID (PK) | ID czujnika. |
-| | `mac_address` | TEXT | Adres fizyczny urządzenia BLE. |
-| | `zone_id` | UUID (FK) | Strefa, w której znajduje się czujnik. |
-| **`temperature_logs`** | `temperature` | FLOAT | Odczyt temperatury. |
-| | `recorded_at` | TIMESTAMPTZ | Czas pomiaru. |
-
-### 2.4 Raporty i Archiwizacja (`generated_reports`)
-
-| Tabela | Kolumna | Typ | Opis |
-|:---|:---|:---|:---|
-| **`generated_reports`** | `storage_path` | TEXT | Ścieżka do pliku PDF w buckecie `reports`. |
-| | `report_type` | TEXT | Typ raportu, np. `ccp3_cooling`. |
-| | `generation_date` | DATE | Data, której dotyczy raport. |
-
----
-
-## 3. Relacje i Powiązania Modułów
-
-Tabela przedstawia, które moduły (M01-M08) korzystają z których tabel (CRUD).
-
-| Moduł | Główna Tabela | Tabele Pomocnicze | Uprawnienia (Zazwyczaj) |
-|:---|:---|:---|:---|
-| **M01 Auth** | `employees` | `zones`, `employee_zones` | Read (RPC `login_with_pin`) |
-| **M02 IoT** | `temperature_logs` | `sensors`, `zones` | Read (Realtime Subscription) |
-| **M03 GMP** | `haccp_logs` | `products` | Insert (Log), Read (History, List Products) |
-| **M04 GHP** | `haccp_logs` | - | Insert (Log), Read (History) |
-| **M05 Waste** | `waste_records` | - | Insert, Read |
-| **M06 Reports** | `generated_reports` | `haccp_logs` (source), `temperature_logs` (source) | Read, Insert (PDF generation) |
-| **M07 HR** | `employees` | `employee_zones` | CRUD (Manager Only) |
-| **M08 Settings** | `venues` | `products`, `sensors` | Update (Venue), CRUD (Products) |
-
----
-
-1. **Polityki Bezpieczeństwa (RLS)**
-
-Bezpieczeństwo opiera się na Row Level Security. Aplikacja nie korzysta ze standardowego logowania Supabase Auth (email/pass), lecz z własnego mechanizmu opartego na PIN.
-
-1. **Uwierzytelnianie:**
-    - Użytkownik podaje PIN (4 cyfry).
-    - Aplikacja woła funkcję RPC `login_with_pin(venue_nip, pin)`.
-    - Funkcja zwraca token JWT (z `role: authenticated`) oraz dane pracownika.
-    - **Ważne**: Tabela `employees` jest chroniona (SELECT tylko dla `authenticated`).
-
-2. **Izolacja Danych (Multi-tenancy):**
-    - Większość tabel (`products`, `haccp_logs`, `generated_reports`) posiada kolumnę `venue_id`.
-    - Docelowa polityka: `USING (venue_id = (select venue_id from employees where id = auth.uid()))`.
-    - **Faza Pilot (Aktualnie)**:
-        - `haccp_logs`: `USING (true)` / `CHECK (true)` (Uproszczone dla testów, filtracja w aplikacji).
-        - `products`: `USING (true)` (Odczyt globalny).
-
-3. **Role:**
-    - Kolumna `role` w `employees` (`owner`, `manager`, `cook`) steruje dostępem do ekranów w aplikacji (Guardy).
-    - Dla M08 polityki RLS wymuszają dodatkowo:
-      - `venues`: odczyt tylko w scope `kiosk_sessions.venue_id`, update tylko `manager/owner`.
-      - `products`: odczyt globalnych (`venue_id is null`) i lokalnych z kontekstu kiosku, zapis tylko `manager/owner` w swoim `venue_id`.
-
----
-
-## 5. Uwagi do Plików Źródłowych
-
-Analiza plików źródłowych wykazała zgodność, z małymi wyjątkami:
-
-- **`Code_description.MD`**: Jest najbardziej aktualny (Luty 2026).
-- **`00_Architecture_Master_Plan.md`**: Opisuje plan z 15.02.2026. Struktura jest poprawna, ale szczegóły tabeli `products` (kolumna `venue_id` do multi-tenancy) zostały doprecyzowane w sprincie 5 (SQL `32_update_products_table.sql`). Dokumentacja `supabase.md` uwzględnia ten nowszy stan.
-
----
-
-## 6. Aktualizacja po Sprint 0-1 (2026-02-22)
-
-Niniejsza sekcja doprecyzowuje najnowszy stan po pracach Sprint 0/1.
-
-### 6.1 Stan schematu i tabel
-
-- Kanoniczna tabela dla logow GMP/GHP: `haccp_logs`.
-- W zdalnym `public` nadal istnieja legacy tabele `gmp_logs` oraz `ghp_logs`, ale aktualnie sa puste (0 rekordow).
-- Nie wykonano fizycznej migracji danych `form_id` w DB w Sprint 0/1 (to zakres pozniejszych sprintow).
-
-### 6.2 Zamrozony kontrakt `form_id` (GMP)
-
-Docelowe wartosci:
-
-- `food_cooling`
-- `meat_roasting`
-- `delivery_control`
-
-Kompatybilnosc legacy w odczycie historii:
-
-- `meat_roasting_daily` -> `meat_roasting`
-- `delivery_control_daily` -> `delivery_control`
-
-### 6.3 Snapshot diagnostyczny `haccp_logs` (2026-02-22)
-
-- Laczna liczba rekordow: **9**
-- Per `form_id`:
-  - `food_cooling`: **9**
-- `zone_id IS NULL`: **0**
-- `venue_id IS NULL`: **0**
-
-### 6.4 RLS
-
-- `haccp_logs` pozostaje w trybie pilotowym RLS (`USING (true)` / `CHECK (true)`).
-- Hardening RLS jest zaplanowany na kolejne sprinty (`03_Sprint_2_3.md`).
-
-### 6.5 Artefakty baseline
-
-- `baseline_schema.sql`
-- `baseline_haccp_logs_report.md`
-- zrodlo baseline schema: `supabase db pull` (plik: `supabase/migrations/20260222084803_remote_schema.sql`)
-
----
-
-## 7. Aktualizacja po Sprint 2-3 (2026-02-22)
-
-### 7.1 CCP-3 (aplikacja)
-
-- Odczyt logow chlodzenia (`food_cooling`) zostal uszczelniony po kontekscie:
-  - priorytet: `zone_id`,
-  - fallback: `venue_id` gdy brak `zone_id`.
-- Implementacja:
-  - `lib/features/m06_reports/repositories/reports_repository.dart`
-  - `lib/features/m06_reports/screens/ccp3_preview_screen.dart`
-
-### 7.2 Kontekst kiosk pod RLS (aplikacja)
-
-- Po wyborze strefy aplikacja zapisuje kontekst sesji kiosk przez RPC:
-  - `set_kiosk_context(employee_id_input, zone_id_input)`.
-- Przy wyjsciu do ekranu logowania aplikacja czysci kontekst:
-  - `clear_kiosk_context()`.
-- Implementacja:
-  - `lib/core/repositories/auth_repository.dart`
-  - `lib/features/m01_auth/screens/zone_selection_screen.dart`
-
-### 7.3 Hardening DB (Sprint 3) - przygotowany artefakt SQL
-
-- Dodana migracja:
-  - `supabase/migrations/20260222123000_sprint3_haccp_logs_hardening.sql`
-- Zakres migracji:
-  - tabela `kiosk_sessions` (mapowanie `auth.uid()` -> `employee_id`/`venue_id`/`zone_id`),
-  - RPC: `set_kiosk_context`, `clear_kiosk_context`,
-  - indeksy `haccp_logs`:
-    - `(category, form_id, created_at)`,
-    - `(zone_id, created_at)`,
-    - `(venue_id, created_at)`,
-  - constraints:
-    - `category in ('gmp','ghp')`,
-    - slownik `form_id` dla GMP/GHP,
-  - nowe polityki RLS SELECT/INSERT scoped do `kiosk_sessions`,
-  - usuniecie pilotowych polityk `USING/CHECK (true)` dla `haccp_logs`.
-
-### 7.4 Status wdrozenia DB
-
-- Migracja Sprint 3 zostala wdrozona na remote przez `supabase db push` (2026-02-22).
-- Stan zdalny zawiera:
-  - tabele `kiosk_sessions`,
-  - RPC `set_kiosk_context` oraz `clear_kiosk_context`,
-  - nowe indeksy i polityki RLS dla `haccp_logs`.
-
-### 7.5 Walidacja testowa po zmianach
-
-- Testy CCP-3/GMP i smoke testy UI przechodza.
-- Pelny `flutter test` przechodzi (1 test oznaczony jako `skip` z powodu ograniczenia fontow Syncfusion w runnerze testowym).
-
----
-
-## 8. Aktualizacja po Sprint 4 (2026-02-22)
-
-### 8.1 Migracja danych historycznych (`haccp_logs`)
-
-- Wdrozona migracja:
-  - `supabase/migrations/20260222150000_sprint4_haccp_logs_data_migration.sql`
-- Zakres:
-  - normalizacja legacy `form_id`:
-    - `meat_roasting_daily` -> `meat_roasting`
-    - `delivery_control_daily` -> `delivery_control`
-  - uzupelnienie brakujacego `venue_id` z mapowania `user_id -> employees.venue_id`,
-  - uzupelnienie brakujacego `zone_id` tylko dla jednoznacznych przypisan pracownika do jednej strefy.
-
-### 8.2 Backup i rollback
-
-- Migracja tworzy backup rekordow:
-  - `public.haccp_logs_sprint4_backup_20260222`
-- Rollback danych jest mozliwy przez odtworzenie `form_id`/`venue_id`/`zone_id` z tabeli backup.
-
-### 8.3 Wynik wykonania na danych produkcyjnych
-
-- `supabase db push` wykonany poprawnie (po 2 poprawkach kompatybilnosci SQL).
-- Snapshot po wdrozeniu:
-  - `haccp_logs`: 9 rekordow,
-  - `food_cooling`: 9,
-  - legacy `form_id`: 0,
-  - `venue_id IS NULL`: 0,
-  - `zone_id IS NULL`: 0.
-- Tabela backup istnieje i zawiera 0 rekordow (migracja byla logicznie no-op dla aktualnego zbioru).
-
----
-
-## 9. Aktualizacja po Sprint 5 (2026-02-22)
-
-### 9.1 Testy automatyczne
-
-- Uruchomiono:
-  - `test/db_consistency_test.dart`,
-  - `test/features/m03_gmp/gmp_form_id_contract_test.dart`,
-  - `test/features/m06_reports/reports_repository_filters_test.dart`,
-  - pelny `flutter test`.
-- Wynik pelnego suite:
-  - 19 passed, 1 skipped, 0 failed.
-
-### 9.2 Status release
-
-- Technicznie:
-  - migracje DB (Sprint 3+4) sa wdrozone na remote,
-  - testy regresji przechodza.
-- Operacyjnie (otwarte):
-  - canary rollout,
-  - obserwacja 48h i decyzja go-live close.
-
----
-
-## 10. Krytyczny warunek runtime (Auth)
-
-- Dla modelu kiosk + RLS wymagane jest wlaczenie w Supabase:
-  - `Authentication -> Providers -> Anonymous Sign-Ins`.
-- Gdy provider jest wylaczony:
-  - aplikacja nie moze utworzyc sesji,
-  - RPC zalezne od `auth.uid()` (np. `set_kiosk_context`) nie dzialaja.
-- Runbook incydentowy:
-  - `directives/18_GMP_DB_Implementation_Plan/11_Incident_Recovery_Anonymous_Auth.md`.
-
----
-
-## 11. Aktualizacja po M06 Sprint 1 (2026-02-22)
-
-### 11.1 `generated_reports.report_type` (CCP-1 temperatura)
-
-- Wdrozona migracja:
-  - `supabase/migrations/20260222130356_m06_ccp1_generated_reports_report_type.sql`
-- Zmiana:
-  - rozszerzenie check constraint `generated_reports_report_type_check`
-  - nowy dozwolony typ: `ccp1_temperature`
-
-### 11.2 RLS i zakres zmiany
-
-- RLS dla `generated_reports` bez zmian (tylko check constraint).
-
-### 11.3 Walidacja
-
-- Test pozytywny: insert `report_type='ccp1_temperature'` przechodzi.
-- Test negatywny: insert nieznanego typu jest blokowany przez check constraint.
-- Test regresji: stare typy (`ccp3_cooling`, `waste_monthly`, `gmp_daily`) nadal przechodza.
-
----
-
-## 12. Aktualizacja po M06 Sprint 4-5 (2026-02-22)
-
-### 12.1 Finalny zakres zmian DB dla M06 CCP-1
-
-- Jedyna zmiana schematu DB dla M06 CCP-1:
-  - rozszerzenie `generated_reports_report_type_check` o `ccp1_temperature`
-  - migracja: `supabase/migrations/20260222130356_m06_ccp1_generated_reports_report_type.sql`
-- Brak nowych tabel i brak nowych kolumn.
-- Brak zmian polityk RLS (dla M06 CCP-1).
-
-### 12.2 Kontrakt archiwizacji w runtime (storage + generated_reports)
-
-- Bucket: `reports`
-- Tabela: `generated_reports`
-- `report_type`: `ccp1_temperature`
-- `storage_path`:
-  - `reports/{venueId}/{YYYY}/{MM}/ccp1_temperature_{sensorId}_{YYYY-MM}.pdf`
-- `metadata`:
-  - `sensor_id`
-  - `sensor_name`
-  - `month`
-  - `template_version = ccp1_csv_v1`
-
-### 12.3 Walidacja koncowa
-
-- Pelny `flutter test` po wdrozeniu M06 CCP-1:
-  - **31 passed, 1 skipped, 0 failed**
-- Potwierdzone:
-  - brak regresji dla pozostalych typow raportow,
-  - poprawna archiwizacja `ccp1_temperature` w `generated_reports`,
-  - rollback DB nadal oparty o przywrocenie poprzedniego check constraint.
-
----
-
-## 13. Aktualizacja po M02 Sprint 0-4 (2026-02-23)
-
-### 13.1 Migracja DB (M02 7D + Edit)
-
-- Wdrozona migracja:
-  - `supabase/migrations/20260223120000_m02_temperature_logs_table_edit_hardening.sql`
-- Status remote:
-  - migracja wypchnieta przez `supabase db push` dnia **2026-02-23**.
-
-### 13.2 Zmiany w `temperature_logs`
-
-- Dodane kolumny metadanych edycji:
-  - `edited_at timestamptz`
-  - `edited_by uuid` (FK do `employees.id`)
-  - `edit_reason text`
-- Dodany indeks:
-  - `temperature_logs_sensor_recorded_at_desc_idx` na `(sensor_id, recorded_at desc)`
-
-### 13.3 Hardening RLS
-
-- Usuniete liberalne policy:
-  - `"Logs updateable by all"`
-- Dodane policy scoped do sesji kiosk (`kiosk_sessions`) i topologii `sensor -> zone -> venue`:
-  - `temperature_logs_select_kiosk_scope`
-  - `temperature_logs_insert_kiosk_scope`
-
-### 13.4 RPC enforcement (edycja i ACK)
-
-- Dodane/utrzymane funkcje:
-  - `update_temperature_log_value(log_id_input uuid, new_temperature_input numeric, edit_reason_input text)`
-  - `acknowledge_temperature_alert(log_id_input uuid)`
-- Reguly backendowe:
-  - edycja tylko dla roli `manager`/`owner`,
-  - edycja tylko w scope kiosk (venue/zone),
-  - limit czasu edycji: rekord nie starszy niz 7 dni,
-  - zakres temperatury: `-50..150`.
-
-### 13.5 Wplyw na aplikacje i walidacja
-
-- Aplikacja M02 korzysta z RPC zamiast direct update:
-  - edycja -> `update_temperature_log_value`
-  - potwierdzenie alertu -> `acknowledge_temperature_alert`
-- Walidacja po wdrozeniu:
-  - `flutter test` -> **34 passed, 1 skipped, 0 failed** (stan na **2026-02-23**).
-
----
-
-## 14. Aktualizacja po M02 Alarm Panel Refactor (2026-02-23)
-
-### 14.1 Nowa migracja DB
-
-- Wdrozona migracja:
-  - `supabase/migrations/20260223163000_m02_get_temperature_alarms_rpc.sql`
-- Status remote:
-  - migracja wypchnieta przez `supabase db push` dnia **2026-02-23**.
-
-### 14.2 Nowy RPC read-model alarmow
-
-- Dodana funkcja:
-  - `get_temperature_alarms(zone_id_input uuid, active_only_input boolean, limit_input int default 100, offset_input int default 0)`
-- Kontrakt odpowiedzi (pod UI):
-  - `log_id`
-  - `sensor_id`
-  - `sensor_name`
-  - `temperature`
-  - `started_at`
-  - `last_seen_at`
-  - `duration_minutes`
-  - `is_acknowledged`
-  - `acknowledged_at`
-  - `acknowledged_by`
-
-### 14.3 Security i scope danych
-
-- RPC jest `SECURITY DEFINER`.
-- Scope danych oparty o `kiosk_sessions` oraz relacje `sensor -> zone -> venue`.
-- Brak nowych tabel.
-- Istniejace RPC ACK pozostaje bez zmian:
-  - `acknowledge_temperature_alert(log_id_input uuid)`
-- Dodany `grant execute` dla `authenticated` i `service_role`.
-
-### 14.4 Wydajnosc
-
-- Dodany indeks czesciowy dla alarmow:
-  - `temperature_logs_alerts_sensor_recorded_desc_idx`
-  - definicja: `(sensor_id, recorded_at desc) where is_alert = true`
-- Nadal wykorzystywany jest tez indeks:
-  - `temperature_logs_sensor_recorded_at_desc_idx`.
-
----
-
-## 15. Aktualizacja po M07 Stabilizacja HR (2026-02-24)
-
-### 15.1 Nowe migracje DB
-
-Wdrozone migracje:
-- `supabase/migrations/20260224100000_m07_01_create_employee_contract_fix.sql`
-- `supabase/migrations/20260224101000_m07_02_pin_hash_unique_constraint.sql`
-- `supabase/migrations/20260224102000_m07_03_update_employee_pin_rpc.sql`
-- `supabase/migrations/20260224103000_m07_05_fix_create_employee_uuid_aggregate.sql` (hotfix)
-
-### 15.2 Zmiana kontraktu `create_employee`
-
-Funkcja `create_employee(...)` zostala utwardzona:
-- wymaga co najmniej jednej strefy (`M07_ZONE_REQUIRED`),
-- waliduje istnienie wszystkich stref (`M07_ZONE_NOT_FOUND`),
-- waliduje jednorodnosc lokalu dla `zone_ids_input` (`M07_ZONE_MULTI_VENUE`),
-- zapisuje `employees.venue_id` na podstawie przypisanych stref,
-- zwraca kontrolowany blad dla duplikatu PIN (`M07_PIN_DUPLICATE`).
-
-### 15.3 Unikalnosc PIN
-
-Dodano twarde wymuszenie unikalnosci:
-- indeks: `employees_pin_hash_unique_idx` na `employees(pin_hash)`.
-- migracja przerywa wykonanie, jesli w danych istnieja duplikaty (`M07_PIN_DUPLICATES_EXIST`).
-
-### 15.4 Nowe RPC zmiany PIN
-
-Dodana funkcja:
-- `update_employee_pin(employee_id uuid, new_pin_hash text)`
-
-Reguly:
-- pusty PIN -> `M07_PIN_REQUIRED`,
-- duplikat PIN -> `M07_PIN_DUPLICATE`,
-- brak pracownika -> `M07_EMPLOYEE_NOT_FOUND`.
-
-### 15.5 Walidacja smoke (runtime)
-
-Wykonano smoke test kontraktu M07 (2026-02-24):
-- create employee: PASS,
-- duplicate PIN: PASS,
-- update PIN RPC: PASS,
-- `employees.venue_id` ustawione: PASS,
-- multi-venue case: SKIPPED (dataset z jednym venue).
-
-Referencja: `supabase/m07_04_hr_smoke_tests.sql`.
-
----
-
-## 16. Aktualizacja po M08 Settings Recovery (2026-02-24)
-
-### 16.1 Wdrozone migracje DB
-
-- `supabase/migrations/20260224113000_m08_01_venues_settings_columns.sql`
-- `supabase/migrations/20260224114000_m08_02_venues_rls_update_policy.sql`
-- `supabase/migrations/20260224115000_m08_03_products_rls_scope_hardening.sql`
-
-Migracje zostaly wypchniete na remote przez `supabase db push` dnia **2026-02-24**.
-
-### 16.2 Zmiany schematu `venues`
-
-- Dodane/utwardzone pola konfiguracyjne M08:
-  - `temp_interval integer` (default `15`, check: `5/15/60`)
-  - `temp_threshold numeric(5,2)` (default `8.0`, check: `0..15`)
-- Dodana walidacja `nip`:
-  - `nip` musi miec dokladnie 10 cyfr (`^[0-9]{10}$`) lub byc `NULL`.
-
-### 16.3 RLS `venues` (M08)
-
-- Odczyt (`SELECT`) tylko w scope kiosku:
-  - `kiosk_sessions.auth_user_id = auth.uid()`
-  - `kiosk_sessions.venue_id = venues.id`
-- Zapis (`UPDATE`) tylko dla roli `manager` / `owner` w tym samym `venue`.
-
-### 16.4 RLS `products` (M08)
-
-- `SELECT`:
-  - produkty globalne (`venue_id IS NULL`) oraz lokalne z aktywnego `venue` kiosku.
-- `INSERT/UPDATE/DELETE`:
-  - tylko `manager` / `owner`,
-  - tylko dla rekordow w scope aktywnego `venue`.
-
-### 16.5 Smoke testy M08
-
-- Przygotowany plik wykonywalny:
-  - `supabase/m08_04_settings_smoke_tests.sql`
-- Zakres:
-  - pozytywne i negatywne scenariusze walidacji `venues`,
-  - scenariusze RLS allow/deny dla `venues` i `products`.
-
----
-
-## 17. Aktualizacja po CCP2+CCP3 Unification Sprint 4-6 (2026-02-26)
-
-### 17.1 Nowa migracja DB (CCP3 generated_reports venue backfill)
-
-Wdrozona migracja:
-- `supabase/migrations/20260226200000_sprint4_ccp3_generated_reports_venue_backfill.sql`
+﻿# Supabase Documentation (Data Layer Only)
+## Kiedy Dolaczac Ten Plik Do Konwersacji
+- Gdy temat dotyczy schematu danych, relacji i constraints.
+- Gdy analizujesz RLS, polityki dostepu i scope tenantow.
+- Gdy potrzebujesz katalogu RPC i kontraktow storage.
+- Gdy planujesz lub audytujesz migracje/rollback DB.
+- Nie dolaczaj do pytań o layout UI lub architekture widgetow.
+
+## 1. Zakres Dokumentu Data-only
+Ten dokument opisuje wyłącznie warstwę danych Supabase.
 
 Zakres:
-- idempotentny backfill `generated_reports.venue_id` dla `report_type='ccp3_cooling'` na podstawie `storage_path`,
-- backup rekordow dotknietych migracja do:
-  - `public.generated_reports_ccp3_backfill_20260226_backup`,
-- oznaczenie rekordow nierozwiazywalnych w `metadata`:
-  - `ccp3_backfill_status='unresolved'`,
-  - `ccp3_backfill_reason=<powod>`.
+- Schemat logiczny i encje danych.
+- Relacje, constraints, indeksy.
+- RLS model, role matrix i katalog RPC.
+- Buckety storage, migracje i runbook DB.
 
-### 17.2 Bezpieczenstwo i operacyjnosc
+Poza zakresem:
+- Layouty UI i opisy ekranow.
+- Szczegoly implementacji provider/screen.
+- Planowanie architektury high-level.
 
-- Backfill nie stosuje fallback cross-tenant.
-- Rekordy prowadzace do konfliktu unikalnosci `(venue_id, report_type, generation_date)`
-  nie sa ustawiane automatycznie i sa klasyfikowane jako `unresolved`.
-- Zachowana zgodnosc z istniejacym hardeningiem RLS `generated_reports`.
+## 2. Schemat Logiczny i ERD
+```mermaid
+erDiagram
+  VENUES ||--o{ ZONES : has
+  VENUES ||--o{ EMPLOYEES : has
+  VENUES ||--o{ PRODUCTS : owns
+  VENUES ||--o{ HACCP_LOGS : scopes
+  VENUES ||--o{ WASTE_RECORDS : scopes
+  VENUES ||--o{ GENERATED_REPORTS : archives
 
-### 17.3 Status wdrozenia
+  EMPLOYEES ||--o{ EMPLOYEE_ZONES : assigned
+  ZONES ||--o{ EMPLOYEE_ZONES : includes
 
-- `supabase db push` wykonany dnia **2026-02-26**.
-- `supabase migration list` potwierdza `Local=Remote` dla:
-  - `20260226200000`.
+  ZONES ||--o{ SENSORS : contains
+  SENSORS ||--o{ TEMPERATURE_LOGS : produces
+  SENSORS ||--o{ ANNOTATIONS : annotates
 
-### 17.4 Artefakty walidacyjne i rollback
+  EMPLOYEES ||--o{ KIOSK_SESSIONS : auth_uid_scope
+```
 
-Dodane pliki:
-- `supabase/ccp3_04_generated_reports_backfill_validation.sql` (walidacja post-migration),
-- `directives/22_CCP2_CCP3_Unification/22_Sprint_4_Rollback_Runbook.md` (procedura rollback).
+## 3. Slownik Tabel i Kolumn
+### 3.1 Tabele kanoniczne (runtime)
+| Tabela | Cel | Kluczowe kolumny |
+|:--|:--|:--|
+| `venues` | konfiguracja lokalu | `id`, `name`, `address`, `nip`, `logo_url`, `temp_interval`, `temp_threshold` |
+| `zones` | strefy lokalu | `id`, `venue_id`, `name` |
+| `employees` | personel i role | `id`, `venue_id`, `full_name`, `pin_hash`, `role`, `sanepid_expiry`, `is_active` |
+| `employee_zones` | mapowanie pracownik-strefa | `employee_id`, `zone_id` |
+| `products` | produkty globalne/lokalne | `id`, `venue_id`, `name`, `type`, `created_at` |
+| `haccp_logs` | unified log GMP/GHP | `id`, `venue_id`, `zone_id`, `category`, `form_id`, `data`, `user_id`, `created_by`, `created_at` |
+| `sensors` | czujniki | `id`, `zone_id`, `name`, `mac_address`, `is_active` |
+| `temperature_logs` | log temperatur | `id`, `sensor_id`, `temperature_celsius`, `recorded_at`, `is_alert`, `is_acknowledged`, `acknowledged_by`, `edited_at`, `edited_by`, `edit_reason` |
+| `annotations` | adnotacje do pomiarow | `id`, `sensor_id`, `label`, `comment`, `created_by`, `created_at` |
+| `waste_records` | ewidencja odpadow | `id`, `venue_id`, `zone_id`, `user_id`, `waste_type`, `mass_kg`, `photo_url`, `created_at` |
+| `generated_reports` | metadata archiwum raportow | `id`, `venue_id`, `report_type`, `generation_date`, `storage_path`, `metadata`, `created_by` |
+| `kiosk_sessions` | runtime context auth uid | `auth_user_id`, `employee_id`, `venue_id`, `zone_id`, `updated_at` |
 
-Uwaga:
-- walidacja SQL post-backfill wymaga uruchomienia przez SQL Editor lub klienta DB.
+### 3.2 Kontrakt GHP (M04) w `haccp_logs.data`
+Dla wpisow `category='ghp'` obowiazuje kontrakt:
+- `execution_date` (`YYYY-MM-DD`, required)
+- `execution_time` (`HH:mm`, required)
+- `answers` (obiekt odpowiedzi checklisty/chemii, required)
+- `notes` (string, optional)
+
+### 3.3 Kontrakt raportu GHP (M06) w `generated_reports`
+Dla raportu miesiecznego GHP:
+- `report_type = 'ghp_checklist_monthly'`
+- `generation_date = YYYY-MM-01` (pierwszy dzien okresu raportowego)
+- `storage_path` zgodny z kontraktem bucketu `reports`
+- `metadata` zawiera co najmniej:
+  - `period_start`
+  - `period_end`
+  - `template_version` (`ghp_pdf_v1`)
+  - `source_form_id` (`ghp_all` lub konkretny `ghp_*`)
+  - `zone_id` (dla raportu strefowego)
+  - `month` (`YYYY-MM`)
+
+### 3.4 Tabele legacy (utrzymane historycznie)
+- `gmp_logs`
+- `ghp_logs`
+- `checklists_templates`
+
+Uwaga: aktualny runtime aplikacji opiera operacje produkcyjne na `haccp_logs`.
+
+## 4. Relacje, Constraints, Indeksy
+### 4.1 Relacje krytyczne
+1. `zones.venue_id -> venues.id`
+2. `employees.venue_id -> venues.id`
+3. `employee_zones.employee_id -> employees.id`
+4. `employee_zones.zone_id -> zones.id`
+5. `sensors.zone_id -> zones.id`
+6. `temperature_logs.sensor_id -> sensors.id`
+7. `haccp_logs.user_id -> employees.id`
+8. `generated_reports.venue_id -> venues.id`
+
+### 4.2 Constraints krytyczne
+- `products` unikalnosc nazwy w scope venue.
+- `venues.nip` format: 10 cyfr albo `NULL`.
+- `venues.temp_interval` i `venues.temp_threshold` ograniczone check constraints.
+- `generated_reports.report_type` kontrolowany przez check constraint
+  (`ccp3_cooling`, `waste_monthly`, `gmp_daily`, `ccp1_temperature`, `ccp2_roasting`, `ghp_checklist_monthly`).
+- `employees_pin_hash_unique_idx` wymusza unikalnosc hash PIN.
+
+### 4.3 Indeksy krytyczne
+- `haccp_logs_category_form_created_at_idx`
+- `haccp_logs_zone_created_at_idx`
+- `haccp_logs_venue_created_at_idx`
+- `temperature_logs_sensor_recorded_at_desc_idx`
+- `temperature_logs_alerts_sensor_recorded_desc_idx` (partial)
+- `generated_reports_venue_type_date_idx`
+
+## 5. RLS Model i Role Matrix
+### 5.1 Zasada ogolna
+Tenant scope oparty o `kiosk_sessions` i relacje encji do `venue_id`/`zone_id`.
+
+### 5.2 Macierz dostepu
+| Obszar | SELECT | INSERT/UPDATE/DELETE |
+|:--|:--|:--|
+| `venues` | tylko aktywny kiosk scope | update tylko manager/owner w tym samym venue |
+| `products` | globalne + lokalne w kiosk scope | modyfikacja tylko manager/owner w kiosk scope |
+| `haccp_logs` | kiosk scoped | kiosk scoped (wg polityk i kontraktow app) |
+| `temperature_logs` | kiosk scoped | mutacje krytyczne przez RPC |
+| `generated_reports` | kiosk scoped | insert/update kiosk scoped |
+| `storage.objects` bucket `branding` | odczyt scoped policy | write/delete manager/owner i naming scope |
+
+## 6. RPC Catalog (Sygnatury, Semantyka, Security)
+| RPC | Semantyka | Security |
+|:--|:--|:--|
+| `login_with_pin(pin_input)` | zwraca pracownika po hash PIN | security-definer/auth flow |
+| `set_kiosk_context(employee_id_input, zone_id_input)` | ustawia runtime scope sesji kiosku | zalezne od `auth.uid()` |
+| `clear_kiosk_context()` | czysci runtime scope sesji | zalezne od `auth.uid()` |
+| `get_temperature_alarms(zone_id_input, active_only_input, limit_input, offset_input)` | read-model alarmow dla M02 | security-definer, scope kiosk |
+| `acknowledge_temperature_alert(log_id_input)` | ACK alarmu temperatury | role + scope enforcement |
+| `update_temperature_log_value(log_id_input, new_temperature_input, edit_reason_input)` | edycja temperatury z regułami czasu i roli | role + scope + walidacja zakresu |
+| `create_employee(...)` | tworzenie pracownika i przypisanie stref | walidacje domenowe M07 |
+| `update_employee_pin(employee_id, new_pin_hash)` | zmiana PIN pracownika | walidacje i kody bledu M07 |
+| `check_pin_availability(pin_input)` | sprawdzenie unikalnosci PIN | helper do flow M07 |
+| `update_employee_sanepid(employee_id, new_expiry)` | aktualizacja daty badan | RPC HR |
+| `toggle_employee_active(employee_id, new_status)` | aktywacja/dezaktywacja pracownika | RPC HR |
+
+Uwaga: kanoniczny katalog RPC jest utrzymywany tutaj; inne dokumenty powinny sie do niego odnosic, nie duplikowac definicji.
+
+## 7. Storage Buckets i Kontrakty Sciezek
+| Bucket | Przeznaczenie | Kontrakt sciezki |
+|:--|:--|:--|
+| `reports` | archiwum PDF raportow | `<venueId>/<YYYY>/<MM>/<file>.pdf` |
+| `branding` | logotypy lokali | `logos/<venueId>/<timestamp>.<ext>` |
+| `waste-docs` | zdjecia dokumentow odpadow | scoped per venue/workflow |
+
+Zasady:
+1. `generated_reports.storage_path` przechowuje referencje do plikow raportowych.
+   - Kanoniczny format runtime: `reports/<venueId>/<YYYY>/<MM>/<file>.pdf`.
+2. Branding ma polityki scoped po venue i roli.
+3. Public/private access zalezy od konfiguracji bucketu i policies.
+
+## 8. Migracje: Stan Obowiazujacy (Skondensowany)
+### 8.1 Główne etapy
+1. Baseline remote schema (`20260222084436`, `20260222084803`).
+2. Hardening `haccp_logs` + `kiosk_sessions` (`20260222123000`).
+3. M02 edit/alarms hardening (`20260223120000`, `20260223163000`).
+4. M07 contract fixes (`20260224100000`..`20260224103000`).
+5. M08 venues/products RLS (`20260224113000`..`20260224115000`).
+6. CCP2/CCP3 report hardening i backfill (`20260226160000`, `20260226173000`, `20260226200000`).
+7. Branding storage hardening (`20260227110000`).
+8. M04 GHP report_type contract (`20260227133000`).
+
+### 8.2 Zasada operacyjna
+- Każda migracja musi byc idempotentna tam, gdzie to mozliwe.
+- Zmiany danych produkcyjnych wymagaja backup table lub rollback planu.
+
+## 9. Operacyjny Runbook DB (Backup/Rollback/Walidacja)
+### 9.1 Backup i rollback
+- Przed migracjami data-transforming: snapshot tabel dotknietych.
+- W migracjach backfill utrzymywac tabelę backup i znaczniki statusu.
+- Rollback wykonywac przez odtworzenie z backup table lub cofnięcie constraint/policy.
+
+### 9.2 Walidacja po wdrozeniu
+1. `supabase migration list` i potwierdzenie Local=Remote.
+2. SQL smoke tests (`supabase/m07_04_hr_smoke_tests.sql`, `supabase/m08_04_settings_smoke_tests.sql`, `supabase/ccp3_04_generated_reports_backfill_validation.sql`).
+3. Kontrole:
+- brak rekordow poza tenant scope,
+- zgodnosc report_type constraints,
+- zgodnosc storage policy count dla bucketow krytycznych.
+
+### 9.3 Incydenty
+- Gdy auth context nie istnieje, RPC oparte o `auth.uid()` nie beda dzialac.
+- Diagnoze zaczynac od provider/session context, potem RLS/policies, potem dane.
+

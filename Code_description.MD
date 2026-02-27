@@ -80,9 +80,9 @@ Zrodlo prawdy: `lib/core/router/app_router.dart`.
 | M01 | `core/repositories/auth_repository.dart` | `loginWithPin`, `getZonesForEmployee`, `setKioskContext`, `clearKioskContext` |
 | M02 | `m02_monitoring/repositories/measurements_repository.dart` | sensory, historia, tabela 7d, alarm RPC, ACK RPC, edit RPC, annotations insert |
 | M03 | `m03_gmp/repositories/gmp_repository.dart` | insert/get history dla `category=gmp`, legacy form-id compatibility w historii |
-| M04 | `m04_ghp/repositories/ghp_repository.dart` | insert/get history dla `category=ghp` |
+| M04 | `m04_ghp/repositories/ghp_repository.dart` | insert/get history dla `category=ghp`, kontrakt `data.execution_date` + `data.execution_time` |
 | M05 | `m05_waste/repositories/waste_repository.dart` | insert i historia odpadow |
-| M06 | `m06_reports/repositories/reports_repository.dart` | query logow, generacja datasetow raportow, upload/download storage, metadata upsert |
+| M06 | `m06_reports/repositories/reports_repository.dart` | query logow (w tym GHP), generacja datasetow raportow, upload/download storage, metadata upsert (`ghp_checklist_monthly`) |
 | M07 | `m07_hr/repositories/hr_repository.dart` | create/toggle/update pin/sanepid przez RPC + mapowanie kodow bledow M07 |
 | M08 | `m08_settings/repositories/venue_repository.dart` + `shared/repositories/products_repository.dart` | venue settings update + branding upload + produkty CRUD scoped by venue |
 
@@ -109,16 +109,21 @@ Error mapping:
 
 ### M04 GHP
 - Checklists i chemikalia w tej samej tabeli logow (`haccp_logs`, `category=ghp`).
+- Kontrakt payload GHP: `data.execution_date`, `data.execution_time`, `data.answers`, `data.notes?`.
 - Odczyt i zapis scoped po `zone_id`.
+- Historia GHP wspiera filtracje (data/kategoria) i widok szczegolow wpisu.
+- Lista chemii korzysta ze zrodla konfiguracyjnego (`shared/config/checklist_definitions.dart`), bez hardcoded mock w ekranie.
 
 ### M05 Waste
 - Rejestracja odpadown + foto flow.
 - Historia i panel operuja na `waste_records`.
 
 ### M06 Reports
-- Raporty CCP1/CCP2/CCP3 i waste z miesiecznym lifecycle.
+- Raporty CCP1/CCP2/CCP3 i waste z miesiecznym lifecycle; kontrakt gotowy pod GHP monthly.
 - Archiwizacja: upload do storage + upsert metadata w `generated_reports`.
+- Kontrakt metadanych GHP: `report_type=ghp_checklist_monthly`, `template_version=ghp_pdf_v1`, `source_form_id=ghp_all`.
 - Fallback download path i obsluga force regenerate dla preview.
+- Archiwum raportow udostepnia akcje podgladu/pobrania dla wpisow GHP i pozostalych typow.
 
 ### M07 HR
 - Zarzadzanie personelem tylko manager/owner.
@@ -150,6 +155,11 @@ Error mapping:
 | Widget | `test/features/**` | zachowania ekranow, stany i interakcje |
 | Integration/contract | `test/db_consistency_test.dart`, repo tests | spojnosc danych i kontrakty repozytorium |
 | SQL smoke | `supabase/*_smoke_tests.sql` | walidacja kontraktow DB po migracjach |
+
+M04/M06 coverage po wdrozeniu GHP:
+- unit: normalizacja payload GHP, mapowanie GHP rows, fallback route dla archiwum,
+- provider/integration: generacja i archiwizacja raportu GHP + scenariusze bledow storage/metadata,
+- widget: checklista GHP (wymagane pola wykonania), historia + detal, archiwum podglad/pobranie.
 
 Minimalny scope regresji przy zmianie kontraktu:
 1. tests modułu dotknietego.

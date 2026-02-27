@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:haccp_pilot/features/m06_reports/repositories/reports_repository.dart';
+import 'package:haccp_pilot/features/m06_reports/screens/saved_reports_screen.dart';
 
 void main() {
-group('CoolingLogsQuerySpec', () {
+  group('CoolingLogsQuerySpec', () {
     test('contains fixed GMP cooling filters and month range', () {
       final spec = buildCoolingLogsQuerySpec(DateTime(2026, 2, 22, 15, 40));
 
@@ -189,6 +190,49 @@ group('CoolingLogsQuerySpec', () {
       expect(rows[1].temperature, equals('0.0\u00B0C'));
       expect(rows[1].correctiveActions, isEmpty);
       expect(rows[1].signature, isEmpty);
+    });
+  });
+
+  group('GHP row mapping', () {
+    test('maps execution metadata and answer summary for PDF rows', () {
+      final row = mapGhpLogToReportRow({
+        'form_id': 'ghp_personnel',
+        'created_at': '2026-02-27T12:30:00Z',
+        'data': {
+          'execution_date': '2026-02-27',
+          'execution_time': '12:15',
+          'answers': {'uniform': true, 'hands': false, 'health': true},
+          'notes': 'Brak uwag',
+        },
+      });
+
+      expect(row.length, equals(6));
+      expect(row[0], equals('2026-02-27'));
+      expect(row[1], equals('12:15'));
+      expect(row[2], equals('ghp_personnel'));
+      expect(row[3], contains('Pytania: 3'));
+      expect(row[3], contains('TAK: 2'));
+      expect(row[3], contains('NIE: 1'));
+      expect(row[4], equals('Brak uwag'));
+      expect(row[5], equals('2026-02-27T12:30'));
+    });
+  });
+
+  group('Saved reports fallback route', () {
+    test('returns force preview route for ccp2/ccp3 and null for others', () {
+      expect(
+        buildFallbackPreviewRoute('ccp2_roasting', '2026-02-01'),
+        equals('/reports/preview/ccp2?date=2026-02-01&force=1'),
+      );
+      expect(
+        buildFallbackPreviewRoute('ccp3_cooling', '2026-02-01'),
+        equals('/reports/preview/ccp3?date=2026-02-01&force=1'),
+      );
+      expect(
+        buildFallbackPreviewRoute('ghp_checklist_monthly', '2026-02-01'),
+        isNull,
+      );
+      expect(buildFallbackPreviewRoute('ccp2_roasting', 'bad-date'), isNull);
     });
   });
 }

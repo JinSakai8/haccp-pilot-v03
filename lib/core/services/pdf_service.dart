@@ -476,12 +476,7 @@ class PdfService {
 
   /// Opens the file (PDF or HTML) in the browser (Web) or viewer (Mobile).
   void openFile(Uint8List bytes, String fileName) {
-    if (kIsWeb) {
-      openFileFromBytes(bytes, fileName);
-    } else {
-      // Mobile implementation would go here (e.g. open_file package)
-      debugPrint('Opening $fileName on mobile is not yet implemented.');
-    }
+    openFileFromBytes(bytes, fileName);
   }
 
   /// Generates the CCP-2 Roasting Report with custom header and table layout.

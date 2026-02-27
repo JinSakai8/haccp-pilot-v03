@@ -89,6 +89,42 @@ class Ccp1TemperatureDataset {
   });
 }
 
+String _normalizeReportValue(dynamic value) {
+  if (value == null) return '-';
+  if (value is bool) return value ? 'TAK' : 'NIE';
+  final text = value.toString().trim();
+  if (text.isEmpty) return '-';
+  return text;
+}
+
+String _buildGhpAnswersSummary(Map<String, dynamic> answers) {
+  if (answers.isEmpty) return '-';
+
+  var yes = 0;
+  var no = 0;
+  for (final value in answers.values) {
+    if (value is bool) {
+      if (value) {
+        yes++;
+      } else {
+        no++;
+      }
+      continue;
+    }
+    final normalized = value?.toString().trim().toLowerCase();
+    if (normalized == 'tak' || normalized == 'yes' || normalized == 'true') {
+      yes++;
+    } else if (normalized == 'nie' ||
+        normalized == 'no' ||
+        normalized == 'false') {
+      no++;
+    }
+  }
+
+  final total = answers.length;
+  return 'Pytania: $total | TAK: $yes | NIE: $no';
+}
+
 @visibleForTesting
 Ccp1TemperatureReportRow mapTemperatureLogToCcp1Row(Map<String, dynamic> raw) {
   final recordedAt = DateTime.parse(raw['recorded_at'] as String);
@@ -109,6 +145,33 @@ Ccp1TemperatureReportRow mapTemperatureLogToCcp1Row(Map<String, dynamic> raw) {
     correctiveActions: '',
     signature: '',
   );
+}
+
+List<String> mapGhpLogToReportRow(Map<String, dynamic> raw) {
+  final data = (raw['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+  final answers = data['answers'] is Map
+      ? Map<String, dynamic>.from(data['answers'] as Map)
+      : const <String, dynamic>{};
+
+  final createdAtRaw = raw['created_at']?.toString() ?? '';
+  final createdAtLabel = createdAtRaw.isNotEmpty && createdAtRaw.length >= 16
+      ? createdAtRaw.substring(0, 16)
+      : _normalizeReportValue(createdAtRaw);
+
+  final formId = raw['form_id']?.toString() ?? 'ghp_unknown';
+  final executionDate = _normalizeReportValue(data['execution_date']);
+  final executionTime = _normalizeReportValue(data['execution_time']);
+  final answersSummary = _buildGhpAnswersSummary(answers);
+  final notes = _normalizeReportValue(data['notes']);
+
+  return <String>[
+    executionDate,
+    executionTime,
+    formId,
+    answersSummary,
+    notes,
+    createdAtLabel,
+  ];
 }
 
 class CoolingLogsQuerySpec {
@@ -395,6 +458,31 @@ class ReportsRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Future<List<Map<String, dynamic>>> getGhpLogs(
+    DateTime start,
+    DateTime end, {
+    String? zoneId,
+    String? venueId,
+  }) async {
+    var query = SupabaseService.client
+        .from('haccp_logs')
+        .select()
+        .eq('category', 'ghp')
+        .gte('created_at', start.toIso8601String())
+        .lte('created_at', end.toIso8601String());
+
+    final normalizedZoneId = zoneId?.trim();
+    final normalizedVenueId = venueId?.trim();
+    if (normalizedZoneId != null && normalizedZoneId.isNotEmpty) {
+      query = query.eq('zone_id', normalizedZoneId);
+    } else if (normalizedVenueId != null && normalizedVenueId.isNotEmpty) {
+      query = query.eq('venue_id', normalizedVenueId);
+    }
+
+    final response = await query.order('created_at');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   Future<List<Map<String, dynamic>>> getMeasurements(
     DateTime start,
     DateTime end,
@@ -542,6 +630,7 @@ class ReportsRepository {
           'ccp2_roasting' => 'ccp2_pdf_v2',
           'ccp3_cooling' => 'ccp3_pdf_v2',
           'ccp1_temperature' => 'ccp1_csv_v1',
+          'ghp_checklist_monthly' => 'ghp_pdf_v1',
           _ => 'pdf_v1',
         };
 
@@ -551,6 +640,7 @@ class ReportsRepository {
           'ccp2_roasting' => 'meat_roasting',
           'ccp3_cooling' => 'food_cooling',
           'ccp1_temperature' => 'temperature_logs',
+          'ghp_checklist_monthly' => 'ghp_all',
           _ => 'unknown',
         };
 
@@ -562,12 +652,16 @@ class ReportsRepository {
       ...?metadata,
     };
 
+    final normalizedStoragePath = storagePath.startsWith('reports/')
+        ? storagePath
+        : 'reports/$storagePath';
+
     await SupabaseService.client.from('generated_reports').upsert({
       'venue_id': venueId,
       'report_type': reportType,
       'generation_date': generationDate.toIso8601String().split('T')[0],
       'created_by': userId,
-      'storage_path': storagePath,
+      'storage_path': normalizedStoragePath,
       'metadata': mergedMetadata,
     }, onConflict: 'venue_id,report_type,generation_date');
   }

@@ -30,6 +30,17 @@ class _FakeReportsRepository extends ReportsRepository {
   String? uploadedPathResult =
       'venue-1/2026/02/ccp1_temperature_sensor-1_2026-02.pdf';
   bool throwOnSaveMetadata = false;
+  List<Map<String, dynamic>> ghpLogs = <Map<String, dynamic>>[
+    <String, dynamic>{
+      'form_id': 'ghp_personnel',
+      'created_at': '2026-02-10T08:00:00Z',
+      'data': <String, dynamic>{
+        'execution_date': '2026-02-10',
+        'execution_time': '07:45',
+        'answers': <String, dynamic>{'uniform': true, 'hands': true},
+      },
+    },
+  ];
 
   String? lastUploadPath;
   Map<String, dynamic>? lastSavedMetadata;
@@ -56,6 +67,16 @@ class _FakeReportsRepository extends ReportsRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> getGhpLogs(
+    DateTime start,
+    DateTime end, {
+    String? zoneId,
+    String? venueId,
+  }) async {
+    return ghpLogs;
+  }
+
+  @override
   Future<void> saveReportMetadata({
     required String venueId,
     required String reportType,
@@ -73,7 +94,9 @@ class _FakeReportsRepository extends ReportsRepository {
     }
     lastSavedVenueId = venueId;
     lastSavedReportType = reportType;
-    lastSavedStoragePath = storagePath;
+    lastSavedStoragePath = storagePath.startsWith('reports/')
+        ? storagePath
+        : 'reports/$storagePath';
     lastSavedUserId = userId;
     lastSavedMetadata = metadata;
     lastSavedGenerationDate = generationDate;
@@ -93,6 +116,17 @@ class _FakePdfService extends PdfService {
     required List<List<String>> rows,
   }) async {
     return Uint8List.fromList('%PDF-fake-ccp1'.codeUnits);
+  }
+
+  @override
+  Future<Uint8List> generateTableReport({
+    required String title,
+    required List<String> columns,
+    required List<List<String>> rows,
+    required String userName,
+    required String dateRange,
+  }) async {
+    return Uint8List.fromList('%PDF-fake-ghp'.codeUnits);
   }
 }
 
@@ -237,5 +271,64 @@ void main() {
         expect(state.value!.archiveWarning, contains('metadanych'));
       },
     );
+
+    test('success: generates ghp pdf and archives ghp metadata', () async {
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(reportType: 'ghp', month: DateTime(2026, 2, 1));
+
+      final state = container.read(reportsProvider);
+      expect(state.hasValue, isTrue);
+      expect(state.value, isNotNull);
+      expect(state.value!.fileName, equals('ghp_checklist_2026-02.pdf'));
+      expect(fakeRepo.lastUploadPath, isNotNull);
+      expect(fakeRepo.lastSavedReportType, equals('ghp_checklist_monthly'));
+      expect(fakeRepo.lastSavedVenueId, equals('venue-1'));
+      expect(fakeRepo.lastSavedStoragePath, startsWith('reports/'));
+      expect(fakeRepo.lastSavedMetadata?['month'], equals('2026-02'));
+      expect(fakeRepo.lastSavedMetadata?['zone_id'], equals('zone-1'));
+    });
+
+    test('ghp upload error: returns warning while keeping PDF bytes', () async {
+      fakeRepo.uploadedPathResult = null;
+
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(reportType: 'ghp', month: DateTime(2026, 2, 1));
+
+      final state = container.read(reportsProvider);
+      expect(state.hasValue, isTrue);
+      expect(state.value, isNotNull);
+      expect(state.value!.archiveWarning, isNotNull);
+      expect(state.value!.archiveWarning, contains('storage'));
+    });
+
+    test(
+      'ghp metadata error: returns warning while keeping PDF bytes',
+      () async {
+        fakeRepo.throwOnSaveMetadata = true;
+
+        await container
+            .read(reportsProvider.notifier)
+            .generateReport(reportType: 'ghp', month: DateTime(2026, 2, 1));
+
+        final state = container.read(reportsProvider);
+        expect(state.hasValue, isTrue);
+        expect(state.value, isNotNull);
+        expect(state.value!.archiveWarning, isNotNull);
+        expect(state.value!.archiveWarning, contains('metadanych'));
+      },
+    );
+
+    test('ghp empty dataset: returns error', () async {
+      fakeRepo.ghpLogs = <Map<String, dynamic>>[];
+
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(reportType: 'ghp', month: DateTime(2026, 2, 1));
+
+      final state = container.read(reportsProvider);
+      expect(state.hasError, isTrue);
+    });
   });
 }

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'package:haccp_pilot/core/services/drive_service.dart';
@@ -54,6 +53,7 @@ class ReportsNotifier extends _$ReportsNotifier {
       final repo = ref.read(reportsRepositoryProvider);
       final pdf = ref.read(pdfServiceProvider);
       final user = ref.read(currentUserProvider);
+      final currentZone = ref.read(currentZoneProvider);
 
       List<int> pdfBytes;
       String fileName;
@@ -122,9 +122,84 @@ class ReportsNotifier extends _$ReportsNotifier {
           dateRange: '${month.year}-${month.month.toString().padLeft(2, '0')}',
         );
       } else if (reportType == 'ghp') {
-        throw Exception(
-          'Raport GHP jest w trakcie przygotowania. Uzyj GMP lub Temperatur.',
+        final periodStart = DateTime(month.year, month.month, 1);
+        final periodEnd = DateTime(
+          month.year,
+          month.month + 1,
+          1,
+        ).subtract(const Duration(milliseconds: 1));
+        final monthStr =
+            '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+        final venueId = await _resolveVenueId();
+        final ghpLogs = await repo.getGhpLogs(
+          start,
+          end,
+          zoneId: currentZone?.id,
+          venueId: venueId,
         );
+        if (ghpLogs.isEmpty) {
+          throw Exception('Brak checklist GHP w wybranym miesiacu');
+        }
+
+        final columns = [
+          'Data wykonania',
+          'Godzina',
+          'Kategoria',
+          'Podsumowanie',
+          'Uwagi',
+          'Utworzono',
+        ];
+        final rows = ghpLogs.map(mapGhpLogToReportRow).toList();
+
+        fileName = 'ghp_checklist_$monthStr.pdf';
+        pdfBytes = await pdf.generateTableReport(
+          title: 'Raport Checklist GHP',
+          columns: columns,
+          rows: rows,
+          userName: user?.fullName ?? 'System',
+          dateRange: monthStr,
+        );
+
+        if (venueId == null || venueId.isEmpty) {
+          archiveWarning =
+              'Raport wygenerowano, ale brak venue_id do archiwizacji GHP.';
+        } else if (user == null) {
+          archiveWarning =
+              'Raport wygenerowano, ale brak zalogowanego uzytkownika do archiwizacji GHP.';
+        } else {
+          try {
+            final storagePathInBucket =
+                '$venueId/${month.year}/${month.month.toString().padLeft(2, '0')}/$fileName';
+            final uploadedPath = await repo.uploadReport(
+              storagePathInBucket,
+              Uint8List.fromList(pdfBytes),
+            );
+            if (uploadedPath == null) {
+              archiveWarning =
+                  'Raport wygenerowano, ale nie udalo sie zapisac pliku GHP w storage.';
+            } else {
+              await repo.saveReportMetadata(
+                venueId: venueId,
+                reportType: 'ghp_checklist_monthly',
+                generationDate: periodStart,
+                storagePath: uploadedPath,
+                userId: user.id,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                metadata: {
+                  'month': monthStr,
+                  'zone_id': currentZone?.id,
+                  'source_form_id': 'ghp_all',
+                  'template_version': 'ghp_pdf_v1',
+                },
+              );
+            }
+          } catch (_) {
+            archiveWarning =
+                'Raport wygenerowano, ale nie udalo sie zapisac metadanych archiwum GHP.';
+          }
+        }
       } else if (reportType == 'temperature') {
         if (sensorId == null || sensorId.trim().isEmpty) {
           throw Exception('Wybierz urzadzenie dla raportu CCP-1 temperatur.');
