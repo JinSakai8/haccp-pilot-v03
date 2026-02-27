@@ -58,6 +58,7 @@ Stabilne zaleznosci:
 - M06 konsumuje dane operacyjne z M02/M03/M05 do raportowania.
 - M06 konsumuje rowniez dane M04 (`haccp_logs`, `category=ghp`) do miesiecznego raportu GHP i archiwizacji.
 - M08 dostarcza konfiguracje runtime (branding/produkty/parametry lokalu) wykorzystywana przez inne moduly.
+- M04 konsumuje dane referencyjne cross-module: pracownicy z M07 oraz slownik pomieszczen z M08.
 
 Zaleznosci, ktorych unikamy:
 - Bezposrednie wywolania miedzy ekranami modulow.

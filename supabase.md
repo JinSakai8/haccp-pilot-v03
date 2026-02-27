@@ -48,7 +48,7 @@ erDiagram
 | `zones` | strefy lokalu | `id`, `venue_id`, `name` |
 | `employees` | personel i role | `id`, `venue_id`, `full_name`, `pin_hash`, `role`, `sanepid_expiry`, `is_active` |
 | `employee_zones` | mapowanie pracownik-strefa | `employee_id`, `zone_id` |
-| `products` | produkty globalne/lokalne | `id`, `venue_id`, `name`, `type`, `created_at` |
+| `products` | produkty globalne/lokalne + slownik pomieszczen | `id`, `venue_id`, `name`, `type`, `created_at` |
 | `haccp_logs` | unified log GMP/GHP | `id`, `venue_id`, `zone_id`, `category`, `form_id`, `data`, `user_id`, `created_by`, `created_at` |
 | `sensors` | czujniki | `id`, `zone_id`, `name`, `mac_address`, `is_active` |
 | `temperature_logs` | log temperatur | `id`, `sensor_id`, `temperature_celsius`, `recorded_at`, `is_alert`, `is_acknowledged`, `acknowledged_by`, `edited_at`, `edited_by`, `edit_reason` |
@@ -62,6 +62,8 @@ Dla wpisow `category='ghp'` obowiazuje kontrakt:
 - `execution_date` (`YYYY-MM-DD`, required)
 - `execution_time` (`HH:mm`, required)
 - `answers` (obiekt odpowiedzi checklisty/chemii, required)
+  - Dla `ghp_personnel`: `answers.selected_employee = { id, name }`
+  - Dla `ghp_rooms`: `answers.selected_room = { id, name }`
 - `notes` (string, optional)
 
 ### 3.3 Kontrakt raportu GHP (M06) w `generated_reports`
@@ -97,6 +99,7 @@ Uwaga: aktualny runtime aplikacji opiera operacje produkcyjne na `haccp_logs`.
 
 ### 4.2 Constraints krytyczne
 - `products` unikalnosc nazwy w scope venue.
+- Dopuszczalne wartosci `products.type` w runtime: `cooling`, `roasting`, `general`, `rooms`.
 - `venues.nip` format: 10 cyfr albo `NULL`.
 - `venues.temp_interval` i `venues.temp_threshold` ograniczone check constraints.
 - `generated_reports.report_type` kontrolowany przez check constraint

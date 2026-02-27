@@ -33,8 +33,8 @@ class ManageProductsScreen extends ConsumerStatefulWidget {
 class _ManageProductsScreenState extends ConsumerState<ManageProductsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _types = ['cooling', 'roasting', 'general'];
-  final _labels = ['Chlodzenie', 'Obrobka Termiczna', 'Ogolne'];
+  final _types = ['cooling', 'roasting', 'general', 'rooms'];
+  final _labels = ['Chlodzenie', 'Obrobka Termiczna', 'Ogolne', 'Pomieszczenia'];
 
   @override
   void initState() {
@@ -290,6 +290,7 @@ class _ProductDialogState extends State<_ProductDialog> {
     'cooling': 'Chlodzenie',
     'roasting': 'Obrobka Termiczna',
     'general': 'Ogolne',
+    'rooms': 'Pomieszczenia',
   };
 
   @override

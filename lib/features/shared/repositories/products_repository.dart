@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class Product {
   final String id;
   final String name;
-  final String type; // 'cooling', 'roasting', 'general'
+  final String type; // 'cooling', 'roasting', 'general', 'rooms'
   final String? venueId;
 
   Product({

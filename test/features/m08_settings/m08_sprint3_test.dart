@@ -35,6 +35,7 @@ void main() {
         productsProvider('cooling').overrideWith((ref) async => const []),
         productsProvider('roasting').overrideWith((ref) async => const []),
         productsProvider('general').overrideWith((ref) async => const []),
+        productsProvider('rooms').overrideWith((ref) async => const []),
       ],
     );
     addTearDown(container.dispose);
@@ -52,5 +53,6 @@ void main() {
       find.text('Dodaj pierwszy produkt w tej kategorii.'),
       findsOneWidget,
     );
+    expect(find.text('Pomieszczenia'), findsOneWidget);
   });
 }

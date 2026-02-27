@@ -13,6 +13,13 @@ class ChecklistDefinitions {
     'personnel': FormDefinition(
       fields: [
         FormFieldConfig(
+          id: 'selected_employee',
+          type: HaccpFieldType.dropdown,
+          label: 'Pracownik',
+          required: true,
+          config: const {'source': 'employees_table'},
+        ),
+        FormFieldConfig(
           id: 'uniform',
           type: HaccpFieldType.toggle,
           label: 'Czysty ubiór roboczy',
@@ -46,6 +53,13 @@ class ChecklistDefinitions {
     ),
     'rooms': FormDefinition(
       fields: [
+        FormFieldConfig(
+          id: 'selected_room',
+          type: HaccpFieldType.dropdown,
+          label: 'Pomieszczenie',
+          required: true,
+          config: const {'source': 'products_table', 'type': 'rooms'},
+        ),
         FormFieldConfig(
           id: 'floors',
           type: HaccpFieldType.toggle,

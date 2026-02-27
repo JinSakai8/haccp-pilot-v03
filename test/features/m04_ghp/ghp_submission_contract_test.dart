@@ -31,5 +31,29 @@ void main() {
       expect((normalized['answers'] as Map)['tables'], isTrue);
       expect(normalized.containsKey('notes'), isFalse);
     });
+
+    test('applies employee and room snapshot payloads', () {
+      final mapped = applyGhpReferenceSnapshots(
+        answers: {
+          'uniform': true,
+          'selected_employee': 'emp-1',
+          'selected_room': 'room-1',
+        },
+        employeeId: 'emp-1',
+        employeeName: 'Jan Kowalski',
+        roomId: 'room-1',
+        roomName: 'kuchnia',
+      );
+
+      expect(mapped['selected_employee'], equals({
+        'id': 'emp-1',
+        'name': 'Jan Kowalski',
+      }));
+      expect(mapped['selected_room'], equals({
+        'id': 'room-1',
+        'name': 'kuchnia',
+      }));
+      expect(mapped['uniform'], isTrue);
+    });
   });
 }

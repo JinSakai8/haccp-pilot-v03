@@ -152,6 +152,8 @@ Poza zakresem:
 - Stitch IDs: `4.1 194f2f4ffccb4ed1b52efaee6ed602f5`, `4.2 14c0e64c15a743b180992b48c58ad845`, `4.3 92b0da885ea14c4f85310b9a22a73245`, `4.4 88f8bfb8929f4945914047b85d254f6d`, `4.5 ca10843ee23147d38755e01d1d24e4dd`, `4.6 fce15582b9644e17be1eb10f85e0b2ca`
 - Ekran wyboru kategorii, checklisty, chemikalia, historia.
 - Interakcje: toggles, komentarze, zapis checklist oraz wymagany wybor daty/godziny wykonania.
+- Checklista `Personel`: wymagany dropdown `Pracownik`.
+- Checklista `Pomieszczenia`: wymagany dropdown `Pomieszczenie`.
 - UX: szybkie yes/no, czytelny feedback po zapisie, historia z filtrami (data/kategoria) i przejsciem do detalu wpisu.
 
 ### M05 - Waste
@@ -175,6 +177,7 @@ Poza zakresem:
 ### M08 - Settings
 - Stitch ID: `7a43a321ebd84110b19cfceb434bf9ad`
 - Ustawienia lokalu i zarządzanie produktami.
+- `Zarzadzaj produktami` zawiera kategorie: `Chlodzenie`, `Obrobka termiczna`, `Ogolne`, `Pomieszczenia`.
 - Interakcje: edycja pól, upload logo, zapis zmian, CRUD produktów.
 - UX: jawne błędy, brak cichych porażek, klarowne CTA przy problemach.
 

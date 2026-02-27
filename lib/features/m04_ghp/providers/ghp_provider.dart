@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../repositories/ghp_repository.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../m07_hr/providers/hr_provider.dart';
+import '../../shared/repositories/products_repository.dart';
 
 part 'ghp_provider.g.dart';
 
@@ -29,6 +31,35 @@ Map<String, dynamic> normalizeGhpSubmissionData(
     if (data['notes'] != null && data['notes'].toString().trim().isNotEmpty)
       'notes': data['notes'].toString().trim(),
   };
+}
+
+@visibleForTesting
+Map<String, dynamic> applyGhpReferenceSnapshots({
+  required Map<String, dynamic> answers,
+  String? employeeId,
+  String? employeeName,
+  String? roomId,
+  String? roomName,
+}) {
+  final mapped = Map<String, dynamic>.from(answers);
+
+  if (employeeId != null && employeeId.isNotEmpty) {
+    final normalizedName = (employeeName ?? '').trim();
+    mapped['selected_employee'] = {
+      'id': employeeId,
+      'name': normalizedName.isEmpty ? employeeId : normalizedName,
+    };
+  }
+
+  if (roomId != null && roomId.isNotEmpty) {
+    final normalizedName = (roomName ?? '').trim();
+    mapped['selected_room'] = {
+      'id': roomId,
+      'name': normalizedName.isEmpty ? roomId : normalizedName,
+    };
+  }
+
+  return mapped;
 }
 
 @riverpod
@@ -58,19 +89,82 @@ class GhpFormSubmission extends _$GhpFormSubmission {
     }
 
     final normalizedData = normalizeGhpSubmissionData(data);
+    final enrichedData = await _enrichAnswersWithSnapshots(
+      formId: formId,
+      normalizedData: normalizedData,
+      venueId: currentZone.venueId,
+    );
 
     state = await AsyncValue.guard(() async {
       final repository = ref.read(ghpRepositoryProvider);
       await repository.insertChecklist(
         formId: formId,
-        data: normalizedData,
+        data: enrichedData,
         userId: currentUser.id,
         zoneId: currentZone.id,
         venueId: currentZone.venueId,
       );
     });
 
-    return !state.hasError;
+  return !state.hasError;
+  }
+
+  Future<Map<String, dynamic>> _enrichAnswersWithSnapshots({
+    required String formId,
+    required Map<String, dynamic> normalizedData,
+    required String venueId,
+  }) async {
+    final answers = Map<String, dynamic>.from(
+      normalizedData['answers'] as Map<String, dynamic>? ?? const {},
+    );
+
+    String? selectedEmployeeId;
+    String? selectedEmployeeName;
+    String? selectedRoomId;
+    String? selectedRoomName;
+
+    if (formId.contains('personnel')) {
+      final rawEmployee = answers['selected_employee'];
+      if (rawEmployee is String && rawEmployee.trim().isNotEmpty) {
+        selectedEmployeeId = rawEmployee.trim();
+
+        final employees = await ref.read(hrRepositoryProvider).getEmployees();
+        for (final employee in employees) {
+          if (employee.id == selectedEmployeeId) {
+            selectedEmployeeName = employee.fullName;
+            break;
+          }
+        }
+      }
+    }
+
+    if (formId.contains('rooms')) {
+      final rawRoom = answers['selected_room'];
+      if (rawRoom is String && rawRoom.trim().isNotEmpty) {
+        selectedRoomId = rawRoom.trim();
+
+        final rooms = await ref
+            .read(productsRepositoryProvider)
+            .getProducts('rooms', venueId: venueId);
+        for (final room in rooms) {
+          if (room.id == selectedRoomId) {
+            selectedRoomName = room.name;
+            break;
+          }
+        }
+      }
+    }
+
+    return <String, dynamic>{
+      ...normalizedData,
+      'answers': applyGhpReferenceSnapshots(
+        answers: answers,
+        employeeId: selectedEmployeeId,
+        employeeName: selectedEmployeeName,
+        roomId: selectedRoomId,
+        roomName: selectedRoomName,
+      ),
+    };
   }
 }
 

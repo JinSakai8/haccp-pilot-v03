@@ -18,4 +18,30 @@ void main() {
     expect(find.text('Wybierz godzine'), findsOneWidget);
     expect(find.text('UZUPELNIJ POLA'), findsOneWidget);
   });
+
+  testWidgets('GHP personnel checklist renders employee selector', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: GhpChecklistScreen(categoryId: 'personnel')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pracownik'), findsOneWidget);
+  });
+
+  testWidgets('GHP rooms checklist renders room selector', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: GhpChecklistScreen(categoryId: 'rooms')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pomieszczenie'), findsOneWidget);
+  });
 }

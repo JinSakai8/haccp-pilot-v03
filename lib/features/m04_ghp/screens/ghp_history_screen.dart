@@ -294,6 +294,16 @@ class GhpHistoryDetailsScreen extends StatelessWidget {
 
   String _formatValue(dynamic value) {
     if (value is bool) return value ? 'TAK' : 'NIE';
+    if (value is Map) {
+      final name = value['name']?.toString();
+      if (name != null && name.trim().isNotEmpty) {
+        return name;
+      }
+      final id = value['id']?.toString();
+      if (id != null && id.trim().isNotEmpty) {
+        return id;
+      }
+    }
     return value?.toString() ?? '-';
   }
 

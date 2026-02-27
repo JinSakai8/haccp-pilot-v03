@@ -80,7 +80,7 @@ Zrodlo prawdy: `lib/core/router/app_router.dart`.
 | M01 | `core/repositories/auth_repository.dart` | `loginWithPin`, `getZonesForEmployee`, `setKioskContext`, `clearKioskContext` |
 | M02 | `m02_monitoring/repositories/measurements_repository.dart` | sensory, historia, tabela 7d, alarm RPC, ACK RPC, edit RPC, annotations insert |
 | M03 | `m03_gmp/repositories/gmp_repository.dart` | insert/get history dla `category=gmp`, legacy form-id compatibility w historii |
-| M04 | `m04_ghp/repositories/ghp_repository.dart` | insert/get history dla `category=ghp`, kontrakt `data.execution_date` + `data.execution_time` |
+| M04 | `m04_ghp/repositories/ghp_repository.dart` | insert/get history dla `category=ghp`, kontrakt `data.execution_date` + `data.execution_time`, snapshot mapping `answers.selected_employee/selected_room` |
 | M05 | `m05_waste/repositories/waste_repository.dart` | insert i historia odpadow |
 | M06 | `m06_reports/repositories/reports_repository.dart` | query logow (w tym GHP), generacja datasetow raportow, upload/download storage, metadata upsert (`ghp_checklist_monthly`) |
 | M07 | `m07_hr/repositories/hr_repository.dart` | create/toggle/update pin/sanepid przez RPC + mapowanie kodow bledow M07 |
@@ -110,6 +110,9 @@ Error mapping:
 ### M04 GHP
 - Checklists i chemikalia w tej samej tabeli logow (`haccp_logs`, `category=ghp`).
 - Kontrakt payload GHP: `data.execution_date`, `data.execution_time`, `data.answers`, `data.notes?`.
+- Checklista personelu korzysta z dynamicznego dropdown `source=employees_table` (M07).
+- Checklista pomieszczen korzysta z dynamicznego dropdown `source=products_table,type=rooms` (M08).
+- Provider M04 mapuje wybor referencji do snapshotow `{id,name}` przed zapisem logu.
 - Odczyt i zapis scoped po `zone_id`.
 - Historia GHP wspiera filtracje (data/kategoria) i widok szczegolow wpisu.
 - Lista chemii korzysta ze zrodla konfiguracyjnego (`shared/config/checklist_definitions.dart`), bez hardcoded mock w ekranie.
@@ -132,7 +135,7 @@ Error mapping:
 
 ### M08 Settings
 - `GlobalSettingsScreen`: venue profile + walidacje + logo upload.
-- `ManageProductsScreen`: CRUD produktow z kontekstem venue.
+- `ManageProductsScreen`: CRUD produktow z kontekstem venue (`cooling`, `roasting`, `general`, `rooms`).
 - Brak fallbackowych danych maskujacych problemy runtime.
 
 ## 7. Integracje Aplikacyjne (PDF, Storage, Drive)
