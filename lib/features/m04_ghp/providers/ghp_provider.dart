@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/ghp_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../m07_hr/providers/hr_provider.dart';
@@ -60,6 +61,27 @@ Map<String, dynamic> applyGhpReferenceSnapshots({
   }
 
   return mapped;
+}
+
+@visibleForTesting
+String mapGhpSubmissionErrorMessage(Object? error) {
+  if (error == null) {
+    return 'Nie udalo sie zapisac checklisty. Sprobuj ponownie.';
+  }
+
+  if (error is PostgrestException && error.code == '23514') {
+    return 'Nie udalo sie zapisac checklisty: niezgodny kontrakt formularza.';
+  }
+
+  final raw = error.toString().toLowerCase();
+  if (raw.contains('haccp_logs_form_id_check') || raw.contains('code: 23514')) {
+    return 'Nie udalo sie zapisac checklisty: niezgodny kontrakt formularza.';
+  }
+  if (raw.contains('row-level security') || raw.contains('permission denied')) {
+    return 'Brak uprawnien do zapisu checklisty w aktualnym kontekscie.';
+  }
+
+  return 'Nie udalo sie zapisac checklisty. Sprobuj ponownie.';
 }
 
 @riverpod

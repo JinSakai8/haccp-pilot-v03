@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:haccp_pilot/core/models/employee.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
+import 'package:haccp_pilot/features/m04_ghp/config/ghp_form_ids.dart';
 import 'package:haccp_pilot/features/m04_ghp/providers/ghp_provider.dart';
 
 void main() {
@@ -12,7 +13,7 @@ void main() {
     final success = await container
         .read(ghpFormSubmissionProvider.notifier)
         .submitChecklist(
-          formId: 'ghp_personnel',
+          formId: ghpPersonnelFormId,
           data: {
             'answers': {'uniform': true},
           },
@@ -39,7 +40,7 @@ void main() {
     final success = await container
         .read(ghpFormSubmissionProvider.notifier)
         .submitChecklist(
-          formId: 'ghp_personnel',
+          formId: ghpPersonnelFormId,
           data: {
             'answers': {'uniform': true},
           },

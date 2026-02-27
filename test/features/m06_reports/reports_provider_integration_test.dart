@@ -108,6 +108,8 @@ class _FakeReportsRepository extends ReportsRepository {
 class _FakePdfService extends PdfService {
   _FakePdfService() : super(useIsolate: false);
 
+  List<List<String>>? lastTableRows;
+
   @override
   Future<Uint8List> generateCcp1TemperatureReport({
     required String sensorName,
@@ -126,6 +128,7 @@ class _FakePdfService extends PdfService {
     required String userName,
     required String dateRange,
   }) async {
+    lastTableRows = rows;
     return Uint8List.fromList('%PDF-fake-ghp'.codeUnits);
   }
 }
@@ -135,14 +138,16 @@ class _FakeDriveService extends DriveService {}
 void main() {
   group('ReportsNotifier Sprint4 integration', () {
     late _FakeReportsRepository fakeRepo;
+    late _FakePdfService fakePdf;
     late ProviderContainer container;
 
     setUp(() {
       fakeRepo = _FakeReportsRepository();
+      fakePdf = _FakePdfService();
       container = ProviderContainer(
         overrides: [
           reportsRepositoryProvider.overrideWithValue(fakeRepo),
-          pdfServiceProvider.overrideWithValue(_FakePdfService()),
+          pdfServiceProvider.overrideWithValue(fakePdf),
           driveServiceProvider.overrideWithValue(_FakeDriveService()),
         ],
       );
@@ -329,6 +334,40 @@ void main() {
 
       final state = container.read(reportsProvider);
       expect(state.hasError, isTrue);
+    });
+
+    test('ghp report accepts canonical and legacy form ids', () async {
+      fakeRepo.ghpLogs = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'form_id': 'ghp_personnel',
+          'created_at': '2026-02-10T08:00:00Z',
+          'data': <String, dynamic>{
+            'execution_date': '2026-02-10',
+            'execution_time': '07:45',
+            'answers': <String, dynamic>{'uniform': true},
+          },
+        },
+        <String, dynamic>{
+          'form_id': 'rooms',
+          'created_at': '2026-02-11T08:00:00Z',
+          'data': <String, dynamic>{
+            'execution_date': '2026-02-11',
+            'execution_time': '07:50',
+            'answers': <String, dynamic>{'floors': true},
+          },
+        },
+      ];
+
+      await container
+          .read(reportsProvider.notifier)
+          .generateReport(reportType: 'ghp', month: DateTime(2026, 2, 1));
+
+      final state = container.read(reportsProvider);
+      expect(state.hasValue, isTrue);
+      expect(fakePdf.lastTableRows, isNotNull);
+      expect(fakePdf.lastTableRows!.length, equals(2));
+      expect(fakePdf.lastTableRows![0][2], equals('ghp_personnel'));
+      expect(fakePdf.lastTableRows![1][2], equals('rooms'));
     });
   });
 }

@@ -216,6 +216,31 @@ void main() {
       expect(row[4], equals('Brak uwag'));
       expect(row[5], equals('2026-02-27T12:30'));
     });
+
+    test('supports legacy ghp form id and snapshot answers map', () {
+      final row = mapGhpLogToReportRow({
+        'form_id': 'rooms',
+        'created_at': '2026-02-28T09:10:00Z',
+        'data': {
+          'execution_date': '2026-02-28',
+          'execution_time': '08:55',
+          'answers': {
+            'selected_room': {'id': 'room-1', 'name': 'kuchnia'},
+            'floors': true,
+            'tables': false,
+          },
+        },
+      });
+
+      expect(row.length, equals(6));
+      expect(row[0], equals('2026-02-28'));
+      expect(row[1], equals('08:55'));
+      expect(row[2], equals('rooms'));
+      expect(row[3], contains('Pytania: 3'));
+      expect(row[3], contains('TAK: 1'));
+      expect(row[3], contains('NIE: 1'));
+      expect(row[5], equals('2026-02-28T09:10'));
+    });
   });
 
   group('Saved reports fallback route', () {

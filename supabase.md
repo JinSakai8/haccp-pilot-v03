@@ -59,6 +59,9 @@ erDiagram
 
 ### 3.2 Kontrakt GHP (M04) w `haccp_logs.data`
 Dla wpisow `category='ghp'` obowiazuje kontrakt:
+- `form_id`:
+  - kanoniczne (nowe zapisy): `ghp_personnel`, `ghp_rooms`, `ghp_maintenance`, `ghp_chemicals`
+  - legacy kompatybilnosc odczytu: `personnel`, `rooms`, `maintenance`, `chemicals`
 - `execution_date` (`YYYY-MM-DD`, required)
 - `execution_time` (`HH:mm`, required)
 - `answers` (obiekt odpowiedzi checklisty/chemii, required)

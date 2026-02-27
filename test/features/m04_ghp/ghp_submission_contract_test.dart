@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:haccp_pilot/features/m04_ghp/providers/ghp_provider.dart';
 
 void main() {
@@ -54,6 +55,27 @@ void main() {
         'name': 'kuchnia',
       }));
       expect(mapped['uniform'], isTrue);
+    });
+
+    test('maps DB form_id constraint error to domain message', () {
+      final error = PostgrestException(
+        message: 'violates check constraint haccp_logs_form_id_check',
+        code: '23514',
+      );
+
+      final message = mapGhpSubmissionErrorMessage(error);
+      expect(
+        message,
+        equals('Nie udalo sie zapisac checklisty: niezgodny kontrakt formularza.'),
+      );
+    });
+
+    test('maps generic error to fallback domain message', () {
+      final message = mapGhpSubmissionErrorMessage(Exception('unknown'));
+      expect(
+        message,
+        equals('Nie udalo sie zapisac checklisty. Sprobuj ponownie.'),
+      );
     });
   });
 }

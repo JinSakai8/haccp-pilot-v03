@@ -109,6 +109,7 @@ Error mapping:
 
 ### M04 GHP
 - Checklists i chemikalia w tej samej tabeli logow (`haccp_logs`, `category=ghp`).
+- Kanoniczne `form_id` dla nowych zapisow: `ghp_personnel`, `ghp_rooms`, `ghp_maintenance`, `ghp_chemicals`.
 - Kontrakt payload GHP: `data.execution_date`, `data.execution_time`, `data.answers`, `data.notes?`.
 - Checklista personelu korzysta z dynamicznego dropdown `source=employees_table` (M07).
 - Checklista pomieszczen korzysta z dynamicznego dropdown `source=products_table,type=rooms` (M08).

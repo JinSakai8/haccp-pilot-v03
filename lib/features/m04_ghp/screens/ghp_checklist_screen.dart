@@ -7,6 +7,7 @@ import '../../../core/constants/design_tokens.dart';
 import '../../../core/widgets/haccp_long_press_button.dart';
 import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/widgets/success_overlay.dart';
+import '../config/ghp_form_ids.dart';
 import '../../shared/config/checklist_definitions.dart';
 import '../../shared/providers/dynamic_form_provider.dart';
 import '../../shared/widgets/dynamic_form/dynamic_form_renderer.dart';
@@ -43,7 +44,7 @@ class _GhpChecklistScreenState extends ConsumerState<GhpChecklistScreen> {
       );
     }
 
-    final formId = 'ghp_${widget.categoryId}';
+    final formId = ghpFormIdFromCategory(widget.categoryId);
     final formState = ref.watch(dynamicFormProvider(formId, definition));
     final submissionState = ref.watch(ghpFormSubmissionProvider);
     final hasExecutionDateTime =
@@ -146,7 +147,7 @@ class _GhpChecklistScreenState extends ConsumerState<GhpChecklistScreen> {
       final error = ref.read(ghpFormSubmissionProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Blad zapisu: $error'),
+          content: Text(mapGhpSubmissionErrorMessage(error)),
           backgroundColor: HaccpDesignTokens.error,
         ),
       );

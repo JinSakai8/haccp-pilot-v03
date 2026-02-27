@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/design_tokens.dart';
 import '../../../../core/widgets/haccp_long_press_button.dart';
 import '../../../../core/widgets/haccp_top_bar.dart';
+import '../config/ghp_form_ids.dart';
 import '../../shared/config/checklist_definitions.dart';
 import '../providers/ghp_provider.dart';
 
@@ -176,7 +177,7 @@ class _GhpChemicalsScreenState extends ConsumerState<GhpChemicalsScreen> {
     final success = await ref
         .read(ghpFormSubmissionProvider.notifier)
         .submitChecklist(
-          formId: 'ghp_chemicals',
+          formId: ghpChemicalsFormId,
           data: {
             'execution_date': executionDate,
             'execution_time': executionTime,
@@ -192,6 +193,14 @@ class _GhpChemicalsScreenState extends ConsumerState<GhpChemicalsScreen> {
         ),
       );
       setState(() => _usage.clear());
+    } else if (!success && context.mounted) {
+      final error = ref.read(ghpFormSubmissionProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mapGhpSubmissionErrorMessage(error)),
+          backgroundColor: HaccpDesignTokens.error,
+        ),
+      );
     }
   }
 
