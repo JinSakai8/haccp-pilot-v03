@@ -1,12 +1,88 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/ghp_repository.dart';
 import '../../../core/providers/auth_provider.dart';
-
-import '../../../core/models/zone.dart';
+import '../../m07_hr/providers/hr_provider.dart';
+import '../../shared/repositories/products_repository.dart';
 
 part 'ghp_provider.g.dart';
+
+@visibleForTesting
+Map<String, dynamic> normalizeGhpSubmissionData(
+  Map<String, dynamic> data, {
+  DateTime? now,
+}) {
+  final clock = now ?? DateTime.now();
+  final executionDate =
+      '${clock.year.toString().padLeft(4, '0')}-${clock.month.toString().padLeft(2, '0')}-${clock.day.toString().padLeft(2, '0')}';
+  final executionTime =
+      '${clock.hour.toString().padLeft(2, '0')}:${clock.minute.toString().padLeft(2, '0')}';
+
+  final existingAnswers = data['answers'];
+  final normalizedAnswers = existingAnswers is Map
+      ? Map<String, dynamic>.from(existingAnswers)
+      : Map<String, dynamic>.from(data);
+
+  return <String, dynamic>{
+    'execution_date': data['execution_date']?.toString() ?? executionDate,
+    'execution_time': data['execution_time']?.toString() ?? executionTime,
+    'answers': normalizedAnswers,
+    if (data['notes'] != null && data['notes'].toString().trim().isNotEmpty)
+      'notes': data['notes'].toString().trim(),
+  };
+}
+
+@visibleForTesting
+Map<String, dynamic> applyGhpReferenceSnapshots({
+  required Map<String, dynamic> answers,
+  String? employeeId,
+  String? employeeName,
+  String? roomId,
+  String? roomName,
+}) {
+  final mapped = Map<String, dynamic>.from(answers);
+
+  if (employeeId != null && employeeId.isNotEmpty) {
+    final normalizedName = (employeeName ?? '').trim();
+    mapped['selected_employee'] = {
+      'id': employeeId,
+      'name': normalizedName.isEmpty ? employeeId : normalizedName,
+    };
+  }
+
+  if (roomId != null && roomId.isNotEmpty) {
+    final normalizedName = (roomName ?? '').trim();
+    mapped['selected_room'] = {
+      'id': roomId,
+      'name': normalizedName.isEmpty ? roomId : normalizedName,
+    };
+  }
+
+  return mapped;
+}
+
+@visibleForTesting
+String mapGhpSubmissionErrorMessage(Object? error) {
+  if (error == null) {
+    return 'Nie udalo sie zapisac checklisty. Sprobuj ponownie.';
+  }
+
+  if (error is PostgrestException && error.code == '23514') {
+    return 'Nie udalo sie zapisac checklisty: niezgodny kontrakt formularza.';
+  }
+
+  final raw = error.toString().toLowerCase();
+  if (raw.contains('haccp_logs_form_id_check') || raw.contains('code: 23514')) {
+    return 'Nie udalo sie zapisac checklisty: niezgodny kontrakt formularza.';
+  }
+  if (raw.contains('row-level security') || raw.contains('permission denied')) {
+    return 'Brak uprawnien do zapisu checklisty w aktualnym kontekscie.';
+  }
+
+  return 'Nie udalo sie zapisac checklisty. Sprobuj ponownie.';
+}
 
 @riverpod
 class GhpFormSubmission extends _$GhpFormSubmission {
@@ -18,54 +94,99 @@ class GhpFormSubmission extends _$GhpFormSubmission {
     required Map<String, dynamic> data,
   }) async {
     state = const AsyncLoading();
-    
+
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) {
       state = AsyncError('Brak zalogowanego użytkownika', StackTrace.current);
       return false;
     }
 
-    // Resolve Zone and Venue
-    String zoneId = 'default_zone';
-    String? venueId;
-
     final currentZone = ref.read(currentZoneProvider);
-    if (currentZone != null) {
-      zoneId = currentZone.id;
-      venueId = currentZone.venueId;
-    } else {
-      // Fallback: Try to get from employee zones
-      try {
-        final zones = await ref.read(employeeZonesProvider.future);
-        if (zones.isNotEmpty) {
-          final firstZone = zones.first;
-          zoneId = firstZone.id;
-          venueId = firstZone.venueId;
-        } else if (currentUser.zones.isNotEmpty) {
-          // Last resort: we have ID but no venue info
-          zoneId = currentUser.zones.first;
-        }
-      } catch (e) {
-        // If getting zones fails, use what we have in user profile
-        if (currentUser.zones.isNotEmpty) {
-          zoneId = currentUser.zones.first;
-        }
-      }
+    if (currentZone == null) {
+      state = AsyncError(
+        'Brak aktywnej strefy. Wybierz strefe ponownie.',
+        StackTrace.current,
+      );
+      return false;
     }
 
+    final normalizedData = normalizeGhpSubmissionData(data);
+    final enrichedData = await _enrichAnswersWithSnapshots(
+      formId: formId,
+      normalizedData: normalizedData,
+      venueId: currentZone.venueId,
+    );
 
     state = await AsyncValue.guard(() async {
       final repository = ref.read(ghpRepositoryProvider);
       await repository.insertChecklist(
         formId: formId,
-        data: data,
+        data: enrichedData,
         userId: currentUser.id,
-        zoneId: zoneId,
-        venueId: venueId,
+        zoneId: currentZone.id,
+        venueId: currentZone.venueId,
       );
     });
 
-    return !state.hasError;
+  return !state.hasError;
+  }
+
+  Future<Map<String, dynamic>> _enrichAnswersWithSnapshots({
+    required String formId,
+    required Map<String, dynamic> normalizedData,
+    required String venueId,
+  }) async {
+    final answers = Map<String, dynamic>.from(
+      normalizedData['answers'] as Map<String, dynamic>? ?? const {},
+    );
+
+    String? selectedEmployeeId;
+    String? selectedEmployeeName;
+    String? selectedRoomId;
+    String? selectedRoomName;
+
+    if (formId.contains('personnel')) {
+      final rawEmployee = answers['selected_employee'];
+      if (rawEmployee is String && rawEmployee.trim().isNotEmpty) {
+        selectedEmployeeId = rawEmployee.trim();
+
+        final employees = await ref.read(hrRepositoryProvider).getEmployees();
+        for (final employee in employees) {
+          if (employee.id == selectedEmployeeId) {
+            selectedEmployeeName = employee.fullName;
+            break;
+          }
+        }
+      }
+    }
+
+    if (formId.contains('rooms')) {
+      final rawRoom = answers['selected_room'];
+      if (rawRoom is String && rawRoom.trim().isNotEmpty) {
+        selectedRoomId = rawRoom.trim();
+
+        final rooms = await ref
+            .read(productsRepositoryProvider)
+            .getProducts('rooms', venueId: venueId);
+        for (final room in rooms) {
+          if (room.id == selectedRoomId) {
+            selectedRoomName = room.name;
+            break;
+          }
+        }
+      }
+    }
+
+    return <String, dynamic>{
+      ...normalizedData,
+      'answers': applyGhpReferenceSnapshots(
+        answers: answers,
+        employeeId: selectedEmployeeId,
+        employeeName: selectedEmployeeName,
+        roomId: selectedRoomId,
+        roomName: selectedRoomName,
+      ),
+    };
   }
 }
 
@@ -73,9 +194,9 @@ class GhpFormSubmission extends _$GhpFormSubmission {
 Future<List<Map<String, dynamic>>> ghpHistory(Ref ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Future.value([]);
-  
-  final zoneId = ref.watch(currentZoneProvider)?.id ?? 
-                 (user.zones.isNotEmpty ? user.zones.first : 'default_zone');
-                 
-  return ref.watch(ghpRepositoryProvider).getHistory(zoneId);
+
+  final currentZone = ref.watch(currentZoneProvider);
+  if (currentZone == null) return Future.value([]);
+
+  return ref.watch(ghpRepositoryProvider).getHistory(currentZone.id);
 }

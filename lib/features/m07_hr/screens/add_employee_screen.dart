@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/widgets/haccp_top_bar.dart';
-import '../../../../core/widgets/haccp_num_pad.dart';
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/widgets/haccp_num_pad.dart';
+import '../../../../core/widgets/haccp_top_bar.dart';
 import '../providers/hr_provider.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
@@ -18,12 +19,12 @@ class AddEmployeeScreen extends ConsumerStatefulWidget {
 class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  
-  String _role = 'cook'; // Default role
+
+  String _role = 'cook';
   String _pin = '';
   DateTime? _sanepidDate;
-  final List<String> _selectedZones = []; // New state for zones
-  
+  final List<String> _selectedZones = <String>[];
+
   bool _isPinUnique = false;
   bool _isCheckingPin = false;
   String? _pinError;
@@ -48,154 +49,166 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
 
   Future<void> _checkPinUniqueness() async {
     setState(() => _isCheckingPin = true);
-    
-    // Simulate delay or waiting for real DB check
-    final isUnique = await ref.read(hrControllerProvider.notifier).checkPinUnique(_pin);
-    
-    if (mounted) {
+
+    try {
+      final isUnique = await ref.read(hrControllerProvider.notifier).checkPinUnique(_pin);
+      if (!mounted) return;
       setState(() {
         _isCheckingPin = false;
         _isPinUnique = isUnique;
         if (!isUnique) {
-          _pinError = 'PIN jest już zajęty!';
+          _pinError = 'PIN jest juz zajety.';
         }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingPin = false;
+        _isPinUnique = false;
+        _pinError = 'Nie udalo sie sprawdzic PIN. Sprobuj ponownie.';
       });
     }
   }
 
   void _showPinPad() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: DesignTokens.backgroundColor,
       isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          height: 500,
-          child: Column(
-            children: [
-              Text(
-                'Wprowadź 4-cyfrowy PIN',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 24),
-              // PIN Display in Modal
-              Text(
-                _pin.padRight(4, '•').replaceAll(RegExp(r'\d'), '*'), // Masked
-                style: const TextStyle(
-                  fontSize: 40, 
-                  letterSpacing: 16, 
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: HaccpNumPad(
-                  onDigitPressed: (digit) {
-                    if (_pin.length < 4) {
-                      _onPinChanged(_pin + digit);
-                      (context as Element).markNeedsBuild(); // Refresh modal UI
-                    }
-                  },
-                  onClear: () {
-                     _onPinChanged('');
-                     (context as Element).markNeedsBuild();
-                  },
-                  onBackspace: () {
-                    if (_pin.isNotEmpty) {
-                      _onPinChanged(_pin.substring(0, _pin.length - 1));
-                      (context as Element).markNeedsBuild();
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => context.pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: DesignTokens.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              height: 500,
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    'Wprowadz 4-cyfrowy PIN',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  child: const Text('GOTOWE'),
-                ),
+                  const SizedBox(height: 24),
+                  Text(
+                    _pin.padRight(4, '*').replaceAll(RegExp(r'\d'), '*'),
+                    style: const TextStyle(
+                      fontSize: 40,
+                      letterSpacing: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: HaccpNumPad(
+                      onDigitPressed: (digit) {
+                        if (_pin.length < 4) {
+                          _onPinChanged(_pin + digit);
+                          setSheetState(() {});
+                        }
+                      },
+                      onClear: () {
+                        _onPinChanged('');
+                        setSheetState(() {});
+                      },
+                      onBackspace: () {
+                        if (_pin.isNotEmpty) {
+                          _onPinChanged(_pin.substring(0, _pin.length - 1));
+                          setSheetState(() {});
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => sheetContext.pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: DesignTokens.primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('GOTOWE'),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
-    ).then((_) {
-      // Refresh parent UI after modal closes
-      setState(() {});
-    });
+    );
   }
 
   Future<void> _saveEmployee() async {
+    if (ref.read(hrControllerProvider).isLoading) return;
     if (!_formKey.currentState!.validate()) return;
+
     if (_pin.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN musi mieć 4 cyfry!')),
+        const SnackBar(content: Text('PIN musi miec 4 cyfry.')),
       );
       return;
     }
+
     if (!_isPinUnique) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN musi być unikalny!')),
+        const SnackBar(content: Text('PIN musi byc unikalny.')),
       );
       return;
     }
+
     if (_sanepidDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wybierz datę badań Sanepid!')),
+        const SnackBar(content: Text('Wybierz date badan Sanepid.')),
       );
       return;
     }
+
     if (_selectedZones.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Przypisz przynajmniej jedną strefę!')),
+        const SnackBar(content: Text('Przypisz przynajmniej jedna strefe.')),
       );
       return;
     }
 
     try {
-      // Call Provider to create
       await ref.read(hrControllerProvider.notifier).createEmployee(
-        fullName: _nameController.text,
-        pin: _pin,
-        role: _role,
-        sanepidExpiry: _sanepidDate,
-        zoneIds: _selectedZones,
-      );
+            fullName: _nameController.text.trim(),
+            pin: _pin,
+            role: _role,
+            sanepidExpiry: _sanepidDate,
+            zoneIds: _selectedZones,
+          );
 
       if (mounted) {
-        context.pop(true); // Return true to signal success
+        context.pop(true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: Text('Błąd: $e'),
-             backgroundColor: DesignTokens.errorColor,
-           ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$e'),
+          backgroundColor: DesignTokens.errorColor,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hrControllerState = ref.watch(hrControllerProvider);
+    final isSubmitting = hrControllerState.isLoading;
+    final zonesAsync = ref.watch(hrZonesProvider);
+    final currentZone = ref.watch(currentZoneProvider);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
-          children: [
+          children: <Widget>[
             HaccpTopBar(
               title: 'Dodaj Pracownika',
               onBackPressed: () => context.pop(),
             ),
-            
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -203,37 +216,30 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name
-                      Text('Imię i Nazwisko', style: theme.textTheme.labelLarge),
+                    children: <Widget>[
+                      Text('Imie i Nazwisko', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          hintText: 'Wpisz imię i nazwisko',
+                          hintText: 'Wpisz imie i nazwisko',
                           filled: true,
                           fillColor: Colors.white10,
                           border: OutlineInputBorder(),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Podaj imię' : null,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Podaj imie i nazwisko' : null,
                       ),
-                      
                       const SizedBox(height: 24),
-                      
-                      // Role
                       Text('Rola', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       Row(
-                        children: [
+                        children: <Widget>[
                           _buildRoleChip('Pracownik', 'cook'),
                           const SizedBox(width: 16),
                           _buildRoleChip('Manager', 'manager'),
                         ],
                       ),
-                      
                       const SizedBox(height: 24),
-                      
-                      // PIN
                       Text('Kod PIN (4 cyfry)', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       InkWell(
@@ -244,16 +250,16 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                             color: Colors.white10,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: _pinError != null 
-                                  ? DesignTokens.errorColor 
+                              color: _pinError != null
+                                  ? DesignTokens.errorColor
                                   : (_isPinUnique ? DesignTokens.successColor : Colors.white24),
                             ),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
+                            children: <Widget>[
                               Text(
-                                _pin.isEmpty ? 'Dotknij aby wpisać PIN' : _pin.replaceAll(RegExp(r'.'), '•'),
+                                _pin.isEmpty ? 'Dotknij aby wpisac PIN' : _pin.replaceAll(RegExp(r'.'), '*'),
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   letterSpacing: _pin.isEmpty ? 0 : 8,
                                   color: _pin.isEmpty ? Colors.white54 : Colors.white,
@@ -261,9 +267,9 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                               ),
                               if (_isCheckingPin)
                                 const SizedBox(
-                                  width: 20, 
-                                  height: 20, 
-                                  child: CircularProgressIndicator(strokeWidth: 2)
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               else if (_pin.length == 4)
                                 Icon(
@@ -278,55 +284,53 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8, left: 4),
                           child: Text(
-                            _pinError!, 
-                            style: TextStyle(color: DesignTokens.errorColor, fontSize: 12),
+                            _pinError!,
+                            style: const TextStyle(color: DesignTokens.errorColor, fontSize: 12),
                           ),
                         ),
-                        
                       const SizedBox(height: 24),
-                      
-                      // Zones
                       Text('Przypisz Strefy', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final zonesAsync = ref.watch(hrZonesProvider);
-                          return zonesAsync.when(
-                            data: (zones) => Wrap(
-                              spacing: 8,
-                              children: zones.map((zone) {
-                                final isSelected = _selectedZones.contains(zone.id);
-                                return FilterChip(
-                                  label: Text(zone.name),
-                                  selected: isSelected,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      if (selected) {
-                                        _selectedZones.add(zone.id);
-                                      } else {
-                                        _selectedZones.remove(zone.id);
-                                      }
-                                    });
-                                  },
-                                  backgroundColor: Colors.white10,
-                                  selectedColor: DesignTokens.accentColor.withOpacity(0.3),
-                                  labelStyle: TextStyle(
-                                    color: isSelected ? DesignTokens.accentColor : Colors.white70,
-                                  ),
-                                  checkmarkColor: DesignTokens.accentColor,
-                                );
-                              }).toList(),
-                            ),
-                            loading: () => const CircularProgressIndicator(),
-                            error: (e, st) => Text('Błąd pobierania stref: $e', style: const TextStyle(color: DesignTokens.errorColor)),
+                      zonesAsync.when(
+                        data: (zones) {
+                          final availableZones = currentZone == null
+                              ? zones
+                              : zones.where((z) => z.venueId == currentZone.venueId).toList();
+
+                          return Wrap(
+                            spacing: 8,
+                            children: availableZones.map((zone) {
+                              final isSelected = _selectedZones.contains(zone.id);
+                              return FilterChip(
+                                label: Text(zone.name),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedZones.add(zone.id);
+                                    } else {
+                                      _selectedZones.remove(zone.id);
+                                    }
+                                  });
+                                },
+                                backgroundColor: Colors.white10,
+                                selectedColor: DesignTokens.accentColor.withOpacity(0.3),
+                                labelStyle: TextStyle(
+                                  color: isSelected ? DesignTokens.accentColor : Colors.white70,
+                                ),
+                                checkmarkColor: DesignTokens.accentColor,
+                              );
+                            }).toList(),
                           );
                         },
+                        loading: () => const CircularProgressIndicator(),
+                        error: (e, st) => Text(
+                          'Blad pobierania stref: $e',
+                          style: const TextStyle(color: DesignTokens.errorColor),
+                        ),
                       ),
-
                       const SizedBox(height: 24),
-                      
-                      // Sanepid
-                      Text('Ważność Badań', style: theme.textTheme.labelLarge),
+                      Text('Waznosc badan', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: () async {
@@ -349,10 +353,10 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
+                            children: <Widget>[
                               Text(
-                                _sanepidDate == null 
-                                    ? 'Wybierz datę' 
+                                _sanepidDate == null
+                                    ? 'Wybierz date'
                                     : DateFormat('dd.MM.yyyy').format(_sanepidDate!),
                                 style: theme.textTheme.bodyLarge,
                               ),
@@ -361,22 +365,27 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           ),
                         ),
                       ),
-                      
                       const SizedBox(height: 48),
-                      
-                      // Submit
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: (_pin.length == 4 && _isPinUnique) ? _saveEmployee : null,
+                          onPressed: (_pin.length == 4 && _isPinUnique && !isSubmitting)
+                              ? _saveEmployee
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: DesignTokens.primaryColor,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: Colors.white10,
                             disabledForegroundColor: Colors.white38,
                           ),
-                          child: const Text('ZAPISZ PRACOWNIKA'),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('ZAPISZ PRACOWNIKA'),
                         ),
                       ),
                     ],
@@ -393,7 +402,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
   Widget _buildRoleChip(String label, String value) {
     final isSelected = _role == value;
     final color = isSelected ? DesignTokens.accentColor : Colors.white10;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _role = value),
@@ -403,7 +412,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             color: color.withOpacity(isSelected ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isSelected ? DesignTokens.accentColor : Colors.transparent
+              color: isSelected ? DesignTokens.accentColor : Colors.transparent,
             ),
           ),
           alignment: Alignment.center,

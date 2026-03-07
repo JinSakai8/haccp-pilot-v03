@@ -7,6 +7,7 @@ import '../../../core/widgets/haccp_top_bar.dart';
 import '../../../core/constants/design_tokens.dart';
 import '../../shared/providers/dynamic_form_provider.dart';
 import '../providers/gmp_provider.dart';
+import '../config/gmp_form_ids.dart';
 import '../../../core/widgets/success_overlay.dart';
 import '../../../core/widgets/haccp_long_press_button.dart';
 import '../../shared/config/form_definitions.dart';
@@ -17,7 +18,7 @@ class DeliveryControlFormScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formDef = FormDefinitions.deliveryControlFormDef;
-    const String formId = 'delivery_control_daily';
+    const String formId = gmpDeliveryControlFormId;
     final formState = ref.watch(dynamicFormProvider(formId, formDef));
     final submissionState = ref.watch(gmpFormSubmissionProvider);
 

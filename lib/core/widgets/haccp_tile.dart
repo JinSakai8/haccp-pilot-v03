@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:haccp_pilot/core/theme/app_theme.dart';
 
 class HaccpTile extends StatelessWidget {
   final IconData icon;
@@ -32,17 +31,19 @@ class HaccpTile extends StatelessWidget {
       elevation: isSelected ? 8 : 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: isSelected 
+        side: isSelected
             ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 3)
             : BorderSide.none,
       ),
-      color: isSelected 
+      color: isSelected
           ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
           : Theme.of(context).colorScheme.surface,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        splashColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+        splashColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.2),
         child: Stack(
           children: [
             Center(
@@ -59,8 +60,8 @@ class HaccpTile extends StatelessWidget {
                     label,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -70,7 +71,10 @@ class HaccpTile extends StatelessWidget {
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor ?? Theme.of(context).colorScheme.error,
                     borderRadius: BorderRadius.circular(12),

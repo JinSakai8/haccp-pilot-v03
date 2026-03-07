@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import '../../../../core/widgets/haccp_top_bar.dart';
-import '../../../../core/widgets/haccp_tile.dart';
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/models/employee.dart';
+import '../../../../core/widgets/haccp_top_bar.dart';
+import '../utils/hr_alerts_snapshot.dart';
 import '../providers/hr_provider.dart';
 
 class HrDashboardScreen extends ConsumerWidget {
@@ -13,17 +15,16 @@ class HrDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final employeesAsync = ref.watch(hrEmployeesProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
-          children: [
+          children: <Widget>[
             HaccpTopBar(
               title: 'HR & Personel',
-              onBackPressed: () => context.go('/hub'), // Back to Hub
-              actions: [
-                 IconButton(
+              onBackPressed: () => context.go('/hub'),
+              actions: <Widget>[
+                IconButton(
                   icon: const Icon(Icons.list, size: 32),
                   onPressed: () => context.push('/hr/list'),
                 ),
@@ -33,68 +34,11 @@ class HrDashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            
             Expanded(
               child: employeesAsync.when(
-                data: (employees) {
-                  final now = DateTime.now();
-                  final expiredCount = employees.where((e) => 
-                    e.sanepidExpiry != null && e.sanepidExpiry!.isBefore(now)).length;
-                    
-                  final expiringCount = employees.where((e) =>
-                    e.sanepidExpiry != null && 
-                    e.sanepidExpiry!.isAfter(now) &&
-                    e.sanepidExpiry!.isBefore(now.add(const Duration(days: 30)))).length;
-
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // Alerts Section
-                      if (expiredCount > 0)
-                        _buildAlertCard(
-                          context, 
-                          'Przeterminowane Badania', 
-                          '$expiredCount pracownik(ów)', 
-                          DesignTokens.errorColor,
-                          Icons.warning_rounded,
-                        ),
-                      if (expiringCount > 0)
-                        _buildAlertCard(
-                          context, 
-                          'Wygasające Badania (30 dni)', 
-                          '$expiringCount pracownik(ów)', 
-                          DesignTokens.warningColor,
-                          Icons.priority_high_rounded,
-                        ),
-                        
-                      const SizedBox(height: 24),
-                      Text('Szybkie Akcje', style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 16),
-                      
-                      Row(
-                        children: [
-                          Expanded(
-                            child: HaccpTile(
-                              icon: Icons.people,
-                              label: 'Lista Pracowników',
-                              onTap: () => context.push('/hr/list'),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: HaccpTile(
-                              icon: Icons.person_add,
-                              label: 'Dodaj Pracownika',
-                              onTap: () => context.push('/hr/add'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+                data: (employees) => _HrDashboardBody(employees: employees),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Błąd: $err')),
+                error: (err, stack) => Center(child: Text('Blad: $err')),
               ),
             ),
           ],
@@ -102,48 +46,195 @@ class HrDashboardScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildAlertCard(BuildContext context, String title, String subtitle, Color color, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+class _HrDashboardBody extends StatelessWidget {
+  const _HrDashboardBody({required this.employees});
+
+  final List<Employee> employees;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = HrAlertsSnapshot.fromEmployees(employees, DateTime.now());
+
+    return ListView(
       padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _StatusCard(
+                title: 'Przeterminowane',
+                value: '${snapshot.expired.length}',
+                color: DesignTokens.errorColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatusCard(
+                title: 'Wygasaja <=30d',
+                value: '${snapshot.expiring.length}',
+                color: DesignTokens.warningColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatusCard(
+                title: 'Wazne',
+                value: '${snapshot.valid.length}',
+                color: DesignTokens.successColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _AlertSection(
+          title: 'Krytyczne alerty',
+          color: DesignTokens.errorColor,
+          employees: snapshot.expired,
+          emptyMessage: 'Brak przeterminowanych badan.',
+        ),
+        const SizedBox(height: 12),
+        _AlertSection(
+          title: 'Wygasaja wkrotce',
+          color: DesignTokens.warningColor,
+          employees: snapshot.expiring,
+          emptyMessage: 'Brak badan wygasajacych w ciagu 30 dni.',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/hr/list'),
+                icon: const Icon(Icons.people),
+                label: const Text('Lista'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/hr/add'),
+                icon: const Icon(Icons.person_add),
+                label: const Text('Dodaj'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withOpacity(0.16),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withOpacity(0.45)),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
           ),
-          ElevatedButton(
-            onPressed: () => context.push('/hr/list'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color.withOpacity(0.2),
-              foregroundColor: color,
-              elevation: 0,
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertSection extends StatelessWidget {
+  const _AlertSection({
+    required this.title,
+    required this.color,
+    required this.employees,
+    required this.emptyMessage,
+  });
+
+  final String title;
+  final Color color;
+  final List<Employee> employees;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd.MM.yyyy');
+    final shown = employees.take(3).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.circle, color: color, size: 12),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push('/hr/list'),
+                child: const Text('Zobacz wszystkie'),
+              ),
+            ],
+          ),
+          if (shown.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                emptyMessage,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              ),
             ),
-            child: const Text('ZOBACZ'),
+          ...shown.map(
+            (employee) {
+              final expiry = employee.sanepidExpiry;
+              return ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(employee.fullName),
+                subtitle: Text(
+                  expiry == null
+                      ? employee.role.toString().toUpperCase()
+                      : '${employee.role.toString().toUpperCase()}  |  ${dateFormat.format(expiry)}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/hr/employee/${employee.id}'),
+              );
+            },
           ),
         ],
       ),

@@ -1,14 +1,24 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/constants/design_tokens.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../m07_hr/providers/hr_provider.dart';
 import '../../repositories/products_repository.dart';
+
+class _DropdownOption {
+  final String id;
+  final String label;
+
+  const _DropdownOption({required this.id, required this.label});
+}
 
 class HaccpDropdown extends ConsumerWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
   final List<String>? staticOptions;
-  final String? source; // 'products_table'
-  final String? sourceType; // e.g. 'cooling'
+  final String? source;
+  final String? sourceType;
 
   const HaccpDropdown({
     super.key,
@@ -21,22 +31,45 @@ class HaccpDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // If source is products_table, fetch from provider
     if (source == 'products_table') {
       final productsAsync = ref.watch(productsProvider(sourceType ?? 'general'));
-      
       return productsAsync.when(
         data: (products) {
-          final options = products.map((e) => e.name).toList();
+          final options = products
+              .map((p) => _DropdownOption(id: p.id, label: p.name))
+              .toList();
           return _buildDropdown(context, options);
         },
-        loading: () => _buildLoading(),
-        error: (err, stack) => _buildError('Błąd ładowania: $err'),
+        loading: _buildLoading,
+        error: (err, _) => _buildError('Blad ladowania: $err'),
       );
     }
 
-    // Fallback to static options
-    return _buildDropdown(context, staticOptions ?? []);
+    if (source == 'employees_table') {
+      final employeesAsync = ref.watch(hrEmployeesProvider);
+      final currentZone = ref.watch(currentZoneProvider);
+      return employeesAsync.when(
+        data: (employees) {
+          final options = employees
+              .where((e) {
+                if (!e.isActive) return false;
+                if (currentZone == null) return true;
+                if (e.zones.isEmpty) return true;
+                return e.zones.contains(currentZone.id);
+              })
+              .map((e) => _DropdownOption(id: e.id, label: e.fullName))
+              .toList();
+          return _buildDropdown(context, options);
+        },
+        loading: _buildLoading,
+        error: (err, _) => _buildError('Blad ladowania: $err'),
+      );
+    }
+
+    final options = (staticOptions ?? const <String>[])
+        .map((opt) => _DropdownOption(id: opt, label: opt))
+        .toList();
+    return _buildDropdown(context, options);
   }
 
   Widget _buildLoading() {
@@ -50,9 +83,12 @@ class HaccpDropdown extends ConsumerWidget {
       ),
       alignment: Alignment.centerLeft,
       child: const SizedBox(
-        height: 20, 
-        width: 20, 
-        child: CircularProgressIndicator(strokeWidth: 2, color: HaccpDesignTokens.primary)
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: HaccpDesignTokens.primary,
+        ),
       ),
     );
   }
@@ -61,7 +97,7 @@ class HaccpDropdown extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: HaccpDesignTokens.error.withOpacity(0.1),
+        color: HaccpDesignTokens.error.withValues(alpha: 0.1),
         border: Border.all(color: HaccpDesignTokens.error),
         borderRadius: BorderRadius.circular(HaccpDesignTokens.inputRadius),
       ),
@@ -69,7 +105,15 @@ class HaccpDropdown extends ConsumerWidget {
     );
   }
 
-  Widget _buildDropdown(BuildContext context, List<String> options) {
+  Widget _buildDropdown(BuildContext context, List<_DropdownOption> options) {
+    String? selectedLabel;
+    for (final option in options) {
+      if (option.id == value) {
+        selectedLabel = option.label;
+        break;
+      }
+    }
+
     return GestureDetector(
       onTap: () => _showSelectionSheet(context, options),
       child: Container(
@@ -84,10 +128,10 @@ class HaccpDropdown extends ConsumerWidget {
           children: [
             Expanded(
               child: Text(
-                value ?? 'Wybierz z listy...',
+                selectedLabel ?? 'Wybierz z listy...',
                 style: TextStyle(
                   fontSize: 16,
-                  color: value == null ? Colors.white54 : Colors.white,
+                  color: selectedLabel == null ? Colors.white54 : Colors.white,
                 ),
               ),
             ),
@@ -98,7 +142,7 @@ class HaccpDropdown extends ConsumerWidget {
     );
   }
 
-  void _showSelectionSheet(BuildContext context, List<String> options) {
+  void _showSelectionSheet(BuildContext context, List<_DropdownOption> options) {
     showModalBottomSheet(
       context: context,
       backgroundColor: HaccpDesignTokens.background,
@@ -107,32 +151,45 @@ class HaccpDropdown extends ConsumerWidget {
       ),
       builder: (ctx) => Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
               padding: EdgeInsets.only(bottom: 10),
-              child: Text("Wybierz opcję", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              child: Text(
+                'Wybierz opcje',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
             Expanded(
               child: ListView.builder(
                 itemCount: options.length,
-                itemBuilder: (ctx, i) {
+                itemBuilder: (itemCtx, i) {
                   final option = options[i];
-                  final isSelected = option == value;
+                  final isSelected = option.id == value;
                   return ListTile(
                     title: Text(
-                      option, 
+                      option.label,
                       style: TextStyle(
-                        color: isSelected ? HaccpDesignTokens.primary : Colors.white,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+                        color:
+                            isSelected ? HaccpDesignTokens.primary : Colors.white,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
-                    trailing: isSelected ? const Icon(Icons.check, color: HaccpDesignTokens.primary) : null,
+                    trailing: isSelected
+                        ? const Icon(Icons.check, color: HaccpDesignTokens.primary)
+                        : null,
                     onTap: () {
-                      onChanged(option);
-                      Navigator.pop(ctx);
+                      onChanged(option.id);
+                      Navigator.pop(itemCtx);
                     },
                   );
                 },

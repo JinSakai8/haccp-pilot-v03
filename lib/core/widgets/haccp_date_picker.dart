@@ -25,9 +25,9 @@ class HaccpDatePicker extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white70,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
         ),
         const SizedBox(height: 8),
         InkWell(
@@ -45,13 +45,19 @@ class HaccpDatePicker extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  value != null ? DateFormat('yyyy-MM-dd').format(value!) : '---- -- --',
+                  value != null
+                      ? DateFormat('yyyy-MM-dd').format(value!)
+                      : '---- -- --',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: value != null ? Colors.white : Colors.white54,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: value != null ? Colors.white : Colors.white54,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const Icon(Icons.calendar_today, color: Colors.white54, size: 32),
+                const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white54,
+                  size: 32,
+                ),
               ],
             ),
           ),
@@ -75,7 +81,9 @@ class HaccpDatePicker extends StatelessWidget {
               surface: Color(0xFF1E1E1E),
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1E1E1E),
+            dialogTheme: DialogThemeData(
+              backgroundColor: const Color(0xFF1E1E1E),
+            ),
           ),
           child: child!,
         );

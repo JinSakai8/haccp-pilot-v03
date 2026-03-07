@@ -86,6 +86,7 @@ flutter:
   assets:
     - .env
     - assets/fonts/
+    - assets/images/
     # - assets/credentials.json
 
 

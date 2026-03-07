@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/m01_auth/screens/splash_screen.dart';
 import '../../features/m01_auth/screens/pin_pad_screen.dart';
@@ -26,6 +25,7 @@ import '../../features/m08_settings/screens/global_settings_screen.dart';
 import '../../features/m08_settings/screens/manage_products_screen.dart';
 import '../../features/m06_reports/screens/reports_panel_screen.dart';
 import '../../features/m06_reports/screens/pdf_preview_screen.dart';
+import '../../features/m06_reports/screens/ccp2_preview_screen.dart';
 import '../../features/m06_reports/screens/ccp3_preview_screen.dart';
 import '../../features/m06_reports/screens/saved_reports_screen.dart';
 import '../../features/m06_reports/screens/drive_status_screen.dart';
@@ -45,7 +45,8 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       final employee = ref.read(currentUserProvider);
       final isLoggedIn = employee != null;
-      final isAuthRoute = state.matchedLocation == '/' || state.matchedLocation == '/login';
+      final isAuthRoute =
+          state.matchedLocation == '/' || state.matchedLocation == '/login';
 
       // Guard 1: Not logged in -> force login
       if (!isLoggedIn && !isAuthRoute) return '/login';
@@ -54,8 +55,10 @@ GoRouter appRouter(Ref ref) {
       if (isLoggedIn && isAuthRoute) return '/hub';
 
       // Guard 3: Role-based (M07 HR)
-      final isHrRoute = state.matchedLocation.startsWith('/hr');
-      if (isHrRoute) {
+      final isManagerRoute =
+          state.matchedLocation.startsWith('/hr') ||
+          state.matchedLocation.startsWith('/settings');
+      if (isManagerRoute) {
         if (employee == null || !employee.isManager) {
           return '/hub'; // Silent redirect if not authorized
         }
@@ -64,10 +67,7 @@ GoRouter appRouter(Ref ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/login',
         builder: (context, state) => const PinPadScreen(),
@@ -80,7 +80,7 @@ GoRouter appRouter(Ref ref) {
         path: '/hub',
         builder: (context, state) => const DashboardHubScreen(),
       ),
-      
+
       // M02 Monitoring
       GoRoute(
         path: '/monitoring',
@@ -93,11 +93,11 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/monitoring/chart/:deviceId',
         builder: (context, state) {
-           final deviceId = state.pathParameters['deviceId'] ?? 'unknown';
-           return SensorChartScreen(deviceId: deviceId);
+          final deviceId = state.pathParameters['deviceId'] ?? 'unknown';
+          return SensorChartScreen(deviceId: deviceId);
         },
       ),
-      
+
       // M03 GMP
       GoRoute(
         path: RouteNames.gmp,
@@ -132,8 +132,9 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/waste/camera',
         builder: (context, state) {
-           final venueId = ref.read(currentUserProvider)?.venues.firstOrNull ?? 'default'; 
-           return HaccpCameraScreen(venueId: venueId);
+          final venueId =
+              ref.read(currentUserProvider)?.venues.firstOrNull ?? 'default';
+          return HaccpCameraScreen(venueId: venueId);
         },
       ),
       GoRoute(
@@ -149,7 +150,8 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/ghp/checklist',
         builder: (context, state) {
-          final categoryId = state.extra as String? ?? 'personnel'; // Default fallback
+          final categoryId =
+              state.extra as String? ?? 'personnel'; // Default fallback
           return GhpChecklistScreen(categoryId: categoryId);
         },
       ),
@@ -187,8 +189,31 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/reports/preview/ccp3',
         builder: (context, state) {
-          final dateStr = state.uri.queryParameters['date'] ?? DateTime.now().toIso8601String().split('T')[0];
-          return Ccp3PreviewScreen(date: DateTime.tryParse(dateStr) ?? DateTime.now());
+          final dateStr =
+              state.uri.queryParameters['date'] ??
+              DateTime.now().toIso8601String().split('T')[0];
+          final forceRegenerate =
+              state.uri.queryParameters['force'] == '1' ||
+              state.uri.queryParameters['force']?.toLowerCase() == 'true';
+          return Ccp3PreviewScreen(
+            date: DateTime.tryParse(dateStr) ?? DateTime.now(),
+            forceRegenerate: forceRegenerate,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/reports/preview/ccp2',
+        builder: (context, state) {
+          final dateStr =
+              state.uri.queryParameters['date'] ??
+              DateTime.now().toIso8601String().split('T')[0];
+          final forceRegenerate =
+              state.uri.queryParameters['force'] == '1' ||
+              state.uri.queryParameters['force']?.toLowerCase() == 'true';
+          return Ccp2PreviewScreen(
+            date: DateTime.tryParse(dateStr) ?? DateTime.now(),
+            forceRegenerate: forceRegenerate,
+          );
         },
       ),
       GoRoute(

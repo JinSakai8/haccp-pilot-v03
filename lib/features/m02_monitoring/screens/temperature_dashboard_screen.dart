@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:haccp_pilot/core/providers/auth_provider.dart';
 import 'package:haccp_pilot/core/widgets/haccp_top_bar.dart';
 import 'package:haccp_pilot/features/m02_monitoring/providers/monitoring_provider.dart';
@@ -108,7 +109,7 @@ class _SensorCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 if (latestLog != null)
                   Text(
-                    "Ostatni pomiar: ${latestLog!.recordedAt.hour}:${latestLog!.recordedAt.minute.toString().padLeft(2, '0')}",
+                    "Ostatni pomiar: ${DateFormat('HH:mm').format(latestLog!.recordedAt)}",
                     style: Theme.of(context).textTheme.bodyMedium,
                   )
                 else
