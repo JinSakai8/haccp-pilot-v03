@@ -30,16 +30,16 @@ class TemperatureLog {
       id: json['id'] as String,
       sensorId: json['sensor_id'] as String,
       temperature: (json['temperature_celsius'] as num).toDouble(),
-      recordedAt: DateTime.parse(json['recorded_at'] as String),
+      recordedAt: DateTime.parse(json['recorded_at'] as String).toLocal(),
       isAlert: json['is_alert'] as bool? ?? false,
       isAcknowledged: json['is_acknowledged'] as bool? ?? false,
       acknowledgedBy: json['acknowledged_by'] as String?,
       acknowledgedAt: json['acknowledged_at'] != null
-          ? DateTime.parse(json['acknowledged_at'] as String)
+          ? DateTime.parse(json['acknowledged_at'] as String).toLocal()
           : null,
       editedBy: json['edited_by'] as String?,
       editedAt: json['edited_at'] != null
-          ? DateTime.parse(json['edited_at'] as String)
+          ? DateTime.parse(json['edited_at'] as String).toLocal()
           : null,
       editReason: json['edit_reason'] as String?,
     );

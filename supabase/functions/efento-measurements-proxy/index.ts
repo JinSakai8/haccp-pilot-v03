@@ -1,3 +1,5 @@
+import { parseEfentoWarsawWallClockToUtcIso } from "../_shared/efento_timezone.ts";
+
 const JSON_HEADERS: HeadersInit = {
   "content-type": "application/json; charset=utf-8",
 };
@@ -52,36 +54,15 @@ function twoDigits(value: number): string {
 }
 
 function formatEfentoDateTimeUtc(value: Date): string {
-  return `${value.getUTCFullYear()}-${twoDigits(value.getUTCMonth() + 1)}-${twoDigits(value.getUTCDate())} ${
-    twoDigits(value.getUTCHours())
-  }:${twoDigits(value.getUTCMinutes())}:${twoDigits(value.getUTCSeconds())}`;
+  return `${value.getUTCFullYear()}-${twoDigits(value.getUTCMonth() + 1)}-${
+    twoDigits(value.getUTCDate())
+  } ${twoDigits(value.getUTCHours())}:${twoDigits(value.getUTCMinutes())}:${
+    twoDigits(value.getUTCSeconds())
+  }`;
 }
 
 function parseEfentoDateTimeToIso(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  const matched = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(trimmed);
-  if (matched) {
-    const year = Number.parseInt(matched[1], 10);
-    const month = Number.parseInt(matched[2], 10);
-    const day = Number.parseInt(matched[3], 10);
-    const hour = Number.parseInt(matched[4], 10);
-    const minute = Number.parseInt(matched[5], 10);
-    const second = Number.parseInt(matched[6], 10);
-    return new Date(Date.UTC(year, month - 1, day, hour, minute, second)).toISOString();
-  }
-
-  const fallback = new Date(trimmed);
-  if (Number.isNaN(fallback.getTime())) {
-    return null;
-  }
-  return fallback.toISOString();
+  return parseEfentoWarsawWallClockToUtcIso(value);
 }
 
 function extractApiToken(request: Request): string | null {
@@ -110,7 +91,9 @@ function truncate(value: string, maxLength: number): string {
   return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
-function buildTypeMap(measurementPoint: Record<string, unknown> | null): Map<number, string> {
+function buildTypeMap(
+  measurementPoint: Record<string, unknown> | null,
+): Map<number, string> {
   const map = new Map<number, string>();
   if (!measurementPoint) {
     return map;
@@ -129,7 +112,9 @@ function buildTypeMap(measurementPoint: Record<string, unknown> | null): Map<num
         continue;
       }
       const number = toPositiveInteger(channel.number);
-      const type = typeof channel.type === "string" ? channel.type.trim().toUpperCase() : "";
+      const type = typeof channel.type === "string"
+        ? channel.type.trim().toUpperCase()
+        : "";
       if (number && type.length > 0) {
         map.set(number, type);
       }
@@ -139,12 +124,24 @@ function buildTypeMap(measurementPoint: Record<string, unknown> | null): Map<num
   return map;
 }
 
-function buildFrame(upstreamPayload: Record<string, unknown>, fallbackMeasurementPointId: number):
-  | { ok: true; value: Record<string, unknown> | null; measurementsCount: number }
+function buildFrame(
+  upstreamPayload: Record<string, unknown>,
+  fallbackMeasurementPointId: number,
+):
+  | {
+    ok: true;
+    value: Record<string, unknown> | null;
+    measurementsCount: number;
+  }
   | { ok: false; error: string } {
-  const measurements = Array.isArray(upstreamPayload.measurements) ? upstreamPayload.measurements : null;
+  const measurements = Array.isArray(upstreamPayload.measurements)
+    ? upstreamPayload.measurements
+    : null;
   if (!measurements) {
-    return { ok: false, error: "Upstream payload does not include measurements array." };
+    return {
+      ok: false,
+      error: "Upstream payload does not include measurements array.",
+    };
   }
 
   if (measurements.length === 0) {
@@ -152,20 +149,28 @@ function buildFrame(upstreamPayload: Record<string, unknown>, fallbackMeasuremen
   }
 
   const measurementPoint = asObject(upstreamPayload.measurementPoint);
-  const measurementPointId = toPositiveInteger(measurementPoint?.id) ?? fallbackMeasurementPointId;
+  const measurementPointId = toPositiveInteger(measurementPoint?.id) ??
+    fallbackMeasurementPointId;
   if (measurementPointId <= 0) {
-    return { ok: false, error: "Cannot resolve measurementPointId from upstream payload." };
+    return {
+      ok: false,
+      error: "Cannot resolve measurementPointId from upstream payload.",
+    };
   }
 
-  const measuredByDevices = Array.isArray(upstreamPayload.measuredByDevices) ? upstreamPayload.measuredByDevices : [];
+  const measuredByDevices = Array.isArray(upstreamPayload.measuredByDevices)
+    ? upstreamPayload.measuredByDevices
+    : [];
   const measuredByDevice = measuredByDevices
     .map((entry) => asObject(entry))
     .find((entry): entry is Record<string, unknown> => entry !== null);
 
   const device = asObject(measurementPoint?.device);
-  const deviceSerialNumber = typeof device?.serialNumber === "string" && device.serialNumber.trim().length > 0
+  const deviceSerialNumber = typeof device?.serialNumber === "string" &&
+      device.serialNumber.trim().length > 0
     ? device.serialNumber.trim()
-    : (typeof measuredByDevice?.serialNumber === "string" && measuredByDevice.serialNumber.trim().length > 0
+    : (typeof measuredByDevice?.serialNumber === "string" &&
+        measuredByDevice.serialNumber.trim().length > 0
       ? measuredByDevice.serialNumber.trim()
       : `EFENTO-${measurementPointId}`);
 
@@ -207,10 +212,14 @@ function buildFrame(upstreamPayload: Record<string, unknown>, fallbackMeasuremen
       }
 
       const existing = eventsByChannel.get(channelNumber) ?? [];
-      const value = typeof channel.value === "number" && Number.isFinite(channel.value) ? channel.value : null;
-      const status = typeof channel.status === "string" && channel.status.trim().length > 0
-        ? channel.status.trim().toUpperCase()
-        : "UNKNOWN";
+      const value =
+        typeof channel.value === "number" && Number.isFinite(channel.value)
+          ? channel.value
+          : null;
+      const status =
+        typeof channel.status === "string" && channel.status.trim().length > 0
+          ? channel.status.trim().toUpperCase()
+          : "UNKNOWN";
       existing.push({
         timestampIso: measuredAtIso,
         status,
@@ -228,9 +237,14 @@ function buildFrame(upstreamPayload: Record<string, unknown>, fallbackMeasuremen
   const measurementsEvents = Array.from(eventsByChannel.entries())
     .sort((a, b) => a[0] - b[0])
     .map(([channelNumber, events]) => {
-      events.sort((a, b) => new Date(a.timestampIso).getTime() - new Date(b.timestampIso).getTime());
-      const hasNumericValue = events.some((event) => typeof event.value === "number");
-      const channelType = channelTypeMap.get(channelNumber) ?? (hasNumericValue ? "TEMPERATURE" : "UNKNOWN");
+      events.sort((a, b) =>
+        new Date(a.timestampIso).getTime() - new Date(b.timestampIso).getTime()
+      );
+      const hasNumericValue = events.some((event) =>
+        typeof event.value === "number"
+      );
+      const channelType = channelTypeMap.get(channelNumber) ??
+        (hasNumericValue ? "TEMPERATURE" : "UNKNOWN");
       return {
         channelNumber,
         channelType,
@@ -272,12 +286,15 @@ Deno.serve(async (request) => {
   if (!apiToken) {
     return jsonResponse(401, {
       error: "missing_api_token",
-      message: "Missing Efento API token in authorization or x-efento-api-token header.",
+      message:
+        "Missing Efento API token in authorization or x-efento-api-token header.",
     });
   }
 
   const url = new URL(request.url);
-  const measurementPointId = toPositiveInteger(url.searchParams.get("measurementPointId"));
+  const measurementPointId = toPositiveInteger(
+    url.searchParams.get("measurementPointId"),
+  );
   if (!measurementPointId) {
     return jsonResponse(400, {
       error: "invalid_measurement_point_id",
@@ -301,7 +318,9 @@ Deno.serve(async (request) => {
     });
   }
 
-  const upstreamUrl = new URL(`https://cloud.efento.io/api/v2/measurement-points/${measurementPointId}/measurements`);
+  const upstreamUrl = new URL(
+    `https://cloud.efento.io/api/v2/measurement-points/${measurementPointId}/measurements`,
+  );
   upstreamUrl.searchParams.set("from", formatEfentoDateTimeUtc(fromDate));
   upstreamUrl.searchParams.set("to", formatEfentoDateTimeUtc(toDate));
 

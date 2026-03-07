@@ -31,12 +31,12 @@ class AlarmListItem {
           ? json['sensor_name'] as String
           : 'Sensor',
       temperature: (json['temperature'] as num).toDouble(),
-      startedAt: DateTime.parse(json['started_at'] as String),
-      lastSeenAt: DateTime.parse(json['last_seen_at'] as String),
+      startedAt: DateTime.parse(json['started_at'] as String).toLocal(),
+      lastSeenAt: DateTime.parse(json['last_seen_at'] as String).toLocal(),
       durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 0,
       isAcknowledged: json['is_acknowledged'] as bool? ?? false,
       acknowledgedAt: json['acknowledged_at'] != null
-          ? DateTime.parse(json['acknowledged_at'] as String)
+          ? DateTime.parse(json['acknowledged_at'] as String).toLocal()
           : null,
       acknowledgedBy: json['acknowledged_by'] as String?,
     );
